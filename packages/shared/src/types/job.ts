@@ -1,0 +1,54 @@
+export enum JobStatus {
+  ACTIVE = 'ACTIVE',
+  COMPLETED = 'COMPLETED',
+  ARCHIVED = 'ARCHIVED',
+}
+
+export enum CostCodeCategory {
+  MATERIALS = 'MATERIALS',
+  LABOR = 'LABOR',
+  EQUIPMENT = 'EQUIPMENT',
+  SUBCONTRACTOR = 'SUBCONTRACTOR',
+  OVERHEAD = 'OVERHEAD',
+}
+
+export interface Job {
+  id: string;
+  organizationId: string;
+  name: string;
+  customerName: string | null;
+  customerAddress: string | null;
+  customerLat: number | null;
+  customerLng: number | null;
+  status: JobStatus;
+  /** Budget amounts in cents */
+  budgetTotal: number | null;
+  budgetMaterials: number | null;
+  budgetLabor: number | null;
+  startDate: Date | null;
+  endDate: Date | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CostCode {
+  id: string;
+  organizationId: string;
+  code: string;
+  name: string;
+  category: CostCodeCategory;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BudgetSummary {
+  totalBudget: number;
+  totalSpent: number;
+  totalRemaining: number;
+  materialsBudget: number;
+  materialsSpent: number;
+  laborBudget: number;
+  laborSpent: number;
+  byCategory: Record<CostCodeCategory, { budget: number; spent: number }>;
+}

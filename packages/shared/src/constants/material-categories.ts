@@ -1,0 +1,18 @@
+export enum MaterialCategory {
+  LUMBER = 'LUMBER',
+  ELECTRICAL = 'ELECTRICAL',
+  PLUMBING = 'PLUMBING',
+  ROOFING = 'ROOFING',
+  HARDWARE = 'HARDWARE',
+  PAINT = 'PAINT',
+  FASTENERS = 'FASTENERS',
+  CONCRETE = 'CONCRETE',
+  INSULATION = 'INSULATION',
+  DRYWALL = 'DRYWALL',
+  FLOORING = 'FLOORING',
+  TOOLS = 'TOOLS',
+  SAFETY = 'SAFETY',
+  OTHER = 'OTHER',
+}
+
+export const MATERIAL_CATEGORY_VALUES = Object.values(MaterialCategory);

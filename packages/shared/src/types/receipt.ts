@@ -1,0 +1,98 @@
+import { MaterialCategory } from '../constants/material-categories';
+
+export enum ReceiptStatus {
+  PROCESSING = 'PROCESSING',
+  REVIEW = 'REVIEW',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
+export enum PaymentMethod {
+  CASH = 'CASH',
+  CREDIT = 'CREDIT',
+  DEBIT = 'DEBIT',
+  CHECK = 'CHECK',
+  ACCOUNT = 'ACCOUNT',
+}
+
+export interface Receipt {
+  id: string;
+  organizationId: string;
+  uploadedById: string;
+  imageUrl: string;
+  thumbnailUrl: string | null;
+  status: ReceiptStatus;
+  ocrRawJson: unknown | null;
+  merchantName: string | null;
+  merchantAddress: string | null;
+  /** In cents */
+  subtotal: number | null;
+  /** In cents */
+  taxAmount: number | null;
+  /** In cents */
+  totalAmount: number | null;
+  transactionDate: Date | null;
+  currency: string;
+  processedAt: Date | null;
+  confidenceScore: string | null;
+  suggestedJobId: string | null;
+  autoAssigned: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface ReceiptLineItem {
+  id: string;
+  receiptId: string;
+  description: string;
+  sku: string | null;
+  quantity: number;
+  /** In cents */
+  unitPrice: number;
+  /** In cents */
+  totalPrice: number;
+  isConstructionMaterial: boolean;
+  materialCategory: MaterialCategory | null;
+  costCodeId: string | null;
+  jobId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OcrResult {
+  merchant: {
+    name: string;
+    address: string | null;
+    phone: string | null;
+    store_number: string | null;
+  };
+  transaction: {
+    date: string;
+    time: string | null;
+    receipt_number: string | null;
+    payment_method: string;
+    card_last_four: string | null;
+    account_number: string | null;
+  };
+  line_items: Array<{
+    description: string;
+    sku: string | null;
+    quantity: number;
+    unit_price: number;
+    total_price: number;
+    is_construction_material: boolean;
+    material_category: string;
+  }>;
+  totals: {
+    subtotal: number;
+    tax_amount: number;
+    tax_rate_percent: number | null;
+    tip_amount: number | null;
+    discount_amount: number | null;
+    total_amount: number;
+  };
+  confidence: {
+    overall: 'high' | 'medium' | 'low';
+    notes: string;
+  };
+}
