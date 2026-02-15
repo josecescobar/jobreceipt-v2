@@ -1,0 +1,40 @@
+import React from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors, spacing } from '../../theme';
+
+interface ScreenProps {
+  children: React.ReactNode;
+  padded?: boolean;
+  style?: ViewStyle;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
+}
+
+export function Screen({
+  children,
+  padded = true,
+  style,
+  edges = ['top'],
+}: ScreenProps) {
+  return (
+    <SafeAreaView style={styles.safe} edges={edges}>
+      <View style={[styles.container, padded && styles.padded, style]}>
+        {children}
+      </View>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  padded: {
+    paddingHorizontal: spacing.lg,
+  },
+});

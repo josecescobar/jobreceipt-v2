@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "JobReceipt",
+    "slug": "jobreceipt",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "jobreceipt",
+    "splash": {
+      "backgroundColor": "#0F1117"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.jobreceipt.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "JobReceipt needs camera access to scan receipts.",
+        "NSPhotoLibraryUsageDescription": "JobReceipt needs photo library access to import receipt photos.",
+        "NSLocationWhenInUseUsageDescription": "JobReceipt uses your location to track mileage for tax deductions.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "JobReceipt uses background location to accurately track mileage trips."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0F1117"
+      },
+      "package": "com.jobreceipt.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "JobReceipt needs camera access to scan receipts."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "JobReceipt needs photo library access to import receipt photos."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "JobReceipt uses your location to track mileage for tax deductions.",
+          "locationAlwaysAndWhenInUsePermission": "JobReceipt uses background location to accurately track mileage trips."
+        }
+      ],
+      "expo-asset",
+      "expo-font"
+    ]
+  }
+}
