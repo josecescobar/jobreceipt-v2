@@ -1,135 +1,90 @@
-# Turborepo starter
+# JobReceipt
 
-This Turborepo starter is maintained by the Turborepo core team.
+Receipt scanning, expense tracking, and job costing for contractors.
 
-## Using this example
+## Architecture
 
-Run the following command:
-
-```sh
-npx create-turbo@latest
-```
-
-## What's inside?
-
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
+Turborepo monorepo with three packages:
 
 ```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+apps/
+  api/       → NestJS backend (Prisma, BullMQ, Claude Vision OCR)
+  mobile/    → React Native Expo app (SDK 52, expo-router)
+packages/
+  shared/    → Types, constants, Zod validators
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Tech Stack
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
+**Backend:** NestJS, Prisma, PostgreSQL, BullMQ (Redis), Claude Vision for OCR
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-```
+**Mobile:** React Native, Expo SDK 52, expo-router, TanStack Query, Zustand, WatermelonDB (offline sync)
 
-### Develop
+**Auth:** Clerk
 
-To develop all apps and packages, run the following command:
+**Infra:** Turborepo, TypeScript, npm workspaces
 
-```
-cd my-turborepo
+## Features
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+- Camera-based receipt capture with HEIC→JPEG processing
+- AI-powered OCR with line-item extraction and tax categorization
+- Job costing with budget tracking and category breakdowns
+- Expense management with Schedule C tax category mapping
+- GPS mileage tracking with IRS rate calculations
+- Offline-first with WatermelonDB sync engine
+- Multi-tenant via Clerk organizations
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
+## Getting Started
+
+### Prerequisites
+
+- Node.js >= 18
+- PostgreSQL
+- Redis
+
+### Setup
+
+```bash
+# Install dependencies
+npm install
+
+# Set up environment variables
+cp apps/api/.env.example apps/api/.env
+
+# Run database migrations
+npx turbo run db:migrate --filter=api
+
+# Start all apps in development
 npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### Run a specific app
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
+```bash
+# API only
+npx turbo dev --filter=api
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+# Mobile only
+npx turbo dev --filter=mobile
 ```
 
-### Remote Caching
+### Run tests
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```bash
+npx turbo test
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+## Project Structure
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
+| Path | Description |
+|------|-------------|
+| `apps/api/prisma/schema.prisma` | Database schema (14 models, 9 enums) |
+| `apps/api/src/queue/receipt-ocr.processor.ts` | OCR processing pipeline |
+| `apps/api/src/modules/receipts/job-suggestion.service.ts` | Job matching algorithm |
+| `apps/mobile/app/` | Expo Router file-based screens |
+| `apps/mobile/src/db/sync/engine.ts` | Offline sync engine |
+| `packages/shared/src/constants/tax-categories.ts` | Schedule C category mapping |
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
+## License
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+Private
