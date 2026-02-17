@@ -18,6 +18,8 @@ class OfflineQueue {
   private processing = false;
   private unsubscribe: (() => void) | null = null;
 
+  onSync?: (syncedCount: number, remainingCount: number) => void;
+
   async enqueue(action: Omit<QueuedAction, 'id' | 'retryCount' | 'createdAt'>) {
     const queue = await this.getQueue();
     queue.push({
@@ -62,6 +64,11 @@ class OfflineQueue {
       }
 
       await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(remaining));
+
+      const syncedCount = queue.length - remaining.length;
+      if (syncedCount > 0) {
+        this.onSync?.(syncedCount, remaining.length);
+      }
     } finally {
       this.processing = false;
     }

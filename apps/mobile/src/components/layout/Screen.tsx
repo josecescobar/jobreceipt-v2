@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { OfflineBanner } from '../ui/OfflineBanner';
 import { colors, spacing } from '../../theme';
 
 interface ScreenProps {
@@ -18,6 +19,7 @@ export function Screen({
 }: ScreenProps) {
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
+      <OfflineBanner />
       <View style={[styles.container, padded && styles.padded, style]}>
         {children}
       </View>

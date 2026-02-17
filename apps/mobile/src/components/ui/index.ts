@@ -12,3 +12,4 @@ export { ToastContainer } from './ToastContainer';
 export { ErrorBoundary } from './ErrorBoundary';
 export { SkeletonLoader } from './SkeletonLoader';
 export { DatePickerField } from './DatePickerField';
+export { OfflineBanner } from './OfflineBanner';
