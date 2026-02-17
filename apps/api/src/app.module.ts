@@ -10,6 +10,7 @@ import { ExpensesModule } from './modules/expenses/expenses.module';
 import { CostCodesModule } from './modules/cost-codes/cost-codes.module';
 import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { MileageModule } from './modules/mileage/mileage.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 
 @Module({
   controllers: [AppController],
@@ -24,6 +25,7 @@ import { MileageModule } from './modules/mileage/mileage.module';
     CostCodesModule,
     ReceiptsModule,
     MileageModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

@@ -16,3 +16,10 @@ export const expenseKeys = {
   details: () => [...expenseKeys.all, 'detail'] as const,
   detail: (id: string) => [...expenseKeys.details(), id] as const,
 };
+
+export const analyticsKeys = {
+  all: ['analytics'] as const,
+  summaries: () => [...analyticsKeys.all, 'summary'] as const,
+  summary: (params: { startDate?: string; endDate?: string }) =>
+    [...analyticsKeys.summaries(), params] as const,
+};

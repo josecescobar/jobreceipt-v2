@@ -1,0 +1,24 @@
+import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
+import { OrgMemberGuard } from '../../common/guards/org-member.guard';
+import { CurrentOrg } from '../../common/decorators/current-org.decorator';
+import { AnalyticsService } from './analytics.service';
+import { QueryAnalyticsDto } from './dto/query-analytics.dto';
+
+@ApiTags('Analytics')
+@Controller('analytics')
+@UseGuards(ClerkAuthGuard, OrgMemberGuard)
+@ApiBearerAuth()
+export class AnalyticsController {
+  constructor(private readonly analyticsService: AnalyticsService) {}
+
+  @Get('summary')
+  @ApiOperation({ summary: 'Get analytics summary with aggregated data' })
+  async getSummary(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryAnalyticsDto,
+  ) {
+    return this.analyticsService.getSummary(orgId, query);
+  }
+}
