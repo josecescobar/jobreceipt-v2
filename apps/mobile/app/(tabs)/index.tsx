@@ -8,23 +8,27 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
-import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '../../src/components/layout';
-import { Card, ProgressBar, Badge } from '../../src/components/ui';
-import { ReceiptStatusBadge } from '../../src/components/receipt';
+import { Card, ProgressBar } from '../../src/components/ui';
+import { QuickActionGrid, ActivityFeed } from '../../src/components/dashboard';
+import type { QuickAction, ActivityItem } from '../../src/components/dashboard';
 import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useExpenses } from '../../src/hooks/useExpenses';
-import { useMileageSummary } from '../../src/hooks/useMileage';
+import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
 import { useBudget } from '../../src/hooks/useBudget';
-import { formatMoney, formatDate, formatMiles } from '../../src/lib/format';
+import { formatMoney } from '../../src/lib/format';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { Ionicons } from '@expo/vector-icons';
 
-const QUICK_ACTIONS = [
-  { label: 'Scan Receipt', icon: 'camera' as const, route: '/capture', color: colors.primary },
-  { label: 'Add Expense', icon: 'wallet' as const, route: '/expense/create', color: colors.success },
-  { label: 'Log Mileage', icon: 'car' as const, route: '/mileage/create', color: colors.warning },
+const QUICK_ACTIONS: QuickAction[] = [
+  { label: 'Scan Receipt', icon: 'camera', route: '/capture', color: colors.primary },
+  { label: 'Add Expense', icon: 'wallet', route: '/expense/create', color: colors.success },
+  { label: 'Log Mileage', icon: 'car', route: '/mileage/create', color: colors.warning },
+  { label: 'New Job', icon: 'briefcase', route: '/job/create', color: colors.textSecondary },
 ];
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -47,14 +51,78 @@ export default function HomeScreen() {
   const { data: mileageSummary } = useMileageSummary();
 
   const { data: expensesData } = useExpenses({ limit: 100 });
-  const monthTotal = useMemo(() => {
-    const allExpenses = expensesData?.pages?.flatMap((p) => p.data) ?? [];
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    return allExpenses
-      .filter((e) => new Date(e.date) >= monthStart)
-      .reduce((sum, e) => sum + e.amount, 0);
-  }, [expensesData]);
+  const allExpenses = useMemo(
+    () => expensesData?.pages?.flatMap((p) => p.data) ?? [],
+    [expensesData],
+  );
+
+  const { data: mileageData } = useMileageTrips({ limit: 5 });
+  const recentMileage = useMemo(
+    () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
+    [mileageData],
+  );
+
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthLabel = `${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+
+  const monthExpenseTotal = useMemo(
+    () =>
+      allExpenses
+        .filter((e) => new Date(e.date) >= monthStart)
+        .reduce((sum, e) => sum + e.amount, 0),
+    [allExpenses],
+  );
+
+  const monthMileageTotal = mileageSummary?.totalDeduction ?? 0;
+  const monthTotal = monthExpenseTotal + monthMileageTotal;
+
+  // Build job name map for expense activity items
+  const jobNameMap = useMemo(
+    () => Object.fromEntries(activeJobs.map((j) => [j.id, j.name])),
+    [activeJobs],
+  );
+
+  // Merge recent activity
+  const activityItems: ActivityItem[] = useMemo(() => {
+    const items: ActivityItem[] = [];
+
+    for (const r of recentReceipts) {
+      items.push({
+        type: 'receipt',
+        id: r.id,
+        date: (r.transactionDate ?? r.createdAt)?.toString() ?? '',
+        merchantName: r.merchantName,
+        totalAmount: r.totalAmount,
+        status: r.status,
+      });
+    }
+
+    for (const e of allExpenses.slice(0, 5)) {
+      items.push({
+        type: 'expense',
+        id: e.id,
+        date: e.date?.toString() ?? '',
+        description: e.description,
+        amount: e.amount,
+        jobName: e.jobId ? jobNameMap[e.jobId] : undefined,
+      });
+    }
+
+    for (const m of recentMileage) {
+      items.push({
+        type: 'mileage',
+        id: m.id,
+        date: m.date?.toString() ?? '',
+        distanceMiles: m.distanceMiles,
+        totalDeduction: m.totalDeduction,
+        purpose: m.purpose ?? null,
+      });
+    }
+
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return items.slice(0, 10);
+  }, [recentReceipts, allExpenses, recentMileage, jobNameMap]);
 
   const topJob = activeJobs[0];
   const topJobBudget = useBudget(topJob?.id ?? '');
@@ -67,21 +135,7 @@ export default function HomeScreen() {
         <Text style={styles.subGreeting}>Here's your business overview</Text>
 
         {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          {QUICK_ACTIONS.map((action) => (
-            <TouchableOpacity
-              key={action.route}
-              style={styles.quickActionCard}
-              onPress={() => router.push(action.route as any)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
-                <Ionicons name={action.icon} size={22} color={action.color} />
-              </View>
-              <Text style={styles.quickActionLabel}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+        <QuickActionGrid actions={QUICK_ACTIONS} />
 
         {/* Pending review banner */}
         {reviewCount > 0 && (
@@ -116,7 +170,7 @@ export default function HomeScreen() {
             activeOpacity={0.7}
           >
             <Text style={styles.statValue}>{formatMoney(monthTotal)}</Text>
-            <Text style={styles.statLabel}>This Month</Text>
+            <Text style={styles.statLabel}>{monthLabel}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.statCard}
@@ -162,39 +216,9 @@ export default function HomeScreen() {
           </>
         )}
 
-        {/* Recent receipts */}
-        <Text style={styles.sectionTitle}>Recent Receipts</Text>
-        {recentReceipts.length === 0 ? (
-          <Text style={styles.emptyText}>
-            No receipts yet. Scan your first receipt to get started.
-          </Text>
-        ) : (
-          recentReceipts.map((receipt) => (
-            <TouchableOpacity
-              key={receipt.id}
-              style={styles.receiptRow}
-              onPress={() => router.push(`/receipt/${receipt.id}`)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.receiptInfo}>
-                <Text style={styles.receiptMerchant} numberOfLines={1}>
-                  {receipt.merchantName || 'Processing...'}
-                </Text>
-                <View style={styles.receiptSubRow}>
-                  {receipt.transactionDate && (
-                    <Text style={styles.receiptDate}>
-                      {formatDate(receipt.transactionDate.toString())}
-                    </Text>
-                  )}
-                  <ReceiptStatusBadge status={receipt.status} />
-                </View>
-              </View>
-              <Text style={styles.receiptAmount}>
-                {receipt.totalAmount != null ? formatMoney(receipt.totalAmount) : '—'}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
+        {/* Recent activity */}
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <ActivityFeed items={activityItems} />
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -213,34 +237,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textMuted,
     marginBottom: spacing.xl,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  quickActionCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    alignItems: 'center',
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickActionIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  quickActionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    textAlign: 'center',
   },
   reviewBanner: {
     flexDirection: 'row',
@@ -318,44 +314,6 @@ const styles = StyleSheet.create({
   jobBudgetRemaining: {
     fontSize: 13,
     fontWeight: '600',
-    fontVariant: ['tabular-nums'],
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    paddingVertical: spacing.md,
-  },
-  receiptRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  receiptInfo: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  receiptMerchant: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  receiptSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2,
-  },
-  receiptDate: {
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  receiptAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
     fontVariant: ['tabular-nums'],
   },
   bottomSpacer: {
