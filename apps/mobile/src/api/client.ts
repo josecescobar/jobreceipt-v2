@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../lib/constants';
 import { useAuthStore } from '../stores/auth.store';
+import { offlineQueue } from '../lib/offline-queue';
 
 // Token getter injected by auth provider
 let getToken: (() => Promise<string | null>) | null = null;
@@ -37,11 +38,24 @@ apiClient.interceptors.request.use(async (config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid — let Clerk handle re-auth
-      console.warn('API 401: Token may be expired');
+      // Token expired or invalid — clear stale state so Clerk redirects to sign-in
+      useAuthStore.getState().reset();
+      return Promise.reject(error);
     }
+
+    // Network error on write operations — queue for offline retry
+    const method = error.config?.method?.toLowerCase();
+    if (!error.response && method && ['post', 'patch', 'put', 'delete'].includes(method)) {
+      await offlineQueue.enqueue({
+        method: method.toUpperCase() as 'POST' | 'PATCH' | 'DELETE',
+        url: error.config.url,
+        data: error.config.data ? JSON.parse(error.config.data) : undefined,
+      });
+      return { data: { __queued: true }, status: 202 };
+    }
+
     return Promise.reject(error);
   },
 );

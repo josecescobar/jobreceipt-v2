@@ -18,7 +18,7 @@ packages/
 
 **Backend:** NestJS, Prisma, PostgreSQL, BullMQ (Redis), Claude Vision for OCR
 
-**Mobile:** React Native, Expo SDK 52, expo-router, TanStack Query, Zustand, WatermelonDB (offline sync)
+**Mobile:** React Native, Expo SDK 52, expo-router, TanStack Query, Zustand, AsyncStorage offline queue
 
 **Auth:** Clerk
 
@@ -31,7 +31,7 @@ packages/
 - Job costing with budget tracking and category breakdowns
 - Expense management with Schedule C tax category mapping
 - GPS mileage tracking with IRS rate calculations
-- Offline-first with WatermelonDB sync engine
+- Offline resilience with AsyncStorage action queue
 - Multi-tenant via Clerk organizations
 
 ## Getting Started
@@ -82,7 +82,7 @@ npx turbo test
 | `apps/api/src/queue/receipt-ocr.processor.ts` | OCR processing pipeline |
 | `apps/api/src/modules/receipts/job-suggestion.service.ts` | Job matching algorithm |
 | `apps/mobile/app/` | Expo Router file-based screens |
-| `apps/mobile/src/db/sync/engine.ts` | Offline sync engine |
+| `apps/mobile/src/lib/offline-queue.ts` | Offline action queue |
 | `packages/shared/src/constants/tax-categories.ts` | Schedule C category mapping |
 
 ## License

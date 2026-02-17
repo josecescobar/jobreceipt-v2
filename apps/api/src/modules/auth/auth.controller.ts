@@ -1,18 +1,22 @@
 import {
   Controller,
+  Get,
   Post,
   Req,
   Res,
   HttpCode,
   HttpStatus,
   Logger,
+  UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
 import { Webhook } from 'svix';
 import { Request, Response } from 'express';
+import { createClerkClient } from '@clerk/backend';
 import { AuthService } from './auth.service';
+import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -23,6 +27,23 @@ export class AuthController {
     private authService: AuthService,
     private configService: ConfigService,
   ) {}
+
+  @Get('me')
+  @UseGuards(ClerkAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Bootstrap current user — returns profile and organizations, auto-creates org if needed' })
+  @ApiResponse({ status: 200, description: 'User profile with organizations' })
+  async me(@Req() req: Request) {
+    const clerkId = (req as any).clerkUserId;
+
+    // Fetch user details from Clerk to get email/name
+    const clerk = createClerkClient({ secretKey: this.configService.get<string>('clerk.secretKey') });
+    const clerkUser = await clerk.users.getUser(clerkId);
+    const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+    const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null;
+
+    return this.authService.bootstrapUser(clerkId, email, name);
+  }
 
   @Post('webhook')
   @HttpCode(HttpStatus.OK)

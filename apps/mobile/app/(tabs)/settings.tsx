@@ -10,7 +10,7 @@ import { spacing, typography, colors } from '../../src/theme';
 export default function SettingsScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
-  const orgId = useAuthStore((s) => s.organizationId);
+  const orgName = useAuthStore((s) => s.organizationName);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -20,14 +20,11 @@ export default function SettingsScreen() {
         style: 'destructive',
         onPress: async () => {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          useAuthStore.getState().reset();
           await signOut();
         },
       },
     ]);
-  };
-
-  const handleExportCSV = () => {
-    Alert.alert('Export', 'CSV export will be available in a future update.');
   };
 
   return (
@@ -55,39 +52,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="business"
             label="Organization"
-            value={orgId ? orgId.slice(0, 8) + '...' : 'Not set'}
-          />
-          <SettingsRow
-            icon="people"
-            label="Crew Members"
-            onPress={() => {
-              Alert.alert(
-                'Invite Crew',
-                'Crew management will be available in a future update.',
-              );
-            }}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="Integrations">
-          <SettingsRow
-            icon="link"
-            label="QuickBooks"
-            value="Not connected"
-            onPress={() => {
-              Alert.alert(
-                'QuickBooks',
-                'Connect via the web dashboard to sync expenses to QuickBooks.',
-              );
-            }}
-          />
-        </SettingsSection>
-
-        <SettingsSection title="Data">
-          <SettingsRow
-            icon="download"
-            label="Export Expenses (CSV)"
-            onPress={handleExportCSV}
+            value={orgName || 'Not set'}
           />
         </SettingsSection>
 

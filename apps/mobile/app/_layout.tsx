@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SecureStore from 'expo-secure-store';
 import { CLERK_PUBLISHABLE_KEY, QUERY_CACHE_TIME, QUERY_STALE_TIME } from '../src/lib/constants';
 import { setTokenGetter } from '../src/api/client';
+import { offlineQueue } from '../src/lib/offline-queue';
 import { colors } from '../src/theme';
 import { ErrorBoundary, ToastContainer } from '../src/components/ui';
 
@@ -35,6 +36,11 @@ function TokenInjector({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setTokenGetter(getToken);
   }, [getToken]);
+
+  useEffect(() => {
+    offlineQueue.startListening();
+    return () => offlineQueue.stopListening();
+  }, []);
 
   return <>{children}</>;
 }

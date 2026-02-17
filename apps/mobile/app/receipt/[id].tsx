@@ -24,6 +24,7 @@ import {
   useUpdateReceipt,
   useApproveReceipt,
   useRejectReceipt,
+  useSplitReceipt,
 } from '../../src/hooks/useReceipts';
 import { useJobs } from '../../src/hooks/useJobs';
 import { centsToDollars, dollarsToCents, formatDate } from '../../src/lib/format';
@@ -38,6 +39,7 @@ export default function ReceiptDetailScreen() {
   const updateReceipt = useUpdateReceipt();
   const approveReceipt = useApproveReceipt();
   const rejectReceipt = useRejectReceipt();
+  const splitReceipt = useSplitReceipt();
   const { data: jobsData } = useJobs({ limit: 100 });
   const jobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
@@ -264,8 +266,22 @@ export default function ReceiptDetailScreen() {
         onClose={() => setShowSplit(false)}
         lineItems={ocrLineItems}
         jobs={jobs}
-        onSave={(assignments) => {
-          // TODO: Call split API with assignments
+        onSave={async (assignments) => {
+          const dbLineItems = receipt.lineItems ?? [];
+          const apiAssignments = assignments
+            .filter((a) => dbLineItems[a.lineItemIndex])
+            .map((a) => ({
+              lineItemId: dbLineItems[a.lineItemIndex].id,
+              jobId: a.jobId,
+            }));
+
+          if (apiAssignments.length > 0) {
+            await splitReceipt.mutateAsync({
+              id: receipt.id,
+              assignments: { assignments: apiAssignments },
+            });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
           setShowSplit(false);
         }}
       />

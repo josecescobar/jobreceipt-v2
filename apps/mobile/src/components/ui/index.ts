@@ -8,7 +8,6 @@ export { EmptyState } from './EmptyState';
 export { LoadingScreen } from './LoadingScreen';
 export { FAB } from './FAB';
 export { FilterChip } from './FilterChip';
-export { SyncStatusIndicator } from './SyncStatusIndicator';
 export { ToastContainer } from './ToastContainer';
 export { ErrorBoundary } from './ErrorBoundary';
 export { SkeletonLoader } from './SkeletonLoader';

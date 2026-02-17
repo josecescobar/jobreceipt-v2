@@ -1,15 +1,29 @@
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { colors } from '../../src/theme';
-import { LoadingScreen } from '../../src/components/ui';
+import { colors, spacing, typography } from '../../src/theme';
+import { LoadingScreen, Button } from '../../src/components/ui';
+import { useBootstrap } from '../../src/hooks/useBootstrap';
 
 export default function TabsLayout() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { isBootstrapped, isLoading, error, retry } = useBootstrap();
 
-  if (!isLoaded) return <LoadingScreen />;
+  if (!isLoaded || isLoading) return <LoadingScreen />;
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={48} color={colors.error} />
+        <Text style={styles.errorTitle}>Something went wrong</Text>
+        <Text style={styles.errorMessage}>{error}</Text>
+        <Button title="Try Again" onPress={retry} />
+      </View>
+    );
+  }
+  if (!isBootstrapped) return <LoadingScreen />;
 
   return (
     <Tabs
@@ -79,3 +93,23 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+    backgroundColor: colors.background,
+    gap: spacing.md,
+  },
+  errorTitle: {
+    ...typography.h2,
+    marginTop: spacing.md,
+  },
+  errorMessage: {
+    ...typography.bodySmall,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+});
