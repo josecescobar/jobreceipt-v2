@@ -22,6 +22,7 @@ import {
   LineItemList,
   SplitAssignmentSheet,
   CreateExpenseFromReceiptSheet,
+  FullScreenImageViewer,
 } from '../../src/components/receipt';
 import {
   useReceipt,
@@ -60,6 +61,7 @@ export default function ReceiptDetailScreen() {
 
   const [showSplit, setShowSplit] = useState(false);
   const [showExpenseSheet, setShowExpenseSheet] = useState(false);
+  const [imageViewerVisible, setImageViewerVisible] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
 
@@ -243,7 +245,15 @@ export default function ReceiptDetailScreen() {
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Receipt image */}
         {receipt.imageUrl && (
-          <ZoomableImage uri={receipt.imageUrl} height={IMAGE_HEIGHT} />
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => setImageViewerVisible(true)}
+          >
+            <ZoomableImage uri={receipt.imageUrl} height={IMAGE_HEIGHT} />
+            <View style={styles.expandHint}>
+              <Ionicons name="expand-outline" size={18} color="#fff" />
+            </View>
+          </TouchableOpacity>
         )}
 
         {/* Status */}
@@ -453,6 +463,14 @@ export default function ReceiptDetailScreen() {
         onJustApprove={handleJustApprove}
         loading={createExpense.isPending || approveReceipt.isPending}
       />
+
+      {receipt.imageUrl && (
+        <FullScreenImageViewer
+          visible={imageViewerVisible}
+          uri={receipt.imageUrl}
+          onClose={() => setImageViewerVisible(false)}
+        />
+      )}
     </Screen>
   );
 }
@@ -460,6 +478,17 @@ export default function ReceiptDetailScreen() {
 const styles = StyleSheet.create({
   scroll: {
     flex: 1,
+  },
+  expandHint: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loading: {
     flex: 1,
