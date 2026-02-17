@@ -7,9 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "scheme": "jobreceipt",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "splash": {
       "image": "./assets/splash-icon.png",
       "backgroundColor": "#0F1117"
@@ -22,7 +20,8 @@
         "NSPhotoLibraryUsageDescription": "JobReceipt needs photo library access to import receipt photos.",
         "NSPhotoLibraryAddUsageDescription": "JobReceipt saves exported reports to your photo library.",
         "NSLocationWhenInUseUsageDescription": "JobReceipt uses your location to track mileage for tax deductions.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "JobReceipt uses background location to accurately track mileage trips."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "JobReceipt uses background location to accurately track mileage trips.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

@@ -6,6 +6,7 @@ import Constants from 'expo-constants';
 import { Screen } from '../../src/components/layout';
 import { SettingsSection, SettingsRow } from '../../src/components/settings';
 import { useAuthStore } from '../../src/stores/auth.store';
+import { exportReceipts, exportExpenses, exportMileage } from '../../src/lib/export';
 import { spacing, typography, colors } from '../../src/theme';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -20,6 +21,22 @@ export default function SettingsScreen() {
   const orgName = useAuthStore((s) => s.organizationName);
   const userRole = useAuthStore((s) => s.userRole);
   const [notifications, setNotifications] = useState(true);
+  const [exporting, setExporting] = useState<'receipts' | 'expenses' | 'mileage' | null>(null);
+
+  const handleExport = async (type: 'receipts' | 'expenses' | 'mileage') => {
+    if (exporting) return;
+    setExporting(type);
+    try {
+      if (type === 'receipts') await exportReceipts();
+      else if (type === 'expenses') await exportExpenses();
+      else await exportMileage();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert('Export Failed', err.message || 'Something went wrong.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
@@ -107,15 +124,21 @@ export default function SettingsScreen() {
         <SettingsSection title="Data & Export">
           <SettingsRow
             icon="download-outline"
-            label="Export Receipts CSV"
-            onPress={() => comingSoon('Receipt export')}
-            showChevron
+            label={exporting === 'receipts' ? 'Exporting Receipts...' : 'Export Receipts CSV'}
+            onPress={() => handleExport('receipts')}
+            showChevron={exporting !== 'receipts'}
           />
           <SettingsRow
             icon="download-outline"
-            label="Export Expenses CSV"
-            onPress={() => comingSoon('Expense export')}
-            showChevron
+            label={exporting === 'expenses' ? 'Exporting Expenses...' : 'Export Expenses CSV'}
+            onPress={() => handleExport('expenses')}
+            showChevron={exporting !== 'expenses'}
+          />
+          <SettingsRow
+            icon="car-outline"
+            label={exporting === 'mileage' ? 'Exporting Mileage...' : 'Export Mileage CSV'}
+            onPress={() => handleExport('mileage')}
+            showChevron={exporting !== 'mileage'}
           />
         </SettingsSection>
 
