@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen, Header } from '../../src/components/layout';
 import { MoneyText } from '../../src/components/ui';
 import {
@@ -16,6 +16,7 @@ import { colors, spacing, typography } from '../../src/theme';
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
   const { data: job, isLoading: jobLoading } = useJob(id!);
   const {
     spent,
@@ -54,7 +55,11 @@ export default function JobDetailScreen() {
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
-      <Header title={job.name} showBack />
+      <Header
+        title={job.name}
+        showBack
+        rightAction={{ icon: 'create-outline', onPress: () => router.push(`/job/edit/${id}`) }}
+      />
 
       <ScrollView
         style={styles.scroll}

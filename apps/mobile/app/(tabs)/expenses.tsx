@@ -56,6 +56,7 @@ export default function ExpensesScreen() {
           <ExpenseCard
             expense={item}
             jobName={item.jobId ? jobNameMap[item.jobId] : undefined}
+            onPress={() => router.push(`/expense/edit/${item.id}`)}
           />
         )}
         keyExtractor={(item) => item.id}

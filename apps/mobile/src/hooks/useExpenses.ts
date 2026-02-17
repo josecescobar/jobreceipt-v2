@@ -63,3 +63,13 @@ export function useUpdateExpense() {
     },
   });
 }
+
+export function useDeleteExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expensesApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}

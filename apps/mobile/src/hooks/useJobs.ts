@@ -66,3 +66,13 @@ export function useUpdateJob() {
     },
   });
 }
+
+export function useDeleteJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => jobsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.lists() });
+    },
+  });
+}

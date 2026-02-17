@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Card, Badge } from '../ui';
 import { formatMoney, formatDate } from '../../lib/format';
 import { colors, spacing } from '../../theme';
@@ -9,10 +10,18 @@ import type { Expense } from '@jobreceipt/shared';
 interface ExpenseCardProps {
   expense: Expense;
   jobName?: string;
+  onPress?: () => void;
 }
 
-export function ExpenseCard({ expense, jobName }: ExpenseCardProps) {
-  return (
+export function ExpenseCard({ expense, jobName, onPress }: ExpenseCardProps) {
+  const handlePress = () => {
+    if (onPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
+
+  const content = (
     <Card style={styles.card}>
       <View style={styles.row}>
         <View style={styles.iconContainer}>
@@ -39,6 +48,16 @@ export function ExpenseCard({ expense, jobName }: ExpenseCardProps) {
       </View>
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({
