@@ -72,3 +72,29 @@ export function useDeleteExpense() {
     },
   });
 }
+
+export function useBatchDeleteExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => expensesApi.batchDelete(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}
+
+export function useBatchUpdateExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      ids,
+      updates,
+    }: {
+      ids: string[];
+      updates: { jobId?: string; category?: string };
+    }) => expensesApi.batchUpdate(ids, updates),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}

@@ -32,4 +32,17 @@ export const expensesApi = {
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/expenses/${id}`);
   },
+
+  batchDelete: async (ids: string[]): Promise<{ count: number }> => {
+    const { data } = await apiClient.post('/expenses/batch/delete', { ids });
+    return data;
+  },
+
+  batchUpdate: async (
+    ids: string[],
+    updates: { jobId?: string; category?: string },
+  ): Promise<{ count: number }> => {
+    const { data } = await apiClient.patch('/expenses/batch/update', { ids, ...updates });
+    return data;
+  },
 };

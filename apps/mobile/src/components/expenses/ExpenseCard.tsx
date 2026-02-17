@@ -11,26 +11,56 @@ interface ExpenseCardProps {
   expense: Expense;
   jobName?: string;
   onPress?: () => void;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onLongPress?: () => void;
+  onSelect?: () => void;
 }
 
-export function ExpenseCard({ expense, jobName, onPress }: ExpenseCardProps) {
+export function ExpenseCard({
+  expense,
+  jobName,
+  onPress,
+  selectionMode,
+  selected,
+  onLongPress,
+  onSelect,
+}: ExpenseCardProps) {
   const handlePress = () => {
+    if (selectionMode && onSelect) {
+      Haptics.selectionAsync();
+      onSelect();
+      return;
+    }
     if (onPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       onPress();
     }
   };
 
+  const handleLongPress = () => {
+    if (onLongPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      onLongPress();
+    }
+  };
+
   const content = (
-    <Card style={styles.card}>
+    <Card style={StyleSheet.flatten([styles.card, selected && styles.cardSelected])}>
       <View style={styles.row}>
-        <View style={styles.iconContainer}>
-          <Ionicons
-            name={expense.receiptId ? 'receipt-outline' : 'create-outline'}
-            size={20}
-            color={colors.textMuted}
-          />
-        </View>
+        {selectionMode ? (
+          <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
+            {selected && <Ionicons name="checkmark" size={14} color={colors.white} />}
+          </View>
+        ) : (
+          <View style={styles.iconContainer}>
+            <Ionicons
+              name={expense.receiptId ? 'receipt-outline' : 'create-outline'}
+              size={20}
+              color={colors.textMuted}
+            />
+          </View>
+        )}
         <View style={styles.info}>
           <Text style={styles.description} numberOfLines={1}>
             {expense.description || 'Expense'}
@@ -49,9 +79,14 @@ export function ExpenseCard({ expense, jobName, onPress }: ExpenseCardProps) {
     </Card>
   );
 
-  if (onPress) {
+  if (onPress || selectionMode) {
     return (
-      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+      <TouchableOpacity
+        onPress={handlePress}
+        onLongPress={handleLongPress}
+        activeOpacity={0.7}
+        delayLongPress={400}
+      >
         {content}
       </TouchableOpacity>
     );
@@ -65,6 +100,10 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     padding: spacing.md,
   },
+  cardSelected: {
+    borderColor: colors.primary + '60',
+    backgroundColor: colors.primary + '10',
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -77,6 +116,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: spacing.md,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.textMuted,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+    marginLeft: 6,
+  },
+  checkboxSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   info: {
     flex: 1,

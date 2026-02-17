@@ -1,13 +1,13 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { FlatList, StyleSheet } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/layout';
 import { FAB, EmptyState, LoadingScreen } from '../../src/components/ui';
-import { ExpenseCard, ExpenseFilterBar } from '../../src/components/expenses';
+import { ExpenseCard, ExpenseFilterBar, BatchActionBar } from '../../src/components/expenses';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useUIStore } from '../../src/stores/ui.store';
-import { spacing } from '../../src/theme';
+import { colors, spacing } from '../../src/theme';
 
 export default function ExpensesScreen() {
   const router = useRouter();
@@ -17,6 +17,12 @@ export default function ExpensesScreen() {
     expenseMerchantSearch,
     expenseDateFrom,
     expenseDateTo,
+    expenseSelectionMode,
+    selectedExpenseIds,
+    enterExpenseSelectionMode,
+    toggleExpenseSelection,
+    selectAllExpenses,
+    clearExpenseSelection,
   } = useUIStore();
 
   // Debounce search input
@@ -56,11 +62,39 @@ export default function ExpensesScreen() {
     [jobs],
   );
 
+  const handleLongPress = useCallback(
+    (id: string) => {
+      enterExpenseSelectionMode();
+      toggleExpenseSelection(id);
+    },
+    [enterExpenseSelectionMode, toggleExpenseSelection],
+  );
+
+  const allExpenseIds = useMemo(() => expenses.map((e) => e.id), [expenses]);
+  const allSelected = allExpenseIds.length > 0 && selectedExpenseIds.length === allExpenseIds.length;
+
   if (isLoading) return <LoadingScreen />;
 
   return (
     <Screen>
       <ExpenseFilterBar jobs={jobs} />
+
+      {expenseSelectionMode && (
+        <View style={styles.selectionHeader}>
+          <TouchableOpacity
+            onPress={() =>
+              allSelected ? selectAllExpenses([]) : selectAllExpenses(allExpenseIds)
+            }
+          >
+            <Text style={styles.selectAllText}>
+              {allSelected ? 'Deselect All' : 'Select All'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={clearExpenseSelection}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       <FlatList
         data={expenses}
@@ -69,6 +103,10 @@ export default function ExpensesScreen() {
             expense={item}
             jobName={item.jobId ? jobNameMap[item.jobId] : undefined}
             onPress={() => router.push(`/expense/edit/${item.id}`)}
+            selectionMode={expenseSelectionMode}
+            selected={selectedExpenseIds.includes(item.id)}
+            onLongPress={() => handleLongPress(item.id)}
+            onSelect={() => toggleExpenseSelection(item.id)}
           />
         )}
         keyExtractor={(item) => item.id}
@@ -88,11 +126,15 @@ export default function ExpensesScreen() {
         }
       />
 
-      <FAB
-        onPress={() => router.push('/expense/create')}
-        icon="add"
-        label="Add Expense"
-      />
+      {!expenseSelectionMode && (
+        <FAB
+          onPress={() => router.push('/expense/create')}
+          icon="add"
+          label="Add Expense"
+        />
+      )}
+
+      <BatchActionBar jobs={jobs} />
     </Screen>
   );
 }
@@ -100,5 +142,21 @@ export default function ExpensesScreen() {
 const styles = StyleSheet.create({
   list: {
     paddingBottom: 100,
+  },
+  selectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  selectAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  cancelText: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
 });

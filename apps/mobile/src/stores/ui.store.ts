@@ -16,6 +16,10 @@ interface UIState {
   expenseDateTo: string | null;
   expenseMerchantSearch: string;
 
+  // Expense selection
+  expenseSelectionMode: boolean;
+  selectedExpenseIds: string[];
+
   // Toast
   toasts: Toast[];
 
@@ -25,6 +29,10 @@ interface UIState {
   setExpenseCategoryFilter: (category: string | null) => void;
   setExpenseDateRange: (from: string | null, to: string | null) => void;
   setExpenseMerchantSearch: (search: string) => void;
+  enterExpenseSelectionMode: () => void;
+  toggleExpenseSelection: (id: string) => void;
+  selectAllExpenses: (ids: string[]) => void;
+  clearExpenseSelection: () => void;
   addToast: (toast: Toast) => void;
   removeToast: (id: string) => void;
 }
@@ -36,6 +44,8 @@ export const useUIStore = create<UIState>((set) => ({
   expenseDateFrom: null,
   expenseDateTo: null,
   expenseMerchantSearch: '',
+  expenseSelectionMode: false,
+  selectedExpenseIds: [],
   toasts: [],
 
   setJobStatusFilter: (filter) => set({ jobStatusFilter: filter }),
@@ -46,6 +56,19 @@ export const useUIStore = create<UIState>((set) => ({
     set({ expenseDateFrom: from, expenseDateTo: to }),
   setExpenseMerchantSearch: (search) =>
     set({ expenseMerchantSearch: search }),
+  enterExpenseSelectionMode: () =>
+    set({ expenseSelectionMode: true }),
+  toggleExpenseSelection: (id) =>
+    set((state) => {
+      const ids = state.selectedExpenseIds.includes(id)
+        ? state.selectedExpenseIds.filter((i) => i !== id)
+        : [...state.selectedExpenseIds, id];
+      return { selectedExpenseIds: ids };
+    }),
+  selectAllExpenses: (ids) =>
+    set({ selectedExpenseIds: ids }),
+  clearExpenseSelection: () =>
+    set({ expenseSelectionMode: false, selectedExpenseIds: [] }),
   addToast: (toast) =>
     set((state) => ({ toasts: [...state.toasts, toast] })),
   removeToast: (id) =>

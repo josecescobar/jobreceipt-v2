@@ -18,6 +18,7 @@ import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { QueryExpenseDto } from './dto/query-expense.dto';
+import { BatchDeleteExpensesDto, BatchUpdateExpensesDto } from './dto/batch-expense.dto';
 
 @ApiTags('Expenses')
 @Controller('expenses')
@@ -51,6 +52,27 @@ export class ExpensesController {
       search: query.search,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
+    });
+  }
+
+  @Post('batch/delete')
+  @ApiOperation({ summary: 'Batch delete expenses' })
+  async batchDelete(
+    @CurrentOrg() orgId: string,
+    @Body() body: BatchDeleteExpensesDto,
+  ) {
+    return this.expensesService.batchDelete(orgId, body.ids);
+  }
+
+  @Patch('batch/update')
+  @ApiOperation({ summary: 'Batch update expenses' })
+  async batchUpdate(
+    @CurrentOrg() orgId: string,
+    @Body() body: BatchUpdateExpensesDto,
+  ) {
+    return this.expensesService.batchUpdate(orgId, body.ids, {
+      jobId: body.jobId,
+      category: body.category,
     });
   }
 

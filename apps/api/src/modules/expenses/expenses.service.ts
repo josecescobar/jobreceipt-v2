@@ -122,4 +122,27 @@ export class ExpensesService {
     await this.findOne(orgId, id);
     return this.prisma.expense.delete({ where: { id } });
   }
+
+  async batchDelete(orgId: string, ids: string[]) {
+    const result = await this.prisma.expense.deleteMany({
+      where: { id: { in: ids }, organizationId: orgId },
+    });
+    return { count: result.count };
+  }
+
+  async batchUpdate(
+    orgId: string,
+    ids: string[],
+    updates: { jobId?: string; category?: string },
+  ) {
+    const data: Record<string, unknown> = {};
+    if (updates.jobId !== undefined) data.jobId = updates.jobId;
+    if (updates.category !== undefined) data.category = updates.category;
+
+    const result = await this.prisma.expense.updateMany({
+      where: { id: { in: ids }, organizationId: orgId },
+      data,
+    });
+    return { count: result.count };
+  }
 }
