@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  Alert,
   StyleSheet,
   ActivityIndicator,
   Dimensions,
@@ -25,6 +26,7 @@ import {
   useApproveReceipt,
   useRejectReceipt,
   useSplitReceipt,
+  useDeleteReceipt,
 } from '../../src/hooks/useReceipts';
 import { useJobs } from '../../src/hooks/useJobs';
 import { centsToDollars, dollarsToCents, formatDate } from '../../src/lib/format';
@@ -35,11 +37,15 @@ const IMAGE_HEIGHT = Dimensions.get('window').height * 0.4;
 export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: receipt, isLoading } = useReceipt(id ?? '');
+  const { data: receipt, isLoading } = useReceipt(id ?? '', {
+    refetchInterval: (query) =>
+      query.state.data?.status === 'PROCESSING' ? 3000 : false,
+  });
   const updateReceipt = useUpdateReceipt();
   const approveReceipt = useApproveReceipt();
   const rejectReceipt = useRejectReceipt();
   const splitReceipt = useSplitReceipt();
+  const deleteReceipt = useDeleteReceipt();
   const { data: jobsData } = useJobs({ limit: 100 });
   const jobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
@@ -48,6 +54,7 @@ export default function ReceiptDetailScreen() {
 
   const [showSplit, setShowSplit] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [error, setError] = useState('');
 
   // Editable fields (populated from receipt)
   const [merchant, setMerchant] = useState('');
@@ -60,7 +67,7 @@ export default function ReceiptDetailScreen() {
   React.useEffect(() => {
     if (receipt) {
       setMerchant(receipt.merchantName || '');
-      setDate(receipt.transactionDate || '');
+      setDate(receipt.transactionDate ? receipt.transactionDate.toString().split('T')[0] : '');
       setSubtotal(
         receipt.subtotal != null
           ? centsToDollars(receipt.subtotal).toString()
@@ -94,51 +101,95 @@ export default function ReceiptDetailScreen() {
     );
   }
 
+  const isProcessing = receipt.status === 'PROCESSING';
   const suggestedJob = receipt.suggestedJobId
     ? jobs.find((j) => j.id === receipt.suggestedJobId)
     : null;
 
   const handleApprove = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await approveReceipt.mutateAsync(receipt.id);
-    router.back();
+    setError('');
+    try {
+      await approveReceipt.mutateAsync(receipt.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to approve receipt');
+    }
   };
 
   const handleReject = async () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    await rejectReceipt.mutateAsync(receipt.id);
-    router.back();
+    setError('');
+    try {
+      await rejectReceipt.mutateAsync(receipt.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      router.back();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to reject receipt');
+    }
   };
 
   const handleSaveEdits = async () => {
-    await updateReceipt.mutateAsync({
-      id: receipt.id,
-      updates: {
-        merchantName: merchant,
-        transactionDate: date,
-        subtotal: subtotal ? dollarsToCents(parseFloat(subtotal)) : undefined,
-        taxAmount: tax ? dollarsToCents(parseFloat(tax)) : undefined,
-        totalAmount: total ? dollarsToCents(parseFloat(total)) : undefined,
-      },
-    });
-    setEditing(false);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setError('');
+    try {
+      await updateReceipt.mutateAsync({
+        id: receipt.id,
+        updates: {
+          merchantName: merchant,
+          transactionDate: date,
+          subtotal: subtotal ? dollarsToCents(parseFloat(subtotal)) : undefined,
+          taxAmount: tax ? dollarsToCents(parseFloat(tax)) : undefined,
+          totalAmount: total ? dollarsToCents(parseFloat(total)) : undefined,
+        },
+      });
+      setEditing(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to save changes');
+    }
   };
 
   const handleAssignSuggested = async () => {
     if (!suggestedJob) return;
-    await updateReceipt.mutateAsync({
-      id: receipt.id,
-      updates: { suggestedJobId: suggestedJob.id },
-    });
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setError('');
+    try {
+      await updateReceipt.mutateAsync({
+        id: receipt.id,
+        updates: { suggestedJobId: suggestedJob.id },
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to assign job');
+    }
   };
 
   const handleDismissSuggestion = async () => {
-    await updateReceipt.mutateAsync({
-      id: receipt.id,
-      updates: { suggestedJobId: undefined },
-    });
+    try {
+      await updateReceipt.mutateAsync({
+        id: receipt.id,
+        updates: { suggestedJobId: undefined },
+      });
+    } catch {
+      // Silent dismiss failure
+    }
+  };
+
+  const handleDelete = () => {
+    Alert.alert('Delete Receipt', 'Are you sure you want to delete this receipt?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteReceipt.mutateAsync(receipt.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            router.back();
+          } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to delete receipt');
+          }
+        },
+      },
+    ]);
   };
 
   const displayLineItems = receipt.lineItems ?? [];
@@ -149,9 +200,11 @@ export default function ReceiptDetailScreen() {
         title="Receipt"
         showBack
         rightAction={
-          !editing
-            ? { icon: 'create-outline', onPress: () => setEditing(true) }
-            : { icon: 'checkmark', onPress: handleSaveEdits }
+          !isProcessing
+            ? !editing
+              ? { icon: 'create-outline', onPress: () => setEditing(true) }
+              : { icon: 'checkmark', onPress: handleSaveEdits }
+            : undefined
         }
       />
 
@@ -165,16 +218,29 @@ export default function ReceiptDetailScreen() {
         <View style={styles.statusRow}>
           <ReceiptStatusBadge status={receipt.status} />
           {receipt.transactionDate && (
-            <Text style={styles.dateText}>{formatDate(receipt.transactionDate)}</Text>
+            <Text style={styles.dateText}>{formatDate(receipt.transactionDate.toString())}</Text>
           )}
         </View>
+
+        {/* Processing indicator */}
+        {isProcessing && (
+          <View style={styles.processingCard}>
+            <ActivityIndicator color={colors.warning} size="small" />
+            <Text style={styles.processingText}>
+              Processing receipt...
+            </Text>
+            <Text style={styles.processingSubtext}>
+              OCR is extracting data from your receipt. This usually takes a few seconds.
+            </Text>
+          </View>
+        )}
 
         {/* AI Job suggestion */}
         {suggestedJob && receipt.status === 'REVIEW' && (
           <View style={styles.suggestionContainer}>
             <JobSuggestionBanner
               jobName={suggestedJob.name}
-              confidence={receipt.confidenceScore ? parseFloat(receipt.confidenceScore) : undefined}
+              confidence={receipt.confidenceScore || undefined}
               onAssign={handleAssignSuggested}
               onDismiss={handleDismissSuggestion}
             />
@@ -182,64 +248,76 @@ export default function ReceiptDetailScreen() {
         )}
 
         {/* OCR Fields */}
-        {editing ? (
-          <OcrFieldEditor
-            merchant={merchant}
-            date={date}
-            subtotal={subtotal}
-            tax={tax}
-            total={total}
-            onChangeMerchant={setMerchant}
-            onChangeDate={setDate}
-            onChangeSubtotal={setSubtotal}
-            onChangeTax={setTax}
-            onChangeTotal={setTotal}
-          />
-        ) : (
-          <View style={styles.fieldsDisplay}>
-            <Text style={styles.merchantName}>
-              {receipt.merchantName || 'Unknown Merchant'}
-            </Text>
-            <View style={styles.amountRow}>
-              {receipt.subtotal != null && (
-                <View style={styles.amountItem}>
-                  <Text style={styles.amountLabel}>Subtotal</Text>
-                  <Text style={styles.amountValue}>
-                    ${centsToDollars(receipt.subtotal).toFixed(2)}
-                  </Text>
-                </View>
-              )}
-              {receipt.taxAmount != null && (
-                <View style={styles.amountItem}>
-                  <Text style={styles.amountLabel}>Tax</Text>
-                  <Text style={styles.amountValue}>
-                    ${centsToDollars(receipt.taxAmount).toFixed(2)}
-                  </Text>
-                </View>
-              )}
-              <View style={styles.amountItem}>
-                <Text style={styles.amountLabel}>Total</Text>
-                <Text style={styles.totalValue}>
-                  ${receipt.totalAmount != null ? centsToDollars(receipt.totalAmount).toFixed(2) : '—'}
+        {!isProcessing && (
+          <>
+            {editing ? (
+              <OcrFieldEditor
+                merchant={merchant}
+                date={date}
+                subtotal={subtotal}
+                tax={tax}
+                total={total}
+                onChangeMerchant={setMerchant}
+                onChangeDate={setDate}
+                onChangeSubtotal={setSubtotal}
+                onChangeTax={setTax}
+                onChangeTotal={setTotal}
+              />
+            ) : (
+              <View style={styles.fieldsDisplay}>
+                <Text style={styles.merchantName}>
+                  {receipt.merchantName || 'Unknown Merchant'}
                 </Text>
+                {receipt.merchantAddress && (
+                  <Text style={styles.merchantAddress}>
+                    {receipt.merchantAddress}
+                  </Text>
+                )}
+                <View style={styles.amountRow}>
+                  {receipt.subtotal != null && (
+                    <View style={styles.amountItem}>
+                      <Text style={styles.amountLabel}>Subtotal</Text>
+                      <Text style={styles.amountValue}>
+                        ${centsToDollars(receipt.subtotal).toFixed(2)}
+                      </Text>
+                    </View>
+                  )}
+                  {receipt.taxAmount != null && (
+                    <View style={styles.amountItem}>
+                      <Text style={styles.amountLabel}>Tax</Text>
+                      <Text style={styles.amountValue}>
+                        ${centsToDollars(receipt.taxAmount).toFixed(2)}
+                      </Text>
+                    </View>
+                  )}
+                  <View style={styles.amountItem}>
+                    <Text style={styles.amountLabel}>Total</Text>
+                    <Text style={styles.totalValue}>
+                      ${receipt.totalAmount != null ? centsToDollars(receipt.totalAmount).toFixed(2) : '—'}
+                    </Text>
+                  </View>
+                </View>
               </View>
-            </View>
-          </View>
+            )}
+
+            {/* Line Items */}
+            <LineItemList items={displayLineItems} />
+
+            {/* Split button */}
+            {displayLineItems.length > 1 && jobs.length > 0 && (
+              <View style={styles.splitButtonContainer}>
+                <Button
+                  title="Split by Job"
+                  onPress={() => setShowSplit(true)}
+                  variant="secondary"
+                />
+              </View>
+            )}
+          </>
         )}
 
-        {/* Line Items */}
-        <LineItemList items={displayLineItems} />
-
-        {/* Split button */}
-        {displayLineItems.length > 1 && jobs.length > 0 && (
-          <View style={styles.splitButtonContainer}>
-            <Button
-              title="Split by Job"
-              onPress={() => setShowSplit(true)}
-              variant="secondary"
-            />
-          </View>
-        )}
+        {/* Error display */}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {/* Action buttons */}
         {receipt.status === 'REVIEW' && (
@@ -260,6 +338,16 @@ export default function ReceiptDetailScreen() {
             />
           </View>
         )}
+
+        {/* Delete button */}
+        <View style={styles.deleteContainer}>
+          <Button
+            title="Delete Receipt"
+            onPress={handleDelete}
+            variant="danger"
+            loading={deleteReceipt.isPending}
+          />
+        </View>
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -313,6 +401,27 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
   },
+  processingCard: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.warning,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  processingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.warning,
+  },
+  processingSubtext: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
+  },
   suggestionContainer: {
     paddingHorizontal: spacing.lg,
   },
@@ -322,6 +431,11 @@ const styles = StyleSheet.create({
   },
   merchantName: {
     ...typography.h2,
+    marginBottom: spacing.xs,
+  },
+  merchantAddress: {
+    fontSize: 14,
+    color: colors.textSecondary,
     marginBottom: spacing.md,
   },
   amountRow: {
@@ -349,6 +463,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
   },
+  error: {
+    color: colors.error,
+    fontSize: 14,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
+  },
   actions: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -357,6 +478,10 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  deleteContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.md,
   },
   bottomSpacer: {
     height: spacing.xxxl,

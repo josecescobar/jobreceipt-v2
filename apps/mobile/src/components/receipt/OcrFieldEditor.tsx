@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Input } from '../ui';
+import { Input, DatePickerField } from '../ui';
 import { spacing } from '../../theme';
 
 interface OcrFieldEditorProps {
@@ -36,11 +36,10 @@ export function OcrFieldEditor({
         onChangeText={onChangeMerchant}
         placeholder="Store name"
       />
-      <Input
+      <DatePickerField
         label="Date"
         value={date}
-        onChangeText={onChangeDate}
-        placeholder="MM/DD/YYYY"
+        onChange={onChangeDate}
       />
       <View style={styles.row}>
         <View style={styles.halfField}>

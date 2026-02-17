@@ -67,4 +67,8 @@ export const receiptsApi = {
     const { data } = await apiClient.patch(`/receipts/${id}`, { status: 'REJECTED' });
     return data;
   },
+
+  delete: async (id: string): Promise<void> => {
+    await apiClient.delete(`/receipts/${id}`);
+  },
 };

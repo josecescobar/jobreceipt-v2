@@ -34,12 +34,13 @@ export function useRecentReceipts() {
   });
 }
 
-export function useReceipt(id: string) {
+export function useReceipt(id: string, options?: { refetchInterval?: (query: any) => number | false }) {
   return useQuery({
     queryKey: receiptKeys.detail(id),
     queryFn: () => receiptsApi.getById(id),
     enabled: !!id,
     staleTime: QUERY_STALE_TIME,
+    refetchInterval: options?.refetchInterval,
   });
 }
 
@@ -85,6 +86,16 @@ export function useSplitReceipt() {
     onSuccess: (data) => {
       queryClient.setQueryData(receiptKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: receiptKeys.lists() });
+    },
+  });
+}
+
+export function useDeleteReceipt() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => receiptsApi.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.all });
     },
   });
 }

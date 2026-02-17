@@ -6,10 +6,16 @@ import { colors, spacing, borderRadius } from '../../theme';
 
 interface JobSuggestionBannerProps {
   jobName: string;
-  confidence?: number;
+  confidence?: string;
   onAssign: () => void;
   onDismiss: () => void;
 }
+
+const CONFIDENCE_LABELS: Record<string, string> = {
+  high: 'High confidence',
+  medium: 'Medium confidence',
+  low: 'Low confidence',
+};
 
 export function JobSuggestionBanner({
   jobName,
@@ -24,9 +30,9 @@ export function JobSuggestionBanner({
         <Text style={styles.label}>AI Suggestion</Text>
       </View>
       <Text style={styles.jobName}>{jobName}</Text>
-      {confidence != null && (
+      {confidence && CONFIDENCE_LABELS[confidence] && (
         <Text style={styles.confidence}>
-          {Math.round(confidence * 100)}% confidence
+          {CONFIDENCE_LABELS[confidence]}
         </Text>
       )}
       <View style={styles.actions}>
