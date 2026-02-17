@@ -31,6 +31,9 @@ import {
   useRejectReceipt,
   useSplitReceipt,
   useDeleteReceipt,
+  useCreateLineItem,
+  useUpdateLineItem,
+  useDeleteLineItem,
 } from '../../src/hooks/useReceipts';
 import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
@@ -51,6 +54,9 @@ export default function ReceiptDetailScreen() {
   const rejectReceipt = useRejectReceipt();
   const splitReceipt = useSplitReceipt();
   const deleteReceipt = useDeleteReceipt();
+  const createLineItem = useCreateLineItem();
+  const updateLineItem = useUpdateLineItem();
+  const deleteLineItem = useDeleteLineItem();
   const { data: jobsData } = useJobs({ limit: 100 });
   const jobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
@@ -67,6 +73,7 @@ export default function ReceiptDetailScreen() {
 
   // Editable fields (populated from receipt)
   const [merchant, setMerchant] = useState('');
+  const [merchantAddress, setMerchantAddress] = useState('');
   const [date, setDate] = useState('');
   const [subtotal, setSubtotal] = useState('');
   const [tax, setTax] = useState('');
@@ -76,6 +83,7 @@ export default function ReceiptDetailScreen() {
   React.useEffect(() => {
     if (receipt) {
       setMerchant(receipt.merchantName || '');
+      setMerchantAddress(receipt.merchantAddress || '');
       setDate(receipt.transactionDate ? receipt.transactionDate.toString().split('T')[0] : '');
       setSubtotal(
         receipt.subtotal != null
@@ -169,6 +177,7 @@ export default function ReceiptDetailScreen() {
         id: receipt.id,
         updates: {
           merchantName: merchant,
+          merchantAddress: merchantAddress,
           transactionDate: date,
           subtotal: subtotal ? dollarsToCents(parseFloat(subtotal)) : undefined,
           taxAmount: tax ? dollarsToCents(parseFloat(tax)) : undefined,
@@ -179,6 +188,44 @@ export default function ReceiptDetailScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to save changes');
+    }
+  };
+
+  const handleUpdateLineItem = async (lineItemId: string, data: { description: string; quantity: number; unitPrice: number; totalPrice: number }) => {
+    setError('');
+    try {
+      await updateLineItem.mutateAsync({ receiptId: receipt.id, lineItemId, data });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to update line item');
+    }
+  };
+
+  const handleDeleteLineItem = async (lineItemId: string) => {
+    Alert.alert('Delete Item', 'Remove this line item?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deleteLineItem.mutateAsync({ receiptId: receipt.id, lineItemId });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to delete line item');
+          }
+        },
+      },
+    ]);
+  };
+
+  const handleAddLineItem = async (data: { description: string; quantity: number; unitPrice: number; totalPrice: number }) => {
+    setError('');
+    try {
+      await createLineItem.mutateAsync({ receiptId: receipt.id, data });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to add line item');
     }
   };
 
@@ -295,11 +342,13 @@ export default function ReceiptDetailScreen() {
             {editing ? (
               <OcrFieldEditor
                 merchant={merchant}
+                merchantAddress={merchantAddress}
                 date={date}
                 subtotal={subtotal}
                 tax={tax}
                 total={total}
                 onChangeMerchant={setMerchant}
+                onChangeMerchantAddress={setMerchantAddress}
                 onChangeDate={setDate}
                 onChangeSubtotal={setSubtotal}
                 onChangeTax={setTax}
@@ -343,7 +392,13 @@ export default function ReceiptDetailScreen() {
             )}
 
             {/* Line Items */}
-            <LineItemList items={displayLineItems} />
+            <LineItemList
+              items={displayLineItems}
+              editing={editing}
+              onUpdateItem={handleUpdateLineItem}
+              onDeleteItem={handleDeleteLineItem}
+              onAddItem={handleAddLineItem}
+            />
 
             {/* Split button */}
             {displayLineItems.length > 1 && jobs.length > 0 && (

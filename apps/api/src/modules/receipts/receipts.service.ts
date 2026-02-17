@@ -3,7 +3,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { S3Service } from '../../common/services/s3.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import { Prisma } from '@prisma/client';
+import { Prisma, MaterialCategory } from '@prisma/client';
 import { v4 as uuid } from 'uuid';
 import { QUEUE_NAMES } from '../../queue/constants';
 
@@ -199,6 +199,69 @@ export class ReceiptsService {
 
       return { receipt: { id: receiptId }, expenses };
     });
+  }
+
+  async createLineItem(orgId: string, receiptId: string, data: {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+    isConstructionMaterial?: boolean;
+    materialCategory?: string | null;
+  }) {
+    await this.findOne(orgId, receiptId);
+
+    return this.prisma.receiptLineItem.create({
+      data: {
+        receiptId,
+        description: data.description,
+        quantity: data.quantity,
+        unitPrice: data.unitPrice,
+        totalPrice: data.totalPrice,
+        isConstructionMaterial: data.isConstructionMaterial ?? false,
+        materialCategory: (data.materialCategory as MaterialCategory) ?? null,
+      },
+    });
+  }
+
+  async updateLineItem(orgId: string, receiptId: string, lineItemId: string, data: {
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    totalPrice?: number;
+    isConstructionMaterial?: boolean;
+    materialCategory?: string | null;
+  }) {
+    await this.findOne(orgId, receiptId);
+
+    const lineItem = await this.prisma.receiptLineItem.findFirst({
+      where: { id: lineItemId, receiptId },
+    });
+    if (!lineItem) throw new NotFoundException('Line item not found');
+
+    const updateData: Prisma.ReceiptLineItemUpdateInput = {};
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.quantity !== undefined) updateData.quantity = data.quantity;
+    if (data.unitPrice !== undefined) updateData.unitPrice = data.unitPrice;
+    if (data.totalPrice !== undefined) updateData.totalPrice = data.totalPrice;
+    if (data.isConstructionMaterial !== undefined) updateData.isConstructionMaterial = data.isConstructionMaterial;
+    if (data.materialCategory !== undefined) updateData.materialCategory = data.materialCategory as MaterialCategory;
+
+    return this.prisma.receiptLineItem.update({
+      where: { id: lineItemId },
+      data: updateData,
+    });
+  }
+
+  async removeLineItem(orgId: string, receiptId: string, lineItemId: string) {
+    await this.findOne(orgId, receiptId);
+
+    const lineItem = await this.prisma.receiptLineItem.findFirst({
+      where: { id: lineItemId, receiptId },
+    });
+    if (!lineItem) throw new NotFoundException('Line item not found');
+
+    return this.prisma.receiptLineItem.delete({ where: { id: lineItemId } });
   }
 
   async remove(orgId: string, id: string) {

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { Receipt, ReceiptQueryDto, UpdateReceiptDto, SplitLineItemsDto } from '@jobreceipt/shared';
+import type { Receipt, ReceiptLineItem, ReceiptQueryDto, UpdateReceiptDto, SplitLineItemsDto, CreateLineItemDto, UpdateLineItemDto } from '@jobreceipt/shared';
 
 interface PaginatedResponse<T> {
   data: T[];
@@ -66,6 +66,20 @@ export const receiptsApi = {
   reject: async (id: string): Promise<Receipt> => {
     const { data } = await apiClient.patch(`/receipts/${id}`, { status: 'REJECTED' });
     return data;
+  },
+
+  createLineItem: async (receiptId: string, data: CreateLineItemDto): Promise<ReceiptLineItem> => {
+    const { data: result } = await apiClient.post(`/receipts/${receiptId}/line-items`, data);
+    return result;
+  },
+
+  updateLineItem: async (receiptId: string, lineItemId: string, data: UpdateLineItemDto): Promise<ReceiptLineItem> => {
+    const { data: result } = await apiClient.patch(`/receipts/${receiptId}/line-items/${lineItemId}`, data);
+    return result;
+  },
+
+  deleteLineItem: async (receiptId: string, lineItemId: string): Promise<void> => {
+    await apiClient.delete(`/receipts/${receiptId}/line-items/${lineItemId}`);
   },
 
   delete: async (id: string): Promise<void> => {

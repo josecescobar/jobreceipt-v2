@@ -20,6 +20,7 @@ import { ConfirmUploadDto } from './dto/confirm-upload.dto';
 import { UpdateReceiptDto } from './dto/update-receipt.dto';
 import { QueryReceiptDto } from './dto/query-receipt.dto';
 import { SplitLineItemsDto } from './dto/split-line-items.dto';
+import { CreateLineItemDto, UpdateLineItemDto } from './dto/line-item.dto';
 
 @ApiTags('Receipts')
 @Controller('receipts')
@@ -88,6 +89,37 @@ export class ReceiptsController {
     @Body() body: SplitLineItemsDto,
   ) {
     return this.receiptsService.splitLineItems(orgId, id, body.assignments);
+  }
+
+  @Post(':id/line-items')
+  @ApiOperation({ summary: 'Add a line item to a receipt' })
+  async createLineItem(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Body() body: CreateLineItemDto,
+  ) {
+    return this.receiptsService.createLineItem(orgId, id, body);
+  }
+
+  @Patch(':id/line-items/:lineItemId')
+  @ApiOperation({ summary: 'Update a receipt line item' })
+  async updateLineItem(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('lineItemId') lineItemId: string,
+    @Body() body: UpdateLineItemDto,
+  ) {
+    return this.receiptsService.updateLineItem(orgId, id, lineItemId, body);
+  }
+
+  @Delete(':id/line-items/:lineItemId')
+  @ApiOperation({ summary: 'Delete a receipt line item' })
+  async removeLineItem(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('lineItemId') lineItemId: string,
+  ) {
+    return this.receiptsService.removeLineItem(orgId, id, lineItemId);
   }
 
   @Delete(':id')

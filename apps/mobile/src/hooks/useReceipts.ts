@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { receiptsApi } from '../api/receipts';
-import type { ReceiptQueryDto, UpdateReceiptDto, SplitLineItemsDto } from '@jobreceipt/shared';
+import type { ReceiptQueryDto, UpdateReceiptDto, SplitLineItemsDto, CreateLineItemDto, UpdateLineItemDto } from '@jobreceipt/shared';
 import { QUERY_STALE_TIME, DEFAULT_PAGE_SIZE, RECEIPTS_RECENT_LIMIT } from '../lib/constants';
 import { receiptKeys, expenseKeys } from '../lib/query-keys';
 
@@ -81,6 +81,39 @@ export function useSplitReceipt() {
     onSuccess: (data) => {
       queryClient.setQueryData(receiptKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: receiptKeys.lists() });
+    },
+  });
+}
+
+export function useCreateLineItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ receiptId, data }: { receiptId: string; data: CreateLineItemDto }) =>
+      receiptsApi.createLineItem(receiptId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+    },
+  });
+}
+
+export function useUpdateLineItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ receiptId, lineItemId, data }: { receiptId: string; lineItemId: string; data: UpdateLineItemDto }) =>
+      receiptsApi.updateLineItem(receiptId, lineItemId, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
+    },
+  });
+}
+
+export function useDeleteLineItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ receiptId, lineItemId }: { receiptId: string; lineItemId: string }) =>
+      receiptsApi.deleteLineItem(receiptId, lineItemId),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: receiptKeys.detail(variables.receiptId) });
     },
   });
 }

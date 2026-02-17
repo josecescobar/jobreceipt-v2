@@ -79,9 +79,29 @@ export const OcrResultSchema = z.object({
   }),
 });
 
+export const CreateLineItemSchema = z.object({
+  description: z.string().min(1).max(500),
+  quantity: z.number().min(0),
+  unitPrice: z.number().int().min(0),
+  totalPrice: z.number().int().min(0),
+  isConstructionMaterial: z.boolean().optional().default(false),
+  materialCategory: z.string().nullable().optional(),
+});
+
+export const UpdateLineItemSchema = z.object({
+  description: z.string().min(1).max(500).optional(),
+  quantity: z.number().min(0).optional(),
+  unitPrice: z.number().int().min(0).optional(),
+  totalPrice: z.number().int().min(0).optional(),
+  isConstructionMaterial: z.boolean().optional(),
+  materialCategory: z.string().nullable().optional(),
+});
+
 export type RequestUploadUrlDto = z.infer<typeof RequestUploadUrlSchema>;
 export type ConfirmUploadDto = z.infer<typeof ConfirmUploadSchema>;
 export type UpdateReceiptDto = z.infer<typeof UpdateReceiptSchema>;
 export type SplitLineItemsDto = z.infer<typeof SplitLineItemsSchema>;
 export type ReceiptQueryDto = z.input<typeof ReceiptQuerySchema>;
 export type OcrResultDto = z.infer<typeof OcrResultSchema>;
+export type CreateLineItemDto = z.input<typeof CreateLineItemSchema>;
+export type UpdateLineItemDto = z.input<typeof UpdateLineItemSchema>;
