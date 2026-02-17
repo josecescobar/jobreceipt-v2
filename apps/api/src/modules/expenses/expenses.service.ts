@@ -20,6 +20,7 @@ interface ExpenseQuery {
   taxCategory?: string;
   startDate?: string;
   endDate?: string;
+  search?: string;
   page: number;
   limit: number;
 }
@@ -57,6 +58,10 @@ export class ExpensesService {
       where.date = {};
       if (query.startDate) where.date.gte = new Date(query.startDate);
       if (query.endDate) where.date.lte = new Date(query.endDate);
+    }
+
+    if (query.search) {
+      where.description = { contains: query.search, mode: 'insensitive' };
     }
 
     const [expenses, total] = await Promise.all([

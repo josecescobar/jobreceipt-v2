@@ -48,6 +48,7 @@ export class ExpensesController {
       taxCategory: query.taxCategory,
       startDate: query.startDate,
       endDate: query.endDate,
+      search: query.search,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
     });

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { FlatList, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/layout';
@@ -15,14 +15,26 @@ export default function ExpensesScreen() {
     expenseJobFilter,
     expenseCategoryFilter,
     expenseMerchantSearch,
+    expenseDateFrom,
+    expenseDateTo,
   } = useUIStore();
+
+  // Debounce search input
+  const [debouncedSearch, setDebouncedSearch] = useState(expenseMerchantSearch);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(expenseMerchantSearch), 300);
+    return () => clearTimeout(timer);
+  }, [expenseMerchantSearch]);
 
   const queryParams = useMemo(
     () => ({
       jobId: expenseJobFilter || undefined,
       category: expenseCategoryFilter || undefined,
+      search: debouncedSearch || undefined,
+      startDate: expenseDateFrom || undefined,
+      endDate: expenseDateTo || undefined,
     }),
-    [expenseJobFilter, expenseCategoryFilter],
+    [expenseJobFilter, expenseCategoryFilter, debouncedSearch, expenseDateFrom, expenseDateTo],
   );
 
   const { data, isLoading, fetchNextPage, hasNextPage, refetch, isRefetching } =

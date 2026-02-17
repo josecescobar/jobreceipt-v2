@@ -28,6 +28,11 @@ export class QueryExpenseDto {
   @IsDateString()
   endDate?: string;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)
