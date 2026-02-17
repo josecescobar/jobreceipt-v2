@@ -9,12 +9,15 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgMemberGuard } from '../../common/guards/org-member.guard';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ExpensesService } from './expenses.service';
+import { CreateExpenseDto } from './dto/create-expense.dto';
+import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { QueryExpenseDto } from './dto/query-expense.dto';
 
 @ApiTags('Expenses')
 @Controller('expenses')
@@ -28,48 +31,25 @@ export class ExpensesController {
   async create(
     @CurrentOrg() orgId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: {
-      jobId: string;
-      receiptId?: string;
-      costCodeId?: string;
-      amount: number;
-      description: string;
-      category?: string;
-      taxCategory?: string;
-      mileage?: number;
-      date: string;
-    },
+    @Body() body: CreateExpenseDto,
   ) {
     return this.expensesService.create(orgId, userId, body);
   }
 
   @Get()
   @ApiOperation({ summary: 'List expenses with filters' })
-  @ApiQuery({ name: 'jobId', required: false })
-  @ApiQuery({ name: 'category', required: false })
-  @ApiQuery({ name: 'taxCategory', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
   async findAll(
     @CurrentOrg() orgId: string,
-    @Query('jobId') jobId?: string,
-    @Query('category') category?: string,
-    @Query('taxCategory') taxCategory?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
+    @Query() query: QueryExpenseDto,
   ) {
     return this.expensesService.findAll(orgId, {
-      jobId,
-      category,
-      taxCategory,
-      startDate,
-      endDate,
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
+      jobId: query.jobId,
+      category: query.category,
+      taxCategory: query.taxCategory,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
     });
   }
 
@@ -84,7 +64,7 @@ export class ExpensesController {
   async update(
     @CurrentOrg() orgId: string,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateExpenseDto,
   ) {
     return this.expensesService.update(orgId, id, body);
   }

@@ -9,12 +9,17 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgMemberGuard } from '../../common/guards/org-member.guard';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ReceiptsService } from './receipts.service';
+import { RequestUploadDto } from './dto/request-upload.dto';
+import { ConfirmUploadDto } from './dto/confirm-upload.dto';
+import { UpdateReceiptDto } from './dto/update-receipt.dto';
+import { QueryReceiptDto } from './dto/query-receipt.dto';
+import { SplitLineItemsDto } from './dto/split-line-items.dto';
 
 @ApiTags('Receipts')
 @Controller('receipts')
@@ -27,7 +32,7 @@ export class ReceiptsController {
   @ApiOperation({ summary: 'Request a pre-signed upload URL and create receipt' })
   async requestUpload(
     @CurrentOrg() orgId: string,
-    @Body() body: { fileName: string; contentType: string },
+    @Body() body: RequestUploadDto,
   ) {
     return this.receiptsService.requestUploadUrl(orgId, body.fileName, body.contentType);
   }
@@ -37,38 +42,25 @@ export class ReceiptsController {
   async confirmUpload(
     @CurrentOrg() orgId: string,
     @CurrentUser('id') userId: string,
-    @Body() body: { receiptId: string; imageKey: string },
+    @Body() body: ConfirmUploadDto,
   ) {
     return this.receiptsService.confirmUpload(orgId, userId, body.receiptId, body.imageKey);
   }
 
   @Get()
   @ApiOperation({ summary: 'List receipts with filters' })
-  @ApiQuery({ name: 'status', required: false, enum: ['PROCESSING', 'REVIEW', 'APPROVED', 'REJECTED'] })
-  @ApiQuery({ name: 'jobId', required: false })
-  @ApiQuery({ name: 'merchantName', required: false })
-  @ApiQuery({ name: 'startDate', required: false })
-  @ApiQuery({ name: 'endDate', required: false })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
   async findAll(
     @CurrentOrg() orgId: string,
-    @Query('status') status?: 'PROCESSING' | 'REVIEW' | 'APPROVED' | 'REJECTED',
-    @Query('jobId') jobId?: string,
-    @Query('merchantName') merchantName?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
-    @Query('page') page = '1',
-    @Query('limit') limit = '20',
+    @Query() query: QueryReceiptDto,
   ) {
     return this.receiptsService.findAll(orgId, {
-      status,
-      jobId,
-      merchantName,
-      startDate,
-      endDate,
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
+      status: query.status,
+      jobId: query.jobId,
+      merchantName: query.merchantName,
+      startDate: query.startDate,
+      endDate: query.endDate,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
     });
   }
 
@@ -83,7 +75,7 @@ export class ReceiptsController {
   async update(
     @CurrentOrg() orgId: string,
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UpdateReceiptDto,
   ) {
     return this.receiptsService.update(orgId, id, body);
   }
@@ -93,7 +85,7 @@ export class ReceiptsController {
   async splitLineItems(
     @CurrentOrg() orgId: string,
     @Param('id') id: string,
-    @Body() body: { assignments: Array<{ lineItemId: string; jobId: string }> },
+    @Body() body: SplitLineItemsDto,
   ) {
     return this.receiptsService.splitLineItems(orgId, id, body.assignments);
   }

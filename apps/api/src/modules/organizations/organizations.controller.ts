@@ -14,6 +14,9 @@ import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgMemberGuard } from '../../common/guards/org-member.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { OrganizationsService } from './organizations.service';
+import { CreateOrgDto } from './dto/create-org.dto';
+import { UpdateOrgDto } from './dto/update-org.dto';
+import { InviteMemberDto } from './dto/invite-member.dto';
 
 @ApiTags('Organizations')
 @Controller('organizations')
@@ -27,7 +30,7 @@ export class OrganizationsController {
   @ApiResponse({ status: 201, description: 'Organization created' })
   async create(
     @CurrentUser('id') userId: string,
-    @Body() body: { name: string; slug: string },
+    @Body() body: CreateOrgDto,
   ) {
     return this.organizationsService.create(userId, body);
   }
@@ -46,7 +49,7 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Update organization' })
   async update(
     @Param('organizationId') id: string,
-    @Body() body: { name?: string; slug?: string },
+    @Body() body: UpdateOrgDto,
   ) {
     return this.organizationsService.update(id, body);
   }
@@ -58,9 +61,9 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'Invite a member to the organization' })
   async inviteMember(
     @Param('organizationId') orgId: string,
-    @Body() body: { email: string; role: 'OWNER' | 'BOOKKEEPER' | 'CREW' },
+    @Body() body: InviteMemberDto,
   ) {
-    return this.organizationsService.inviteMember(orgId, body.email, body.role);
+    return this.organizationsService.inviteMember(orgId, body.email, body.role ?? 'CREW');
   }
 
   @Get(':organizationId/members')
