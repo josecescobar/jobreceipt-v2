@@ -1,9 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
   StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -35,32 +36,50 @@ export default function HomeScreen() {
   const { user } = useUser();
   const firstName = user?.firstName || 'there';
 
+  const [refreshing, setRefreshing] = useState(false);
+
   // Data hooks
-  const { data: recentData } = useRecentReceipts();
+  const { data: recentData, refetch: refetchRecent } = useRecentReceipts();
   const recentReceipts = recentData?.data ?? [];
 
-  const { data: reviewData } = useReceipts({ status: 'REVIEW' });
+  const { data: reviewData, refetch: refetchReview } = useReceipts({ status: 'REVIEW' });
   const reviewCount = reviewData?.pages?.[0]?.total ?? 0;
 
-  const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 10 });
+  const { data: jobsData, refetch: refetchJobs } = useJobs({ status: 'ACTIVE', limit: 10 });
   const activeJobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
     [jobsData],
   );
 
-  const { data: mileageSummary } = useMileageSummary();
+  const { data: mileageSummary, refetch: refetchMileageSummary } = useMileageSummary();
 
-  const { data: expensesData } = useExpenses({ limit: 100 });
+  const { data: expensesData, refetch: refetchExpenses } = useExpenses({ limit: 100 });
   const allExpenses = useMemo(
     () => expensesData?.pages?.flatMap((p) => p.data) ?? [],
     [expensesData],
   );
 
-  const { data: mileageData } = useMileageTrips({ limit: 5 });
+  const { data: mileageData, refetch: refetchMileage } = useMileageTrips({ limit: 5 });
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        refetchRecent(),
+        refetchReview(),
+        refetchJobs(),
+        refetchMileageSummary(),
+        refetchExpenses(),
+        refetchMileage(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -129,7 +148,16 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
         {/* Greeting */}
         <Text style={styles.greeting}>Hi, {firstName}</Text>
         <Text style={styles.subGreeting}>Here's your business overview</Text>
