@@ -13,7 +13,7 @@ async function bootstrap() {
   // CORS — allow origin-less requests (React Native, curl) and configured browser origins
   const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [];
   app.enableCors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // No origin header = mobile app or non-browser client
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);

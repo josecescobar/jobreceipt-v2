@@ -150,7 +150,7 @@ export class ReceiptsService {
   async splitLineItems(orgId: string, receiptId: string, assignments: Array<{ lineItemId: string; jobId: string }>) {
     const receipt = await this.findOne(orgId, receiptId);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       // Update each line item with its new job assignment
       for (const assignment of assignments) {
         await tx.receiptLineItem.update({

@@ -16,7 +16,7 @@ export class OrganizationsService {
     }
 
     // Create org + membership + default cost codes in a transaction
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const org = await tx.organization.create({
         data: {
           name: data.name,
