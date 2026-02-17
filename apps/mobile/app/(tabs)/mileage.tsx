@@ -1,118 +1,135 @@
-import React, { useState, useMemo } from 'react';
-import { View, FlatList, StyleSheet } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import React, { useMemo, useState } from 'react';
+import { View, FlatList, ScrollView, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/layout';
-import { Button, EmptyState } from '../../src/components/ui';
-import {
-  MileageSummary,
-  MileageTracker,
-  MileageTripCard,
-  ManualMileageForm,
-} from '../../src/components/mileage';
-import { useExpenses, useCreateExpense } from '../../src/hooks/useExpenses';
-import { useJobs } from '../../src/hooks/useJobs';
-import { IRS_MILEAGE_RATE_CENTS } from '@jobreceipt/shared';
+import { FilterChip, FAB, EmptyState, LoadingScreen } from '../../src/components/ui';
+import { MileageSummary, MileageTripCard } from '../../src/components/mileage';
+import { useMileageTrips, useMileageSummary } from '../../src/hooks/useMileage';
 import { spacing } from '../../src/theme';
+import type { MileageQueryParams } from '../../src/api/mileage';
+
+const DATE_FILTERS = ['ALL', 'WEEK', 'MONTH'] as const;
+type DateFilter = (typeof DATE_FILTERS)[number];
+
+const FILTER_LABELS: Record<DateFilter, string> = {
+  ALL: 'All Time',
+  WEEK: 'This Week',
+  MONTH: 'This Month',
+};
+
+function getDateRange(filter: DateFilter): { startDate?: string; endDate?: string } {
+  if (filter === 'ALL') return {};
+  const now = new Date();
+  if (filter === 'MONTH') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { startDate: start.toISOString() };
+  }
+  // WEEK
+  const day = now.getDay();
+  const start = new Date(now);
+  start.setDate(now.getDate() - day);
+  start.setHours(0, 0, 0, 0);
+  return { startDate: start.toISOString() };
+}
+
+function getPeriodLabel(filter: DateFilter): string {
+  if (filter === 'ALL') return 'All Time';
+  const now = new Date();
+  if (filter === 'MONTH') {
+    return now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  }
+  return 'This Week';
+}
 
 export default function MileageScreen() {
-  const [showManual, setShowManual] = useState(false);
-  const createExpense = useCreateExpense();
+  const router = useRouter();
+  const [dateFilter, setDateFilter] = useState<DateFilter>('MONTH');
 
-  // Fetch mileage expenses (those with mileage > 0)
-  const { data: expensesData, refetch } = useExpenses({ category: 'OVERHEAD' });
-  const mileageExpenses = useMemo(() => {
-    const all = expensesData?.pages?.flatMap((p) => p.data) ?? [];
-    return all.filter((e) => e.mileage && e.mileage > 0);
-  }, [expensesData]);
+  const dateRange = useMemo(() => getDateRange(dateFilter), [dateFilter]);
 
-  const { data: jobsData } = useJobs({ limit: 100 });
-  const jobNameMap = useMemo(() => {
-    const jobs = jobsData?.pages?.flatMap((p) => p.data) ?? [];
-    return Object.fromEntries(jobs.map((j) => [j.id, j.name]));
-  }, [jobsData]);
-
-  // Monthly summary
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const thisMonthTrips = mileageExpenses.filter(
-    (e) => e.date && String(e.date) >= monthStart,
+  const queryParams: MileageQueryParams = useMemo(
+    () => ({ ...dateRange }),
+    [dateRange],
   );
-  const totalMiles = thisMonthTrips.reduce((sum, e) => sum + (e.mileage || 0), 0);
-  const totalDeduction = thisMonthTrips.reduce((sum, e) => sum + e.amount, 0);
 
-  const handleTripComplete = async (distanceMiles: number, deductionCents: number) => {
-    try {
-      await createExpense.mutateAsync({
-        amount: deductionCents,
-        description: `GPS tracked trip (${distanceMiles.toFixed(1)} mi)`,
-        category: 'OVERHEAD',
-        mileage: distanceMiles,
-        date: new Date().toISOString(),
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      refetch();
-    } catch {
-      // Error handled by mutation
-    }
-  };
+  const { data, isLoading, fetchNextPage, hasNextPage, refetch, isRefetching } =
+    useMileageTrips(queryParams);
 
-  const monthName = now.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const { data: summary } = useMileageSummary(dateRange);
+
+  const trips = useMemo(
+    () => data?.pages?.flatMap((p) => p.data) ?? [],
+    [data],
+  );
+
+  if (isLoading) return <LoadingScreen />;
 
   return (
     <Screen>
       <FlatList
-        data={mileageExpenses}
+        data={trips}
         renderItem={({ item }) => (
           <MileageTripCard
-            date={item.date || ''}
-            miles={item.mileage || 0}
-            deductionCents={item.amount}
-            jobName={item.jobId ? jobNameMap[item.jobId] : undefined}
+            date={typeof item.date === 'string' ? item.date : new Date(item.date).toISOString()}
+            miles={item.distanceMiles}
+            deductionCents={item.totalDeduction}
+            jobName={item.job?.name}
           />
         )}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        onEndReached={() => hasNextPage && fetchNextPage()}
+        onEndReachedThreshold={0.5}
+        refreshing={isRefetching}
+        onRefresh={refetch}
         ListHeaderComponent={
           <>
             <MileageSummary
-              totalMiles={totalMiles}
-              totalDeductionCents={totalDeduction}
-              period={monthName}
+              totalMiles={summary?.totalMiles ?? 0}
+              totalDeductionCents={summary?.totalDeduction ?? 0}
+              period={getPeriodLabel(dateFilter)}
             />
-            <MileageTracker onTripComplete={handleTripComplete} />
-            <Button
-              title="Manual Entry"
-              onPress={() => setShowManual(true)}
-              variant="secondary"
-              style={styles.manualButton}
-            />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.filters}
+            >
+              {DATE_FILTERS.map((filter) => (
+                <FilterChip
+                  key={filter}
+                  label={FILTER_LABELS[filter]}
+                  active={dateFilter === filter}
+                  onPress={() => setDateFilter(filter)}
+                />
+              ))}
+            </ScrollView>
           </>
         }
         ListEmptyComponent={
           <EmptyState
             title="No Trips Yet"
-            message="Start a GPS trip or add one manually."
+            message="Log your first mileage trip to start tracking deductions."
+            actionLabel="Add Trip"
+            onAction={() => router.push('/mileage/create')}
           />
         }
       />
 
-      <ManualMileageForm
-        visible={showManual}
-        onClose={() => {
-          setShowManual(false);
-          refetch();
-        }}
+      <FAB
+        onPress={() => router.push('/mileage/create')}
+        icon="add"
+        label="Add Trip"
       />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
-    paddingBottom: spacing.xxxl,
+  filters: {
+    paddingVertical: spacing.md,
   },
-  manualButton: {
-    marginVertical: spacing.md,
+  list: {
+    paddingBottom: 100,
   },
 });
