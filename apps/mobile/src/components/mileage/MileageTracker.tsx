@@ -5,8 +5,15 @@ import { useLocationTracking } from '../../hooks/useLocationTracking';
 import { formatMiles, formatMoney } from '../../lib/format';
 import { colors, spacing, borderRadius, typography } from '../../theme';
 
+interface TripCompleteData {
+  distanceMiles: number;
+  deductionCents: number;
+  startCoord: { latitude: number; longitude: number } | null;
+  endCoord: { latitude: number; longitude: number } | null;
+}
+
 interface MileageTrackerProps {
-  onTripComplete: (distanceMiles: number, deductionCents: number) => void;
+  onTripComplete: (data: TripCompleteData) => void;
 }
 
 export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
@@ -14,6 +21,7 @@ export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
     isTracking,
     distanceMiles,
     deductionCents,
+    coords,
     startTracking,
     stopTracking,
     startTime,
@@ -22,7 +30,12 @@ export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
   const handleStop = () => {
     stopTracking();
     if (distanceMiles > 0) {
-      onTripComplete(distanceMiles, deductionCents);
+      onTripComplete({
+        distanceMiles,
+        deductionCents,
+        startCoord: coords.length > 0 ? coords[0] : null,
+        endCoord: coords.length > 1 ? coords[coords.length - 1] : coords[0] ?? null,
+      });
     }
   };
 
