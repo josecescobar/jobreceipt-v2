@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Card } from '../ui';
 import { formatMiles, formatMoney, formatDate } from '../../lib/format';
 import { colors, spacing } from '../../theme';
@@ -12,6 +13,7 @@ interface MileageTripCardProps {
   jobName?: string;
   startLocation?: string;
   endLocation?: string;
+  onPress?: () => void;
 }
 
 export function MileageTripCard({
@@ -21,8 +23,16 @@ export function MileageTripCard({
   jobName,
   startLocation,
   endLocation,
+  onPress,
 }: MileageTripCardProps) {
-  return (
+  const handlePress = () => {
+    if (onPress) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }
+  };
+
+  const content = (
     <Card style={styles.card}>
       <View style={styles.row}>
         <View style={styles.iconContainer}>
@@ -44,6 +54,16 @@ export function MileageTripCard({
       </View>
     </Card>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+        {content}
+      </TouchableOpacity>
+    );
+  }
+
+  return content;
 }
 
 const styles = StyleSheet.create({

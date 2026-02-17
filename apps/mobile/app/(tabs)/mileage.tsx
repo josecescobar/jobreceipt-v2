@@ -74,6 +74,7 @@ export default function MileageScreen() {
             miles={item.distanceMiles}
             deductionCents={item.totalDeduction}
             jobName={item.job?.name}
+            onPress={() => router.push(`/mileage/edit/${item.id}`)}
           />
         )}
         keyExtractor={(item) => item.id}
