@@ -27,7 +27,13 @@ export default function SignInScreen() {
         await setActive({ session: result.createdSessionId });
       }
     } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign in failed');
+      if (err.errors?.[0]?.message) {
+        setError(err.errors[0].message);
+      } else if (err.message?.includes('Network') || !err.status) {
+        setError('No internet connection. Please check your network.');
+      } else {
+        setError('Sign in failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

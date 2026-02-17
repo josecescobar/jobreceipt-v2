@@ -31,11 +31,16 @@ export const receiptsApi = {
   },
 
   uploadToS3: async (uploadUrl: string, file: Blob | ArrayBuffer, contentType: string): Promise<void> => {
-    await fetch(uploadUrl, {
+    const response = await fetch(uploadUrl, {
       method: 'PUT',
       body: file,
       headers: { 'Content-Type': contentType },
     });
+    if (!response.ok) {
+      const err: any = new Error(`S3 upload failed (${response.status})`);
+      err.status = response.status;
+      throw err;
+    }
   },
 
   confirmUpload: async (imageKey: string): Promise<Receipt> => {

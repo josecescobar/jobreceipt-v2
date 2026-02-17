@@ -68,6 +68,9 @@ class OfflineQueue {
   }
 
   startListening() {
+    // Process any queued actions from previous session
+    this.processQueue();
+
     this.unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected) {
         this.processQueue();

@@ -13,6 +13,34 @@ interface UploadState {
   error: string | null;
 }
 
+async function uploadWithRetry(
+  uploadUrl: string,
+  blob: Blob,
+  contentType: string,
+  maxRetries = 2,
+): Promise<void> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      await receiptsApi.uploadToS3(uploadUrl, blob, contentType);
+      return;
+    } catch (err: any) {
+      // Don't retry client errors (4xx)
+      if (err.status && err.status >= 400 && err.status < 500) throw err;
+      // Last attempt — rethrow
+      if (attempt === maxRetries) throw err;
+      // Wait before retry (exponential backoff)
+      await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
+  }
+}
+
+function friendlyError(err: any): string {
+  if (err.status === 413) return 'Image is too large. Please try a smaller photo.';
+  if (err.status >= 500) return 'Server error. Please try again in a moment.';
+  if (!err.response && !err.status) return 'No internet connection. Check your network and try again.';
+  return err.response?.data?.message || err.message || 'Upload failed. Please try again.';
+}
+
 export function useReceiptUpload() {
   const [state, setState] = useState<UploadState>({
     status: 'idle',
@@ -47,19 +75,19 @@ export function useReceiptUpload() {
         'image/jpeg',
       );
 
-      // Step 3: Upload to S3
+      // Step 3: Upload to S3 with retry
       const response = await fetch(processed.uri);
       const blob = await response.blob();
 
       try {
-        await receiptsApi.uploadToS3(uploadUrl, blob, 'image/jpeg');
+        await uploadWithRetry(uploadUrl, blob, 'image/jpeg');
       } catch (uploadError: any) {
         // On 413, retry with lower quality
         if (uploadError.status === 413) {
           const recompressed = await recompressImage(imageUri);
           const retryResponse = await fetch(recompressed.uri);
           const retryBlob = await retryResponse.blob();
-          await receiptsApi.uploadToS3(uploadUrl, retryBlob, 'image/jpeg');
+          await uploadWithRetry(uploadUrl, retryBlob, 'image/jpeg', 1);
         } else {
           throw uploadError;
         }
@@ -80,7 +108,7 @@ export function useReceiptUpload() {
 
       return receiptId;
     } catch (err: any) {
-      const errorMsg = err.response?.data?.message || err.message || 'Upload failed';
+      const errorMsg = friendlyError(err);
       setState({ status: 'error', receiptId: null, error: errorMsg });
       updateUpload(uploadId, { status: 'error', error: errorMsg });
       throw err;

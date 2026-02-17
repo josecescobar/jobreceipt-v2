@@ -30,7 +30,13 @@ export default function SignUpScreen() {
         await setActive({ session: result.createdSessionId });
       }
     } catch (err: any) {
-      setError(err.errors?.[0]?.message || 'Sign up failed');
+      if (err.errors?.[0]?.message) {
+        setError(err.errors[0].message);
+      } else if (err.message?.includes('Network') || !err.status) {
+        setError('No internet connection. Please check your network.');
+      } else {
+        setError('Sign up failed. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

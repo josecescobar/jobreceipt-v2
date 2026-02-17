@@ -35,7 +35,7 @@ const IMAGE_HEIGHT = Dimensions.get('window').height * 0.4;
 export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { data: receipt, isLoading } = useReceipt(id!);
+  const { data: receipt, isLoading } = useReceipt(id ?? '');
   const updateReceipt = useUpdateReceipt();
   const approveReceipt = useApproveReceipt();
   const rejectReceipt = useRejectReceipt();
@@ -79,12 +79,16 @@ export default function ReceiptDetailScreen() {
     }
   }, [receipt]);
 
-  if (isLoading || !receipt) {
+  if (!id || isLoading || !receipt) {
     return (
       <Screen padded={false}>
         <Header title="Receipt" showBack />
         <View style={styles.loading}>
-          <ActivityIndicator color={colors.primary} size="large" />
+          {!id ? (
+            <Text style={{ color: colors.textMuted }}>Receipt not found</Text>
+          ) : (
+            <ActivityIndicator color={colors.primary} size="large" />
+          )}
         </View>
       </Screen>
     );

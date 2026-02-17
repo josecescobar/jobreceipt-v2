@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Alert, Linking, StyleSheet } from 'react-native';
 import { Button } from '../ui';
 import { useLocationTracking } from '../../hooks/useLocationTracking';
 import { formatMiles, formatMoney } from '../../lib/format';
@@ -29,8 +29,15 @@ export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
   const handleStart = async () => {
     try {
       await startTracking();
-    } catch (err: any) {
-      // Permission denied — user needs to grant location access
+    } catch {
+      Alert.alert(
+        'Location Access Required',
+        'JobReceipt needs location access to track mileage. Please enable it in Settings.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ],
+      );
     }
   };
 

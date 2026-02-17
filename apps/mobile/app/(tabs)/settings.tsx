@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, Text, Alert, StyleSheet } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import * as Haptics from 'expo-haptics';
+import Constants from 'expo-constants';
 import { Screen } from '../../src/components/layout';
 import { SettingsSection, SettingsRow } from '../../src/components/settings';
 import { useAuthStore } from '../../src/stores/auth.store';
@@ -65,7 +66,9 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
-        <Text style={styles.version}>JobReceipt v1.0.0</Text>
+        <Text style={styles.version}>
+          JobReceipt v{Constants.expoConfig?.version ?? '1.0.0'}
+        </Text>
       </ScrollView>
     </Screen>
   );
