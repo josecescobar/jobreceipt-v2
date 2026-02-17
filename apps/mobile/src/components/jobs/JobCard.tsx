@@ -22,7 +22,7 @@ export function JobCard({ job }: JobCardProps) {
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} activeOpacity={0.7}>
+    <TouchableOpacity onPress={handlePress} activeOpacity={0.7} style={job.status === 'ARCHIVED' ? styles.archived : undefined}>
       <Card style={styles.card}>
         <View style={styles.header}>
           <View style={styles.titleArea}>
@@ -35,7 +35,7 @@ export function JobCard({ job }: JobCardProps) {
               </Text>
             )}
           </View>
-          <View style={[styles.statusBadge, job.status === 'ACTIVE' ? styles.statusActive : styles.statusCompleted]}>
+          <View style={[styles.statusBadge, job.status === 'ACTIVE' ? styles.statusActive : job.status === 'ARCHIVED' ? styles.statusArchived : styles.statusCompleted]}>
             <Text style={styles.statusText}>{job.status}</Text>
           </View>
         </View>
@@ -83,10 +83,16 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
   },
+  archived: {
+    opacity: 0.6,
+  },
   statusActive: {
     backgroundColor: 'rgba(34, 197, 94, 0.15)',
   },
   statusCompleted: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+  },
+  statusArchived: {
     backgroundColor: 'rgba(100, 116, 139, 0.15)',
   },
   statusText: {

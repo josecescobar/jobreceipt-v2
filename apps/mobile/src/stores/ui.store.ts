@@ -9,7 +9,7 @@ export interface Toast {
 
 interface UIState {
   // Filters
-  jobStatusFilter: 'ACTIVE' | 'COMPLETED' | 'ALL';
+  jobStatusFilter: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'ALL';
   expenseJobFilter: string | null;
   expenseCategoryFilter: string | null;
   expenseDateFrom: string | null;
@@ -20,7 +20,7 @@ interface UIState {
   toasts: Toast[];
 
   // Actions
-  setJobStatusFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'ALL') => void;
+  setJobStatusFilter: (filter: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' | 'ALL') => void;
   setExpenseJobFilter: (jobId: string | null) => void;
   setExpenseCategoryFilter: (category: string | null) => void;
   setExpenseDateRange: (from: string | null, to: string | null) => void;

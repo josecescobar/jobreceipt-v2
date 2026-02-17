@@ -9,7 +9,7 @@ import { useUIStore } from '../../src/stores/ui.store';
 import { spacing, typography } from '../../src/theme';
 import type { Job } from '@jobreceipt/shared';
 
-const FILTERS = ['ACTIVE', 'COMPLETED', 'ALL'] as const;
+const FILTERS = ['ACTIVE', 'COMPLETED', 'ARCHIVED', 'ALL'] as const;
 
 export default function JobsScreen() {
   const router = useRouter();

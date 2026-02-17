@@ -1,22 +1,24 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   ScrollView,
   Text,
   TouchableOpacity,
+  Alert,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
-import { Badge, MoneyText } from '../../src/components/ui';
+import { Badge, Button, MoneyText } from '../../src/components/ui';
 import { ReceiptStatusBadge } from '../../src/components/receipt';
 import {
   OverBudgetBanner,
   BudgetBreakdownChart,
   CategoryBreakdownCard,
 } from '../../src/components/jobs';
-import { useJob } from '../../src/hooks/useJobs';
+import { useJob, useUpdateJob } from '../../src/hooks/useJobs';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
@@ -42,6 +44,9 @@ export default function JobDetailScreen() {
     color,
     categories,
   } = useBudget(id!);
+
+  const updateJob = useUpdateJob();
+  const [statusLoading, setStatusLoading] = useState(false);
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
@@ -80,6 +85,40 @@ export default function JobDetailScreen() {
     { label: 'Sub', ...categories.subcontractor },
     { label: 'Overhead', ...categories.overhead },
   ];
+
+  const handleStatusChange = async (newStatus: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED') => {
+    setStatusLoading(true);
+    try {
+      await updateJob.mutateAsync({ id: id!, updates: { status: newStatus } });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // Error handled silently, mutation will show stale data
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  const handleMarkComplete = () => {
+    Alert.alert(
+      'Complete Job?',
+      `${job.name}\n\n${expenses.length} expense${expenses.length !== 1 ? 's' : ''} · ${formatMoney(spent)} total\n${receipts.length} receipt${receipts.length !== 1 ? 's' : ''} · ${mileageTrips.length} trip${mileageTrips.length !== 1 ? 's' : ''}\n\nThis job will be marked as completed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Complete', onPress: () => handleStatusChange('COMPLETED') },
+      ],
+    );
+  };
+
+  const handleArchive = () => {
+    Alert.alert(
+      'Archive Job?',
+      `${job.name} will be archived and hidden from active views.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Archive', style: 'destructive', onPress: () => handleStatusChange('ARCHIVED') },
+      ],
+    );
+  };
 
   const activeCategories = [
     { label: 'Materials', ...categories.materials },
@@ -126,6 +165,43 @@ export default function JobDetailScreen() {
             <Text style={styles.notes}>{job.notes}</Text>
           )}
         </View>
+
+        {/* Status actions */}
+        {job.status === 'ACTIVE' && (
+          <View style={styles.statusActions}>
+            <Button
+              title="Mark Complete"
+              onPress={handleMarkComplete}
+              loading={statusLoading}
+            />
+          </View>
+        )}
+        {job.status === 'COMPLETED' && (
+          <View style={styles.statusActions}>
+            <Button
+              title="Reactivate"
+              onPress={() => handleStatusChange('ACTIVE')}
+              variant="secondary"
+              loading={statusLoading}
+            />
+            <Button
+              title="Archive"
+              onPress={handleArchive}
+              variant="ghost"
+              loading={statusLoading}
+            />
+          </View>
+        )}
+        {job.status === 'ARCHIVED' && (
+          <View style={styles.statusActions}>
+            <Button
+              title="Reactivate"
+              onPress={() => handleStatusChange('ACTIVE')}
+              variant="secondary"
+              loading={statusLoading}
+            />
+          </View>
+        )}
 
         {/* Over budget alert */}
         {isOverBudget && (
@@ -306,6 +382,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  statusActions: {
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
   },
   summaryCard: {
     backgroundColor: colors.surface,
