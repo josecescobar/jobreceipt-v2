@@ -103,4 +103,11 @@ export class AuthService {
       defaultOrganizationId: memberships[0]?.organizationId ?? null,
     };
   }
+
+  async savePushToken(clerkId: string, token: string) {
+    await this.prisma.user.update({
+      where: { clerkId },
+      data: { pushToken: token },
+    });
+  }
 }

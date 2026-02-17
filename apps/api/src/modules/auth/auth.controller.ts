@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Body,
   Req,
   Res,
   HttpCode,
@@ -43,6 +44,24 @@ export class AuthController {
     const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || null;
 
     return this.authService.bootstrapUser(clerkId, email, name);
+  }
+
+  @Post('push-token')
+  @UseGuards(ClerkAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Register Expo push token for the current user' })
+  @ApiResponse({ status: 200, description: 'Token saved' })
+  async registerPushToken(
+    @Req() req: Request,
+    @Body() body: { token: string },
+  ) {
+    const clerkId = (req as any).clerkUserId;
+    if (!body.token) {
+      throw new BadRequestException('Token is required');
+    }
+    await this.authService.savePushToken(clerkId, body.token);
+    return { success: true };
   }
 
   @Post('webhook')

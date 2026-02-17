@@ -8,6 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import { CLERK_PUBLISHABLE_KEY, QUERY_CACHE_TIME, QUERY_STALE_TIME } from '../src/lib/constants';
 import { setTokenGetter } from '../src/api/client';
 import { offlineQueue } from '../src/lib/offline-queue';
+import { useNotifications } from '../src/hooks/useNotifications';
 import { colors } from '../src/theme';
 import { ErrorBoundary, ToastContainer } from '../src/components/ui';
 
@@ -41,6 +42,8 @@ function TokenInjector({ children }: { children: React.ReactNode }) {
     offlineQueue.startListening();
     return () => offlineQueue.stopListening();
   }, []);
+
+  useNotifications();
 
   return <>{children}</>;
 }

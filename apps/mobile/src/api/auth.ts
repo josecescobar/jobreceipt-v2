@@ -11,4 +11,8 @@ export const authApi = {
     const { data } = await apiClient.get('/auth/me');
     return data;
   },
+
+  registerPushToken: async (token: string): Promise<void> => {
+    await apiClient.post('/auth/push-token', { token });
+  },
 };

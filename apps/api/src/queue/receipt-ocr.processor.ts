@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import sharp from 'sharp';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../common/services/s3.service';
+import { NotificationService } from '../common/services/notification.service';
 import { JobSuggestionService } from '../modules/receipts/job-suggestion.service';
 import { OcrResultSchema } from '@jobreceipt/shared';
 import { QUEUE_NAMES } from './constants';
@@ -77,6 +78,7 @@ export class ReceiptOcrProcessor extends WorkerHost {
   constructor(
     private prisma: PrismaService,
     private s3Service: S3Service,
+    private notificationService: NotificationService,
     private jobSuggestionService: JobSuggestionService,
     private configService: ConfigService,
   ) {
@@ -135,6 +137,21 @@ export class ReceiptOcrProcessor extends WorkerHost {
           autoAssigned: suggestion?.autoAssigned || false,
         },
       });
+
+      // Step 8: Send push notification
+      const receipt = await this.prisma.receipt.findUnique({
+        where: { id: receiptId },
+        select: { uploadedById: true },
+      });
+      if (receipt) {
+        const merchantName = ocrResult.merchant?.name || 'Unknown merchant';
+        await this.notificationService.sendPushNotification(
+          receipt.uploadedById,
+          'Receipt Ready for Review',
+          `Your receipt from ${merchantName} has been processed.`,
+          { receiptId },
+        );
+      }
 
       this.logger.log(`OCR completed for receipt ${receiptId}, confidence: ${ocrResult.confidence.overall}`);
     } catch (error) {

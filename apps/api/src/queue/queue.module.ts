@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { ReceiptOcrProcessor } from './receipt-ocr.processor';
 import { S3Service } from '../common/services/s3.service';
+import { NotificationService } from '../common/services/notification.service';
 import { ReceiptsModule } from '../modules/receipts/receipts.module';
 import { QUEUE_NAMES } from './constants';
 
@@ -22,7 +23,7 @@ import { QUEUE_NAMES } from './constants';
     ),
     forwardRef(() => ReceiptsModule),
   ],
-  providers: [ReceiptOcrProcessor, S3Service],
+  providers: [ReceiptOcrProcessor, S3Service, NotificationService],
   exports: [BullModule],
 })
 export class QueueModule {}
