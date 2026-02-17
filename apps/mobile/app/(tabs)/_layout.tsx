@@ -48,9 +48,9 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Capture',
+          title: 'Home',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="camera" size={size} color={color} />
+            <Ionicons name="home" size={size} color={color} />
           ),
         }}
       />

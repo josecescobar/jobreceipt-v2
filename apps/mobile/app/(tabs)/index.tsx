@@ -1,192 +1,364 @@
-import React, { useCallback, useState } from 'react';
-import { View, StyleSheet, Text, ActivityIndicator, Image, Dimensions } from 'react-native';
+import React, { useMemo } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+} from 'react-native';
 import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { CameraViewfinder, RecentReceiptsStrip } from '../../src/components/camera';
-import { Button } from '../../src/components/ui';
-import { useReceiptUpload } from '../../src/hooks/useReceiptUpload';
-import { colors, spacing } from '../../src/theme';
+import { useUser } from '@clerk/clerk-expo';
+import { Ionicons } from '@expo/vector-icons';
+import { Screen } from '../../src/components/layout';
+import { Card, ProgressBar, Badge } from '../../src/components/ui';
+import { ReceiptStatusBadge } from '../../src/components/receipt';
+import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
+import { useJobs } from '../../src/hooks/useJobs';
+import { useExpenses } from '../../src/hooks/useExpenses';
+import { useMileageSummary } from '../../src/hooks/useMileage';
+import { useBudget } from '../../src/hooks/useBudget';
+import { formatMoney, formatDate, formatMiles } from '../../src/lib/format';
+import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const QUICK_ACTIONS = [
+  { label: 'Scan Receipt', icon: 'camera' as const, route: '/capture', color: colors.primary },
+  { label: 'Add Expense', icon: 'wallet' as const, route: '/expense/create', color: colors.success },
+  { label: 'Log Mileage', icon: 'car' as const, route: '/mileage/create', color: colors.warning },
+];
 
-export default function CaptureScreen() {
+export default function HomeScreen() {
   const router = useRouter();
-  const { upload, isUploading, status, error, reset } = useReceiptUpload();
-  const [previewUri, setPreviewUri] = useState<string | null>(null);
-  const [pendingUris, setPendingUris] = useState<string[]>([]);
+  const { user } = useUser();
+  const firstName = user?.firstName || 'there';
 
-  const handleCapture = useCallback((uri: string) => {
-    setPreviewUri(uri);
-    setPendingUris([uri]);
-  }, []);
+  // Data hooks
+  const { data: recentData } = useRecentReceipts();
+  const recentReceipts = recentData?.data ?? [];
 
-  const handleGallerySelect = useCallback((uris: string[]) => {
-    if (uris.length > 0) {
-      setPreviewUri(uris[0]);
-      setPendingUris(uris);
-    }
-  }, []);
+  const { data: reviewData } = useReceipts({ status: 'REVIEW' });
+  const reviewCount = reviewData?.pages?.[0]?.total ?? 0;
 
-  const handleRetake = useCallback(() => {
-    setPreviewUri(null);
-    setPendingUris([]);
-    reset();
-  }, [reset]);
+  const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 10 });
+  const activeJobs = useMemo(
+    () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
+    [jobsData],
+  );
 
-  const handleUsePhoto = useCallback(async () => {
-    const uris = [...pendingUris];
-    setPreviewUri(null);
-    setPendingUris([]);
+  const { data: mileageSummary } = useMileageSummary();
 
-    for (const uri of uris) {
-      try {
-        const receiptId = await upload(uri);
-        if (receiptId && uri === uris[uris.length - 1]) {
-          router.push(`/receipt/${receiptId}`);
-        }
-      } catch {
-        // Error state handled by hook
-      }
-    }
-  }, [pendingUris, upload, router]);
+  const { data: expensesData } = useExpenses({ limit: 100 });
+  const monthTotal = useMemo(() => {
+    const allExpenses = expensesData?.pages?.flatMap((p) => p.data) ?? [];
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return allExpenses
+      .filter((e) => new Date(e.date) >= monthStart)
+      .reduce((sum, e) => sum + e.amount, 0);
+  }, [expensesData]);
+
+  const topJob = activeJobs[0];
+  const topJobBudget = useBudget(topJob?.id ?? '');
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.container}>
-        {/* Upload status overlay */}
-        {isUploading && (
-          <View style={styles.uploadOverlay}>
-            <ActivityIndicator color={colors.white} size="small" />
-            <Text style={styles.uploadText}>
-              {status === 'processing'
-                ? 'Processing image...'
-                : status === 'uploading'
-                  ? 'Uploading...'
-                  : 'Confirming...'}
-            </Text>
-          </View>
-        )}
+    <Screen>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* Greeting */}
+        <Text style={styles.greeting}>Hi, {firstName}</Text>
+        <Text style={styles.subGreeting}>Here's your business overview</Text>
 
-        {error && (
-          <View style={styles.errorBanner}>
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        )}
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          {QUICK_ACTIONS.map((action) => (
+            <TouchableOpacity
+              key={action.route}
+              style={styles.quickActionCard}
+              onPress={() => router.push(action.route as any)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.quickActionIcon, { backgroundColor: action.color + '20' }]}>
+                <Ionicons name={action.icon} size={22} color={action.color} />
+              </View>
+              <Text style={styles.quickActionLabel}>{action.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
 
-        {previewUri ? (
-          <View style={styles.previewContainer}>
-            <Image
-              source={{ uri: previewUri }}
-              style={styles.previewImage}
-              resizeMode="contain"
-            />
-
-            {pendingUris.length > 1 && (
-              <Text style={styles.multiPhotoHint}>
-                {pendingUris.length} photos selected
+        {/* Pending review banner */}
+        {reviewCount > 0 && (
+          <TouchableOpacity
+            style={styles.reviewBanner}
+            onPress={() => router.push('/(tabs)/receipts')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="document-text" size={20} color={colors.review} />
+              <Text style={styles.reviewBannerText}>
+                {reviewCount} receipt{reviewCount !== 1 ? 's' : ''} pending review
               </Text>
-            )}
-
-            <View style={styles.previewActions}>
-              <Button
-                title="Retake"
-                onPress={handleRetake}
-                variant="secondary"
-                style={styles.previewButton}
-              />
-              <Button
-                title="Use Photo"
-                onPress={handleUsePhoto}
-                variant="primary"
-                loading={isUploading}
-                style={styles.previewButton}
-              />
             </View>
-          </View>
-        ) : (
-          <>
-            {/* Camera */}
-            <CameraViewfinder
-              onCapture={handleCapture}
-              onGallerySelect={handleGallerySelect}
-              disabled={isUploading}
-            />
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
 
-            {/* Recent receipts */}
-            <RecentReceiptsStrip />
+        {/* Stats cards */}
+        <View style={styles.statsRow}>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => router.push('/(tabs)/jobs')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.statValue}>{activeJobs.length}</Text>
+            <Text style={styles.statLabel}>Active Jobs</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => router.push('/(tabs)/expenses')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.statValue}>{formatMoney(monthTotal)}</Text>
+            <Text style={styles.statLabel}>This Month</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.statCard}
+            onPress={() => router.push('/(tabs)/mileage')}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.statValue}>
+              {formatMoney(mileageSummary?.totalDeduction ?? 0)}
+            </Text>
+            <Text style={styles.statLabel}>Mileage</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Top job budget */}
+        {topJob && topJobBudget.budget > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Top Job</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push(`/job/${topJob.id}`)}
+            >
+              <Card>
+                <Text style={styles.jobName}>{topJob.name}</Text>
+                {topJob.customerName && (
+                  <Text style={styles.jobCustomer}>{topJob.customerName}</Text>
+                )}
+                <View style={styles.jobBudgetRow}>
+                  <Text style={styles.jobBudgetLabel}>
+                    {formatMoney(topJobBudget.spent)} of {formatMoney(topJobBudget.budget)}
+                  </Text>
+                  <Text style={[styles.jobBudgetRemaining, { color: topJobBudget.color }]}>
+                    {topJobBudget.remaining >= 0
+                      ? `${formatMoney(topJobBudget.remaining)} left`
+                      : `${formatMoney(Math.abs(topJobBudget.remaining))} over`}
+                  </Text>
+                </View>
+                <ProgressBar
+                  spent={topJobBudget.spent}
+                  budget={topJobBudget.budget}
+                />
+              </Card>
+            </TouchableOpacity>
           </>
         )}
-      </View>
-    </SafeAreaView>
+
+        {/* Recent receipts */}
+        <Text style={styles.sectionTitle}>Recent Receipts</Text>
+        {recentReceipts.length === 0 ? (
+          <Text style={styles.emptyText}>
+            No receipts yet. Scan your first receipt to get started.
+          </Text>
+        ) : (
+          recentReceipts.map((receipt) => (
+            <TouchableOpacity
+              key={receipt.id}
+              style={styles.receiptRow}
+              onPress={() => router.push(`/receipt/${receipt.id}`)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.receiptInfo}>
+                <Text style={styles.receiptMerchant} numberOfLines={1}>
+                  {receipt.merchantName || 'Processing...'}
+                </Text>
+                <View style={styles.receiptSubRow}>
+                  {receipt.transactionDate && (
+                    <Text style={styles.receiptDate}>
+                      {formatDate(receipt.transactionDate.toString())}
+                    </Text>
+                  )}
+                  <ReceiptStatusBadge status={receipt.status} />
+                </View>
+              </View>
+              <Text style={styles.receiptAmount}>
+                {receipt.totalAmount != null ? formatMoney(receipt.totalAmount) : '—'}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.black,
+  greeting: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: spacing.xs,
   },
-  container: {
-    flex: 1,
-    backgroundColor: colors.black,
+  subGreeting: {
+    fontSize: 15,
+    color: colors.textMuted,
+    marginBottom: spacing.xl,
   },
-  uploadOverlay: {
-    position: 'absolute',
-    top: 60,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: spacing.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-  },
-  uploadText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '500',
-    marginLeft: spacing.sm,
-  },
-  errorBanner: {
-    position: 'absolute',
-    top: 60,
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 10,
-    backgroundColor: colors.error,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  errorText: {
-    color: colors.white,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  previewContainer: {
-    flex: 1,
-    backgroundColor: colors.black,
-    justifyContent: 'space-between',
-  },
-  previewImage: {
-    width: '100%',
-    height: SCREEN_HEIGHT * 0.65,
-  },
-  multiPhotoHint: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    fontSize: 14,
-    paddingVertical: spacing.sm,
-  },
-  previewActions: {
+  quickActions: {
     flexDirection: 'row',
     gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingBottom: spacing.xxl,
+    marginBottom: spacing.lg,
   },
-  previewButton: {
+  quickActionCard: {
     flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    alignItems: 'center',
+    gap: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  quickActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  quickActionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  reviewBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.review + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.review + '40',
+  },
+  reviewBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  reviewBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.review,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  sectionTitle: {
+    ...typography.label,
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  jobName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 2,
+  },
+  jobCustomer: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  jobBudgetRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  jobBudgetLabel: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontVariant: ['tabular-nums'],
+  },
+  jobBudgetRemaining: {
+    fontSize: 13,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
+  },
+  emptyText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: spacing.md,
+  },
+  receiptRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  receiptInfo: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  receiptMerchant: {
+    fontSize: 14,
+    color: colors.text,
+  },
+  receiptSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 2,
+  },
+  receiptDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+  },
+  receiptAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  bottomSpacer: {
+    height: spacing.xxxl,
   },
 });
