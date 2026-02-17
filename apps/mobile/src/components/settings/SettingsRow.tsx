@@ -6,13 +6,15 @@ import { colors, spacing, MIN_TOUCH_TARGET } from '../../theme';
 interface SettingsRowProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  subtitle?: string;
   value?: string;
   onPress?: () => void;
   danger?: boolean;
   showChevron?: boolean;
+  rightElement?: React.ReactNode;
 }
 
-export function SettingsRow({ icon, label, value, onPress, danger, showChevron }: SettingsRowProps) {
+export function SettingsRow({ icon, label, subtitle, value, onPress, danger, showChevron, rightElement }: SettingsRowProps) {
   const Container = onPress ? TouchableOpacity : View;
   const chevronVisible = showChevron ?? (onPress && !danger);
 
@@ -28,8 +30,12 @@ export function SettingsRow({ icon, label, value, onPress, danger, showChevron }
         color={danger ? colors.error : colors.textSecondary}
         style={styles.icon}
       />
-      <Text style={[styles.label, danger && styles.dangerLabel]}>{label}</Text>
+      <View style={styles.labelContainer}>
+        <Text style={[styles.label, danger && styles.dangerLabel]}>{label}</Text>
+        {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
+      </View>
       {value && <Text style={styles.value}>{value}</Text>}
+      {rightElement}
       {chevronVisible && (
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       )}
@@ -50,10 +56,17 @@ const styles = StyleSheet.create({
   icon: {
     marginRight: spacing.md,
   },
-  label: {
+  labelContainer: {
     flex: 1,
+  },
+  label: {
     fontSize: 16,
     color: colors.text,
+  },
+  subtitle: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 2,
   },
   dangerLabel: {
     color: colors.error,

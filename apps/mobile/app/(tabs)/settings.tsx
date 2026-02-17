@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
-import { ScrollView, Text, Alert, Linking, Switch, Platform, View, StyleSheet } from 'react-native';
+import { ScrollView, Text, Alert, Platform, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import Constants from 'expo-constants';
-import { IRS_MILEAGE_RATE_CENTS } from '@jobreceipt/shared';
 import { Screen } from '../../src/components/layout';
+import { Badge } from '../../src/components/ui';
 import { SettingsSection, SettingsRow } from '../../src/components/settings';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { useSettings } from '../../src/hooks/useSettings';
 import { organizationsApi } from '../../src/api/organizations';
 import { exportReceipts, exportExpenses, exportMileage } from '../../src/lib/export';
-import { spacing, typography, colors } from '../../src/theme';
+import { spacing, typography, colors, borderRadius } from '../../src/theme';
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Owner',
@@ -19,9 +18,11 @@ const ROLE_LABELS: Record<string, string> = {
   CREW: 'Crew',
 };
 
-function centsToDollarStr(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
+const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
+  OWNER: { bg: colors.primary + '20', text: colors.primary },
+  BOOKKEEPER: { bg: colors.success + '20', text: colors.success },
+  CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
+};
 
 export default function SettingsScreen() {
   const { signOut } = useAuth();
@@ -32,98 +33,15 @@ export default function SettingsScreen() {
   const userRole = useAuthStore((s) => s.userRole);
   const isOwner = userRole === 'OWNER';
 
-  const {
-    mileageRateCents,
-    notificationsEnabled,
-    setMileageRateCents,
-    setNotificationsEnabled,
-  } = useSettings();
-
   const [exporting, setExporting] = useState<'receipts' | 'expenses' | 'mileage' | null>(null);
 
-  const handleEditName = () => {
-    if (!user) return;
-    const currentName = user.fullName || '';
+  const initials = (() => {
+    const first = user?.firstName?.charAt(0) || '';
+    const last = user?.lastName?.charAt(0) || '';
+    return (first + last).toUpperCase() || '?';
+  })();
 
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Edit Name',
-        'Enter your full name',
-        async (name) => {
-          if (!name?.trim()) return;
-          const parts = name.trim().split(' ');
-          const firstName = parts[0];
-          const lastName = parts.slice(1).join(' ') || undefined;
-          try {
-            await user.update({ firstName, lastName });
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch {
-            Alert.alert('Error', 'Failed to update name.');
-          }
-        },
-        'plain-text',
-        currentName,
-      );
-    } else {
-      // Android: Alert.prompt not available, use simple alert
-      Alert.alert(
-        'Edit Name',
-        'To edit your name, visit your profile in the Clerk dashboard.',
-      );
-    }
-  };
-
-  const handleEditMileageRate = () => {
-    const currentRate = centsToDollarStr(mileageRateCents);
-    const irsRate = centsToDollarStr(IRS_MILEAGE_RATE_CENTS);
-
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Mileage Rate',
-        `Enter rate in dollars per mile.\nIRS standard rate: $${irsRate}/mi`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: `Reset to $${irsRate}`,
-            onPress: () => {
-              setMileageRateCents(IRS_MILEAGE_RATE_CENTS);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            },
-          },
-          {
-            text: 'Save',
-            onPress: (value) => {
-              const parsed = parseFloat(value || '');
-              if (isNaN(parsed) || parsed <= 0) {
-                Alert.alert('Invalid Rate', 'Please enter a valid dollar amount.');
-                return;
-              }
-              setMileageRateCents(Math.round(parsed * 100));
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-            },
-          },
-        ],
-        'plain-text',
-        currentRate,
-        'decimal-pad',
-      );
-    } else {
-      Alert.alert(
-        'Mileage Rate',
-        `Current rate: $${currentRate}/mi\nIRS standard: $${irsRate}/mi`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: `Reset to IRS Rate ($${irsRate})`,
-            onPress: () => {
-              setMileageRateCents(IRS_MILEAGE_RATE_CENTS);
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            },
-          },
-        ],
-      );
-    }
-  };
+  const roleStyle = ROLE_COLORS[userRole || ''] || ROLE_COLORS.CREW;
 
   const handleEditOrgName = () => {
     if (!isOwner || !orgId) return;
@@ -193,7 +111,6 @@ export default function SettingsScreen() {
           text: 'Delete Account',
           style: 'destructive',
           onPress: () => {
-            // Second confirmation
             if (Platform.OS === 'ios') {
               Alert.prompt(
                 'Confirm Deletion',
@@ -251,27 +168,29 @@ export default function SettingsScreen() {
       >
         <Text style={styles.title}>Settings</Text>
 
-        <SettingsSection title="Profile">
-          <SettingsRow
-            icon="person-outline"
-            label="Name"
-            value={user?.fullName || '—'}
-            onPress={handleEditName}
-            showChevron
+        {/* Profile Header Card */}
+        <TouchableOpacity
+          style={styles.profileCard}
+          onPress={() => router.push('/settings/profile')}
+          activeOpacity={0.7}
+        >
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View style={styles.profileInfo}>
+            <Text style={styles.profileName} numberOfLines={1}>
+              {user?.fullName || 'Set up your profile'}
+            </Text>
+            <Text style={styles.profileEmail} numberOfLines={1}>
+              {user?.primaryEmailAddress?.emailAddress || ''}
+            </Text>
+          </View>
+          <Badge
+            label={userRole ? ROLE_LABELS[userRole] ?? userRole : '—'}
+            color={roleStyle.text}
+            backgroundColor={roleStyle.bg}
           />
-          <SettingsRow
-            icon="mail-outline"
-            label="Email"
-            value={user?.primaryEmailAddress?.emailAddress || '—'}
-          />
-          {user?.primaryPhoneNumber && (
-            <SettingsRow
-              icon="call-outline"
-              label="Phone"
-              value={user.primaryPhoneNumber.phoneNumber}
-            />
-          )}
-        </SettingsSection>
+        </TouchableOpacity>
 
         <SettingsSection title="Organization">
           <SettingsRow
@@ -280,11 +199,6 @@ export default function SettingsScreen() {
             value={orgName || 'Not set'}
             onPress={isOwner ? handleEditOrgName : undefined}
             showChevron={isOwner}
-          />
-          <SettingsRow
-            icon="shield-outline"
-            label="Your Role"
-            value={userRole ? ROLE_LABELS[userRole] ?? userRole : '—'}
           />
           {isOwner && (
             <SettingsRow
@@ -296,32 +210,14 @@ export default function SettingsScreen() {
           )}
         </SettingsSection>
 
-        <SettingsSection title="App Settings">
+        <SettingsSection title="Preferences">
           <SettingsRow
-            icon="speedometer-outline"
-            label="Mileage Rate"
-            value={`$${centsToDollarStr(mileageRateCents)}/mi`}
-            onPress={handleEditMileageRate}
+            icon="options-outline"
+            label="App Preferences"
+            subtitle="Mileage rate, tax rate, categories"
+            onPress={() => router.push('/settings/preferences')}
             showChevron
           />
-          <SettingsRow
-            icon="cash-outline"
-            label="Currency"
-            value="USD"
-          />
-          <View style={styles.toggleRow}>
-            <SettingsRow
-              icon="notifications-outline"
-              label="Notifications"
-            />
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={colors.white}
-              style={styles.switch}
-            />
-          </View>
         </SettingsSection>
 
         <SettingsSection title="Data & Export">
@@ -345,21 +241,6 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
-        <SettingsSection title="Support">
-          <SettingsRow
-            icon="help-circle-outline"
-            label="Help & FAQ"
-            onPress={() => Linking.openURL('https://jobreceipt.app/help')}
-            showChevron
-          />
-          <SettingsRow
-            icon="mail-outline"
-            label="Send Feedback"
-            onPress={() => Linking.openURL('mailto:support@jobreceipt.app')}
-            showChevron
-          />
-        </SettingsSection>
-
         <SettingsSection title="Account">
           <SettingsRow
             icon="log-out-outline"
@@ -375,9 +256,15 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
-        <Text style={styles.version}>
-          JobReceipt v{version}
-        </Text>
+        <SettingsSection title="">
+          <SettingsRow
+            icon="information-circle-outline"
+            label="About"
+            subtitle={`Version ${version}`}
+            onPress={() => router.push('/settings/about')}
+            showChevron
+          />
+        </SettingsSection>
       </ScrollView>
     </Screen>
   );
@@ -392,18 +279,43 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
   },
-  toggleRow: {
-    position: 'relative',
+  profileCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  avatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: colors.primary + '20',
     justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
   },
-  switch: {
-    position: 'absolute',
-    right: spacing.lg,
+  avatarText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primary,
   },
-  version: {
-    textAlign: 'center',
-    fontSize: 12,
+  profileInfo: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  profileName: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  profileEmail: {
+    fontSize: 14,
     color: colors.textMuted,
-    marginTop: spacing.xl,
+    marginTop: 2,
   },
 });
