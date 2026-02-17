@@ -24,6 +24,7 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
 import { formatMoney, formatDate, formatMiles } from '../../src/lib/format';
+import { exportJobReport } from '../../src/lib/export';
 import { colors, spacing, typography } from '../../src/theme';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -47,6 +48,7 @@ export default function JobDetailScreen() {
 
   const updateJob = useUpdateJob();
   const [statusLoading, setStatusLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
@@ -118,6 +120,18 @@ export default function JobDetailScreen() {
         { text: 'Archive', style: 'destructive', onPress: () => handleStatusChange('ARCHIVED') },
       ],
     );
+  };
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await exportJobReport(id!, job.name);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert('Export Failed', err.message || 'Something went wrong.');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const activeCategories = [
@@ -343,6 +357,16 @@ export default function JobDetailScreen() {
           ))
         )}
 
+        {/* Export report */}
+        <View style={styles.exportSection}>
+          <Button
+            title={exporting ? 'Exporting...' : 'Export Job Report'}
+            onPress={handleExport}
+            variant="secondary"
+            loading={exporting}
+          />
+        </View>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </Screen>
@@ -470,6 +494,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     marginTop: 2,
+  },
+  exportSection: {
+    marginTop: spacing.xl,
   },
   bottomSpacer: {
     height: spacing.xxxl,

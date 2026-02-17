@@ -63,6 +63,87 @@ export async function exportExpenses(): Promise<void> {
   await shareFile(`expenses_${today()}.csv`, csv);
 }
 
+function sanitizeFilename(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 50);
+}
+
+export async function exportJobReport(jobId: string, jobName: string): Promise<void> {
+  const [expRes, recRes, milRes] = await Promise.all([
+    expensesApi.list({ jobId, limit: EXPORT_LIMIT } as any),
+    receiptsApi.list({ jobId, limit: EXPORT_LIMIT } as any),
+    mileageApi.list({ jobId, limit: EXPORT_LIMIT }),
+  ]);
+
+  if (expRes.data.length === 0 && recRes.data.length === 0 && milRes.data.length === 0) {
+    throw new Error('No data to export for this job.');
+  }
+
+  const lines: string[] = [];
+
+  // Job header
+  lines.push(`Job Report: ${jobName}`);
+  lines.push(`Generated: ${today()}`);
+  lines.push('');
+
+  // Expenses section
+  lines.push('EXPENSES');
+  if (expRes.data.length > 0) {
+    const expCsv = generateCsv(expRes.data, [
+      { header: 'Date', accessor: (r: any) => r.date?.split('T')[0] ?? '' },
+      { header: 'Description', accessor: (r: any) => r.description ?? '' },
+      { header: 'Amount', accessor: (r: any) => r.amount != null ? centsToDollars(r.amount) : '' },
+      { header: 'Category', accessor: (r: any) => r.category ?? '' },
+    ]);
+    lines.push(expCsv);
+  } else {
+    lines.push('No expenses for this job');
+  }
+  lines.push('');
+
+  // Receipts section
+  lines.push('RECEIPTS');
+  if (recRes.data.length > 0) {
+    const recCsv = generateCsv(recRes.data, [
+      { header: 'Date', accessor: (r: any) => r.transactionDate?.split('T')[0] ?? '' },
+      { header: 'Merchant', accessor: (r: any) => r.merchantName ?? '' },
+      { header: 'Total', accessor: (r: any) => r.totalAmount != null ? centsToDollars(r.totalAmount) : '' },
+      { header: 'Status', accessor: (r: any) => r.status ?? '' },
+    ]);
+    lines.push(recCsv);
+  } else {
+    lines.push('No receipts for this job');
+  }
+  lines.push('');
+
+  // Mileage section
+  lines.push('MILEAGE');
+  if (milRes.data.length > 0) {
+    const milCsv = generateCsv(milRes.data, [
+      { header: 'Date', accessor: (r) => r.date?.split('T')[0] ?? '' },
+      { header: 'Miles', accessor: (r) => r.distanceMiles },
+      { header: 'Rate ($/mi)', accessor: (r) => centsToDollars(r.irsRate) },
+      { header: 'Deduction', accessor: (r) => centsToDollars(r.totalDeduction) },
+      { header: 'Purpose', accessor: (r) => r.purpose ?? '' },
+    ]);
+    lines.push(milCsv);
+  } else {
+    lines.push('No mileage trips for this job');
+  }
+  lines.push('');
+
+  // Summary
+  const totalExpenses = expRes.data.reduce((sum: number, e: any) => sum + (e.amount ?? 0), 0);
+  const totalMileage = milRes.data.reduce((sum, m) => sum + m.totalDeduction, 0);
+
+  lines.push('SUMMARY');
+  lines.push(`Total Expenses,$${centsToDollars(totalExpenses)}`);
+  lines.push(`Total Mileage Deductions,$${centsToDollars(totalMileage)}`);
+  lines.push(`Grand Total,$${centsToDollars(totalExpenses + totalMileage)}`);
+
+  const safeName = sanitizeFilename(jobName);
+  await shareFile(`${safeName}_${today()}.csv`, lines.join('\n'));
+}
+
 export async function exportMileage(): Promise<void> {
   const res = await mileageApi.list({ limit: EXPORT_LIMIT });
   if (res.data.length === 0) throw new Error('No mileage trips to export.');
