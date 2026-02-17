@@ -6,3 +6,4 @@ export { OcrFieldEditor } from './OcrFieldEditor';
 export { LineItemList } from './LineItemList';
 export { LineItemRow } from './LineItemRow';
 export { SplitAssignmentSheet } from './SplitAssignmentSheet';
+export { CreateExpenseFromReceiptSheet } from './CreateExpenseFromReceiptSheet';

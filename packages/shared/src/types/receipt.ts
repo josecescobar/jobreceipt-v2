@@ -43,6 +43,16 @@ export interface Receipt {
   lineItems?: ReceiptLineItem[];
   /** Parsed OCR data (from ocrRawJson) */
   ocrData?: OcrResult | null;
+  /** Populated when fetching a single receipt — linked expenses */
+  expenses?: Array<{
+    id: string;
+    amount: number;
+    description: string;
+    category: string | null;
+    date: string;
+    jobId: string;
+    job?: { id: string; name: string };
+  }>;
 }
 
 export interface ReceiptLineItem {

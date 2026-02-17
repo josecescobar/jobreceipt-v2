@@ -2,15 +2,9 @@ import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tansta
 import { receiptsApi } from '../api/receipts';
 import type { ReceiptQueryDto, UpdateReceiptDto, SplitLineItemsDto } from '@jobreceipt/shared';
 import { QUERY_STALE_TIME, DEFAULT_PAGE_SIZE, RECEIPTS_RECENT_LIMIT } from '../lib/constants';
+import { receiptKeys, expenseKeys } from '../lib/query-keys';
 
-export const receiptKeys = {
-  all: ['receipts'] as const,
-  lists: () => [...receiptKeys.all, 'list'] as const,
-  list: (params: ReceiptQueryDto) => [...receiptKeys.lists(), params] as const,
-  details: () => [...receiptKeys.all, 'detail'] as const,
-  detail: (id: string) => [...receiptKeys.details(), id] as const,
-  recent: () => [...receiptKeys.all, 'recent'] as const,
-};
+export { receiptKeys };
 
 export function useReceipts(params?: ReceiptQueryDto) {
   return useInfiniteQuery({
@@ -63,6 +57,7 @@ export function useApproveReceipt() {
     onSuccess: (data) => {
       queryClient.setQueryData(receiptKeys.detail(data.id), data);
       queryClient.invalidateQueries({ queryKey: receiptKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
     },
   });
 }

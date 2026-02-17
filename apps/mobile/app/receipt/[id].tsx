@@ -4,14 +4,16 @@ import {
   Text,
   ScrollView,
   Alert,
+  TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
-import { Button } from '../../src/components/ui';
+import { Button, Card } from '../../src/components/ui';
 import {
   ZoomableImage,
   ReceiptStatusBadge,
@@ -19,6 +21,7 @@ import {
   OcrFieldEditor,
   LineItemList,
   SplitAssignmentSheet,
+  CreateExpenseFromReceiptSheet,
 } from '../../src/components/receipt';
 import {
   useReceipt,
@@ -28,9 +31,10 @@ import {
   useSplitReceipt,
   useDeleteReceipt,
 } from '../../src/hooks/useReceipts';
+import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
-import { centsToDollars, dollarsToCents, formatDate } from '../../src/lib/format';
-import { colors, spacing, typography } from '../../src/theme';
+import { centsToDollars, dollarsToCents, formatDate, formatMoney } from '../../src/lib/format';
+import { colors, spacing, typography, borderRadius } from '../../src/theme';
 
 const IMAGE_HEIGHT = Dimensions.get('window').height * 0.4;
 
@@ -52,7 +56,10 @@ export default function ReceiptDetailScreen() {
     [jobsData],
   );
 
+  const createExpense = useCreateExpense();
+
   const [showSplit, setShowSplit] = useState(false);
+  const [showExpenseSheet, setShowExpenseSheet] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState('');
 
@@ -106,11 +113,36 @@ export default function ReceiptDetailScreen() {
     ? jobs.find((j) => j.id === receipt.suggestedJobId)
     : null;
 
-  const handleApprove = async () => {
+  const handleApprove = () => {
+    setShowExpenseSheet(true);
+  };
+
+  const handleCreateExpenseAndApprove = async (data: {
+    jobId: string;
+    amount: number;
+    description: string;
+    category?: string;
+    date: string;
+    receiptId: string;
+  }) => {
+    setError('');
+    try {
+      await createExpense.mutateAsync(data);
+      await approveReceipt.mutateAsync(receipt.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowExpenseSheet(false);
+      router.back();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create expense and approve');
+    }
+  };
+
+  const handleJustApprove = async () => {
     setError('');
     try {
       await approveReceipt.mutateAsync(receipt.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowExpenseSheet(false);
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to approve receipt');
@@ -313,6 +345,39 @@ export default function ReceiptDetailScreen() {
                 />
               </View>
             )}
+
+            {/* Linked Expenses */}
+            {receipt.expenses && receipt.expenses.length > 0 && (
+              <View style={styles.linkedSection}>
+                <Text style={styles.linkedTitle}>Linked Expenses</Text>
+                {receipt.expenses.map((exp) => (
+                  <TouchableOpacity
+                    key={exp.id}
+                    activeOpacity={0.7}
+                    onPress={() => router.push(`/expense/edit/${exp.id}`)}
+                  >
+                    <Card style={styles.linkedCard}>
+                      <View style={styles.linkedRow}>
+                        <View style={styles.linkedIcon}>
+                          <Ionicons name="cash-outline" size={16} color={colors.success} />
+                        </View>
+                        <View style={styles.linkedInfo}>
+                          <Text style={styles.linkedDesc} numberOfLines={1}>
+                            {exp.description}
+                          </Text>
+                          {exp.job && (
+                            <Text style={styles.linkedJob}>{exp.job.name}</Text>
+                          )}
+                        </View>
+                        <Text style={styles.linkedAmount}>
+                          {formatMoney(exp.amount)}
+                        </Text>
+                      </View>
+                    </Card>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
           </>
         )}
 
@@ -376,6 +441,17 @@ export default function ReceiptDetailScreen() {
           }
           setShowSplit(false);
         }}
+      />
+
+      {/* Create expense from receipt sheet */}
+      <CreateExpenseFromReceiptSheet
+        visible={showExpenseSheet}
+        onClose={() => setShowExpenseSheet(false)}
+        receipt={receipt}
+        jobs={jobs}
+        onCreateAndApprove={handleCreateExpenseAndApprove}
+        onJustApprove={handleJustApprove}
+        loading={createExpense.isPending || approveReceipt.isPending}
       />
     </Screen>
   );
@@ -478,6 +554,55 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     flex: 1,
+  },
+  linkedSection: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.xl,
+  },
+  linkedTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: spacing.sm,
+  },
+  linkedCard: {
+    marginBottom: spacing.sm,
+    padding: spacing.md,
+  },
+  linkedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  linkedIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.success + '20',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.sm,
+  },
+  linkedInfo: {
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  linkedDesc: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  linkedJob: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  linkedAmount: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
   },
   deleteContainer: {
     paddingHorizontal: spacing.lg,

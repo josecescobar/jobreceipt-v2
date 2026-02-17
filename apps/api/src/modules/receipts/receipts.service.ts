@@ -109,6 +109,17 @@ export class ReceiptsService {
           },
         },
         uploadedBy: { select: { id: true, name: true, email: true } },
+        expenses: {
+          select: {
+            id: true,
+            amount: true,
+            description: true,
+            category: true,
+            date: true,
+            jobId: true,
+            job: { select: { id: true, name: true } },
+          },
+        },
       },
     });
     if (!receipt) throw new NotFoundException('Receipt not found');

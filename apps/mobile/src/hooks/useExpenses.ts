@@ -3,14 +3,9 @@ import { expensesApi } from '../api/expenses';
 import type { ExpenseQueryDto, CreateExpenseDto, UpdateExpenseDto } from '@jobreceipt/shared';
 import { QUERY_STALE_TIME, DEFAULT_PAGE_SIZE } from '../lib/constants';
 import { jobKeys } from './useJobs';
+import { expenseKeys, receiptKeys } from '../lib/query-keys';
 
-export const expenseKeys = {
-  all: ['expenses'] as const,
-  lists: () => [...expenseKeys.all, 'list'] as const,
-  list: (params: ExpenseQueryDto) => [...expenseKeys.lists(), params] as const,
-  details: () => [...expenseKeys.all, 'detail'] as const,
-  detail: (id: string) => [...expenseKeys.details(), id] as const,
-};
+export { expenseKeys };
 
 export function useExpenses(params?: ExpenseQueryDto) {
   return useInfiniteQuery({
@@ -44,6 +39,10 @@ export function useCreateExpense() {
       // Invalidate job budget if expense is linked to a job
       if (data.jobId) {
         queryClient.invalidateQueries({ queryKey: jobKeys.budget(data.jobId) });
+      }
+      // Invalidate receipt detail to show linked expense
+      if (data.receiptId) {
+        queryClient.invalidateQueries({ queryKey: receiptKeys.detail(data.receiptId) });
       }
     },
   });
