@@ -1,8 +1,16 @@
 import React, { useMemo } from 'react';
-import { View, ScrollView, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+} from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Screen, Header } from '../../src/components/layout';
-import { MoneyText } from '../../src/components/ui';
+import { Badge, MoneyText } from '../../src/components/ui';
+import { ReceiptStatusBadge } from '../../src/components/receipt';
 import {
   OverBudgetBanner,
   BudgetBreakdownChart,
@@ -11,8 +19,16 @@ import {
 import { useJob } from '../../src/hooks/useJobs';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useExpenses } from '../../src/hooks/useExpenses';
-import { formatMoney, formatDate } from '../../src/lib/format';
+import { useReceipts } from '../../src/hooks/useReceipts';
+import { useMileageTrips } from '../../src/hooks/useMileage';
+import { formatMoney, formatDate, formatMiles } from '../../src/lib/format';
 import { colors, spacing, typography } from '../../src/theme';
+
+const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  ACTIVE: { bg: colors.success + '20', text: colors.success },
+  COMPLETED: { bg: colors.primary + '20', text: colors.primary },
+  ARCHIVED: { bg: colors.textMuted + '20', text: colors.textMuted },
+};
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -25,13 +41,24 @@ export default function JobDetailScreen() {
     remaining,
     color,
     categories,
-    isLoading: budgetLoading,
   } = useBudget(id!);
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
     () => expensesData?.pages?.flatMap((p) => p.data) ?? [],
     [expensesData],
+  );
+
+  const { data: receiptsData } = useReceipts({ jobId: id });
+  const receipts = useMemo(
+    () => receiptsData?.pages?.flatMap((p) => p.data) ?? [],
+    [receiptsData],
+  );
+
+  const { data: mileageData } = useMileageTrips({ jobId: id });
+  const mileageTrips = useMemo(
+    () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
+    [mileageData],
   );
 
   if (jobLoading || !job) {
@@ -45,6 +72,7 @@ export default function JobDetailScreen() {
     );
   }
 
+  const statusStyle = STATUS_COLORS[job.status] || STATUS_COLORS.ACTIVE;
   const chartData = [
     { label: 'Materials', ...categories.materials },
     { label: 'Labor', ...categories.labor },
@@ -52,6 +80,14 @@ export default function JobDetailScreen() {
     { label: 'Sub', ...categories.subcontractor },
     { label: 'Overhead', ...categories.overhead },
   ];
+
+  const activeCategories = [
+    { label: 'Materials', ...categories.materials },
+    { label: 'Labor', ...categories.labor },
+    { label: 'Equipment', ...categories.equipment },
+    { label: 'Subcontractor', ...categories.subcontractor },
+    { label: 'Overhead', ...categories.overhead },
+  ].filter((c) => c.spent > 0 || c.budget > 0);
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
@@ -66,10 +102,30 @@ export default function JobDetailScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Customer */}
-        {job.customerName && (
-          <Text style={styles.customer}>{job.customerName}</Text>
-        )}
+        {/* Job info */}
+        <View style={styles.infoSection}>
+          <Badge
+            label={job.status}
+            color={statusStyle.text}
+            backgroundColor={statusStyle.bg}
+          />
+          {job.customerName && (
+            <Text style={styles.customer}>{job.customerName}</Text>
+          )}
+          {job.customerAddress && (
+            <Text style={styles.customerAddress}>{job.customerAddress}</Text>
+          )}
+          {(job.startDate || job.endDate) && (
+            <Text style={styles.dates}>
+              {job.startDate ? formatDate(job.startDate.toString()) : ''}
+              {job.startDate && job.endDate ? ' — ' : ''}
+              {job.endDate ? formatDate(job.endDate.toString()) : ''}
+            </Text>
+          )}
+          {job.notes && (
+            <Text style={styles.notes}>{job.notes}</Text>
+          )}
+        </View>
 
         {/* Over budget alert */}
         {isOverBudget && (
@@ -103,53 +159,113 @@ export default function JobDetailScreen() {
         {/* Budget breakdown chart */}
         {budget > 0 && <BudgetBreakdownChart data={chartData} />}
 
-        {/* Category cards */}
-        <Text style={styles.sectionTitle}>Category Breakdown</Text>
-        <CategoryBreakdownCard
-          label="Materials"
-          spent={categories.materials.spent}
-          budget={categories.materials.budget}
-        />
-        <CategoryBreakdownCard
-          label="Labor"
-          spent={categories.labor.spent}
-          budget={categories.labor.budget}
-        />
-        <CategoryBreakdownCard
-          label="Equipment"
-          spent={categories.equipment.spent}
-          budget={categories.equipment.budget}
-        />
-        <CategoryBreakdownCard
-          label="Subcontractor"
-          spent={categories.subcontractor.spent}
-          budget={categories.subcontractor.budget}
-        />
-        <CategoryBreakdownCard
-          label="Overhead"
-          spent={categories.overhead.spent}
-          budget={categories.overhead.budget}
-        />
+        {/* Category cards (only non-zero) */}
+        {activeCategories.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Category Breakdown</Text>
+            {activeCategories.map((cat) => (
+              <CategoryBreakdownCard
+                key={cat.label}
+                label={cat.label}
+                spent={cat.spent}
+                budget={cat.budget}
+              />
+            ))}
+          </>
+        )}
 
-        {/* Recent expenses */}
+        {/* Expenses section */}
         <Text style={styles.sectionTitle}>
           Expenses ({expenses.length})
         </Text>
-        {expenses.slice(0, 10).map((expense) => (
-          <View key={expense.id} style={styles.expenseRow}>
-            <View style={styles.expenseInfo}>
-              <Text style={styles.expenseDesc} numberOfLines={1}>
-                {expense.description || 'Expense'}
+        {expenses.length === 0 ? (
+          <Text style={styles.emptyText}>No expenses yet</Text>
+        ) : (
+          expenses.slice(0, 10).map((expense) => (
+            <TouchableOpacity
+              key={expense.id}
+              style={styles.listRow}
+              onPress={() => router.push(`/expense/edit/${expense.id}`)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.listRowInfo}>
+                <Text style={styles.listRowTitle} numberOfLines={1}>
+                  {expense.description || 'Expense'}
+                </Text>
+                <Text style={styles.listRowSub}>
+                  {expense.date ? formatDate(expense.date.toString()) : ''}
+                </Text>
+              </View>
+              <Text style={styles.listRowAmount}>
+                {formatMoney(expense.amount)}
               </Text>
-              <Text style={styles.expenseDate}>
-                {expense.date ? formatDate(expense.date) : ''}
+            </TouchableOpacity>
+          ))
+        )}
+
+        {/* Receipts section */}
+        <Text style={styles.sectionTitle}>
+          Receipts ({receipts.length})
+        </Text>
+        {receipts.length === 0 ? (
+          <Text style={styles.emptyText}>No receipts yet</Text>
+        ) : (
+          receipts.slice(0, 5).map((receipt) => (
+            <TouchableOpacity
+              key={receipt.id}
+              style={styles.listRow}
+              onPress={() => router.push(`/receipt/${receipt.id}`)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.listRowInfo}>
+                <Text style={styles.listRowTitle} numberOfLines={1}>
+                  {receipt.merchantName || 'Unknown Merchant'}
+                </Text>
+                <View style={styles.receiptSubRow}>
+                  {receipt.transactionDate && (
+                    <Text style={styles.listRowSub}>
+                      {formatDate(receipt.transactionDate.toString())}
+                    </Text>
+                  )}
+                  <ReceiptStatusBadge status={receipt.status} />
+                </View>
+              </View>
+              <Text style={styles.listRowAmount}>
+                {receipt.totalAmount != null ? formatMoney(receipt.totalAmount) : '—'}
               </Text>
-            </View>
-            <Text style={styles.expenseAmount}>
-              {formatMoney(expense.amount)}
-            </Text>
-          </View>
-        ))}
+            </TouchableOpacity>
+          ))
+        )}
+
+        {/* Mileage section */}
+        <Text style={styles.sectionTitle}>
+          Mileage ({mileageTrips.length})
+        </Text>
+        {mileageTrips.length === 0 ? (
+          <Text style={styles.emptyText}>No mileage trips yet</Text>
+        ) : (
+          mileageTrips.slice(0, 5).map((trip) => (
+            <TouchableOpacity
+              key={trip.id}
+              style={styles.listRow}
+              onPress={() => router.push(`/mileage/edit/${trip.id}`)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.listRowInfo}>
+                <Text style={styles.listRowTitle}>
+                  {formatMiles(trip.distanceMiles)}
+                </Text>
+                <Text style={styles.listRowSub}>
+                  {trip.date ? formatDate(trip.date.toString()) : ''}
+                  {trip.purpose ? ` · ${trip.purpose}` : ''}
+                </Text>
+              </View>
+              <Text style={styles.listRowAmount}>
+                {formatMoney(trip.totalDeduction)}
+              </Text>
+            </TouchableOpacity>
+          ))
+        )}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
@@ -169,9 +285,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  infoSection: {
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
   customer: {
-    ...typography.bodySmall,
-    marginBottom: spacing.md,
+    fontSize: 16,
+    color: colors.text,
+    marginTop: spacing.xs,
+  },
+  customerAddress: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  dates: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  notes: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   summaryCard: {
     backgroundColor: colors.surface,
@@ -218,7 +352,13 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.md,
   },
-  expenseRow: {
+  emptyText: {
+    fontSize: 14,
+    color: colors.textMuted,
+    fontStyle: 'italic',
+    paddingVertical: spacing.sm,
+  },
+  listRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -226,24 +366,30 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  expenseInfo: {
+  listRowInfo: {
     flex: 1,
     marginRight: spacing.md,
   },
-  expenseDesc: {
+  listRowTitle: {
     fontSize: 14,
     color: colors.text,
   },
-  expenseDate: {
+  listRowSub: {
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
   },
-  expenseAmount: {
+  listRowAmount: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     fontVariant: ['tabular-nums'],
+  },
+  receiptSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: 2,
   },
   bottomSpacer: {
     height: spacing.xxxl,
