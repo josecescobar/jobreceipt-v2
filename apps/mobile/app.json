@@ -16,7 +16,7 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.jobreceipt.app",
+      "bundleIdentifier": "com.juggey.jobreceipt",
       "infoPlist": {
         "NSCameraUsageDescription": "JobReceipt needs camera access to scan receipts.",
         "NSPhotoLibraryUsageDescription": "JobReceipt needs photo library access to import receipt photos.",
