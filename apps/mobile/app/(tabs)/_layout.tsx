@@ -55,6 +55,15 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="receipts"
+        options={{
+          title: 'Receipts',
+          tabBarIcon: ({ color, size }) => (
+            <Ionicons name="receipt-outline" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="jobs"
         options={{
           title: 'Jobs',
@@ -68,7 +77,7 @@ export default function TabsLayout() {
         options={{
           title: 'Expenses',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="receipt" size={size} color={color} />
+            <Ionicons name="wallet" size={size} color={color} />
           ),
         }}
       />

@@ -1,3 +1,4 @@
+export { ReceiptCard } from './ReceiptCard';
 export { ZoomableImage } from './ZoomableImage';
 export { ReceiptStatusBadge } from './ReceiptStatusBadge';
 export { JobSuggestionBanner } from './JobSuggestionBanner';
