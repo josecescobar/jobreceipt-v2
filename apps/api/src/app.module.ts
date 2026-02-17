@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AppController } from './app.controller';
 import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { QueueModule } from './queue/queue.module';
@@ -10,6 +11,7 @@ import { CostCodesModule } from './modules/cost-codes/cost-codes.module';
 import { ReceiptsModule } from './modules/receipts/receipts.module';
 
 @Module({
+  controllers: [AppController],
   imports: [
     AppConfigModule,
     PrismaModule,

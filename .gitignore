@@ -44,6 +44,13 @@ android/
 *.mobileprovision
 *.orig.*
 
+# EAS (root-level duplicates from eas init)
+/app.json
+/eas.json
+
+# Prisma
+*.tsbuildinfo
+
 # Misc
 .DS_Store
 *.pem
