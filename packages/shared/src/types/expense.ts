@@ -10,7 +10,7 @@ export interface Expense {
   category: string | null;
   taxCategory: string | null;
   mileage: number | null;
-  date: Date;
+  date: string;
   createdById: string;
   approvedById: string | null;
   approvedAt: Date | null;

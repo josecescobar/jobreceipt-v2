@@ -55,9 +55,9 @@ export function ManualExpenseForm() {
       await createExpense.mutateAsync({
         jobId,
         amount: dollarsToCents(parseFloat(amount)),
-        description: description.trim() || undefined,
+        description: description.trim() || 'Expense',
         category: category || undefined,
-        date: date || undefined,
+        date: date || new Date().toISOString(),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();

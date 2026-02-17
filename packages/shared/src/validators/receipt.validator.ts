@@ -35,8 +35,8 @@ export const ReceiptQuerySchema = z.object({
   merchantName: z.string().optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 
 export const OcrResultSchema = z.object({
@@ -83,5 +83,5 @@ export type RequestUploadUrlDto = z.infer<typeof RequestUploadUrlSchema>;
 export type ConfirmUploadDto = z.infer<typeof ConfirmUploadSchema>;
 export type UpdateReceiptDto = z.infer<typeof UpdateReceiptSchema>;
 export type SplitLineItemsDto = z.infer<typeof SplitLineItemsSchema>;
-export type ReceiptQueryDto = z.infer<typeof ReceiptQuerySchema>;
+export type ReceiptQueryDto = z.input<typeof ReceiptQuerySchema>;
 export type OcrResultDto = z.infer<typeof OcrResultSchema>;

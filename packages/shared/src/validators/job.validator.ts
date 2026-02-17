@@ -22,10 +22,10 @@ export const UpdateJobSchema = CreateJobSchema.partial().extend({
 export const JobQuerySchema = z.object({
   status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
   search: z.string().optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  limit: z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
 });
 
 export type CreateJobDto = z.infer<typeof CreateJobSchema>;
 export type UpdateJobDto = z.infer<typeof UpdateJobSchema>;
-export type JobQueryDto = z.infer<typeof JobQuerySchema>;
+export type JobQueryDto = z.input<typeof JobQuerySchema>;

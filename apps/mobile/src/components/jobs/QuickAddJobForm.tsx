@@ -34,11 +34,11 @@ export function QuickAddJobForm() {
       await createJob.mutateAsync({
         name: name.trim(),
         customerName: customerName.trim() || undefined,
-        totalBudget: totalBudget ? dollarsToCents(parseFloat(totalBudget)) : undefined,
-        materialsBudget: materialsBudget
+        budgetTotal: totalBudget ? dollarsToCents(parseFloat(totalBudget)) : undefined,
+        budgetMaterials: materialsBudget
           ? dollarsToCents(parseFloat(materialsBudget))
           : undefined,
-        laborBudget: laborBudget
+        budgetLabor: laborBudget
           ? dollarsToCents(parseFloat(laborBudget))
           : undefined,
       });

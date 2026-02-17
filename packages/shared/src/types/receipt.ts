@@ -31,7 +31,7 @@ export interface Receipt {
   taxAmount: number | null;
   /** In cents */
   totalAmount: number | null;
-  transactionDate: Date | null;
+  transactionDate: string | null;
   currency: string;
   processedAt: Date | null;
   confidenceScore: string | null;
@@ -39,6 +39,10 @@ export interface Receipt {
   autoAssigned: boolean;
   createdAt: Date;
   updatedAt: Date;
+  /** Populated when fetching a single receipt */
+  lineItems?: ReceiptLineItem[];
+  /** Parsed OCR data (from ocrRawJson) */
+  ocrData?: OcrResult | null;
 }
 
 export interface ReceiptLineItem {

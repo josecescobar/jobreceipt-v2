@@ -35,7 +35,7 @@ export default function MileageScreen() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
   const thisMonthTrips = mileageExpenses.filter(
-    (e) => e.date && e.date >= monthStart,
+    (e) => e.date && String(e.date) >= monthStart,
   );
   const totalMiles = thisMonthTrips.reduce((sum, e) => sum + (e.mileage || 0), 0);
   const totalDeduction = thisMonthTrips.reduce((sum, e) => sum + e.amount, 0);
@@ -47,7 +47,7 @@ export default function MileageScreen() {
         description: `GPS tracked trip (${distanceMiles.toFixed(1)} mi)`,
         category: 'OVERHEAD',
         mileage: distanceMiles,
-        date: new Date().toISOString().split('T')[0],
+        date: new Date().toISOString(),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       refetch();

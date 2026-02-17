@@ -62,8 +62,8 @@ export default function ReceiptDetailScreen() {
       setMerchant(receipt.merchantName || '');
       setDate(receipt.transactionDate || '');
       setSubtotal(
-        receipt.subtotalAmount != null
-          ? centsToDollars(receipt.subtotalAmount).toString()
+        receipt.subtotal != null
+          ? centsToDollars(receipt.subtotal).toString()
           : '',
       );
       setTax(
@@ -112,7 +112,7 @@ export default function ReceiptDetailScreen() {
       updates: {
         merchantName: merchant,
         transactionDate: date,
-        subtotalAmount: subtotal ? dollarsToCents(parseFloat(subtotal)) : undefined,
+        subtotal: subtotal ? dollarsToCents(parseFloat(subtotal)) : undefined,
         taxAmount: tax ? dollarsToCents(parseFloat(tax)) : undefined,
         totalAmount: total ? dollarsToCents(parseFloat(total)) : undefined,
       },
@@ -137,7 +137,7 @@ export default function ReceiptDetailScreen() {
     });
   };
 
-  const ocrLineItems = receipt.ocrData?.lineItems ?? [];
+  const displayLineItems = receipt.lineItems ?? [];
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
@@ -170,7 +170,7 @@ export default function ReceiptDetailScreen() {
           <View style={styles.suggestionContainer}>
             <JobSuggestionBanner
               jobName={suggestedJob.name}
-              confidence={receipt.confidenceScore ?? undefined}
+              confidence={receipt.confidenceScore ? parseFloat(receipt.confidenceScore) : undefined}
               onAssign={handleAssignSuggested}
               onDismiss={handleDismissSuggestion}
             />
@@ -197,11 +197,11 @@ export default function ReceiptDetailScreen() {
               {receipt.merchantName || 'Unknown Merchant'}
             </Text>
             <View style={styles.amountRow}>
-              {receipt.subtotalAmount != null && (
+              {receipt.subtotal != null && (
                 <View style={styles.amountItem}>
                   <Text style={styles.amountLabel}>Subtotal</Text>
                   <Text style={styles.amountValue}>
-                    ${centsToDollars(receipt.subtotalAmount).toFixed(2)}
+                    ${centsToDollars(receipt.subtotal).toFixed(2)}
                   </Text>
                 </View>
               )}
@@ -224,10 +224,10 @@ export default function ReceiptDetailScreen() {
         )}
 
         {/* Line Items */}
-        <LineItemList items={ocrLineItems} />
+        <LineItemList items={displayLineItems} />
 
         {/* Split button */}
-        {ocrLineItems.length > 1 && jobs.length > 0 && (
+        {displayLineItems.length > 1 && jobs.length > 0 && (
           <View style={styles.splitButtonContainer}>
             <Button
               title="Split by Job"
@@ -264,7 +264,7 @@ export default function ReceiptDetailScreen() {
       <SplitAssignmentSheet
         visible={showSplit}
         onClose={() => setShowSplit(false)}
-        lineItems={ocrLineItems}
+        lineItems={displayLineItems}
         jobs={jobs}
         onSave={async (assignments) => {
           const dbLineItems = receipt.lineItems ?? [];

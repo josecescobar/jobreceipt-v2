@@ -30,16 +30,16 @@ export function useBudget(jobId: string) {
         budget: budgetData?.laborBudget ?? 0,
       },
       equipment: {
-        spent: budgetData?.equipmentSpent ?? 0,
-        budget: budgetData?.equipmentBudget ?? 0,
+        spent: budgetData?.byCategory?.EQUIPMENT?.spent ?? 0,
+        budget: budgetData?.byCategory?.EQUIPMENT?.budget ?? 0,
       },
       subcontractor: {
-        spent: budgetData?.subcontractorSpent ?? 0,
-        budget: budgetData?.subcontractorBudget ?? 0,
+        spent: budgetData?.byCategory?.SUBCONTRACTOR?.spent ?? 0,
+        budget: budgetData?.byCategory?.SUBCONTRACTOR?.budget ?? 0,
       },
       overhead: {
-        spent: budgetData?.overheadSpent ?? 0,
-        budget: budgetData?.overheadBudget ?? 0,
+        spent: budgetData?.byCategory?.OVERHEAD?.spent ?? 0,
+        budget: budgetData?.byCategory?.OVERHEAD?.budget ?? 0,
       },
     },
   };
