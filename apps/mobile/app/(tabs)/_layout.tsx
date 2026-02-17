@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
@@ -6,13 +6,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '../../src/theme';
 import { LoadingScreen, Button } from '../../src/components/ui';
 import { useBootstrap } from '../../src/hooks/useBootstrap';
+import { useAuthStore } from '../../src/stores/auth.store';
 
 export default function TabsLayout() {
   const { isSignedIn, isLoaded } = useAuth();
   const { isBootstrapped, isLoading, error, retry } = useBootstrap();
+  const { hasOnboarded, onboardingChecked, checkOnboarded } = useAuthStore();
 
-  if (!isLoaded || isLoading) return <LoadingScreen />;
+  useEffect(() => {
+    checkOnboarded();
+  }, []);
+
+  if (!isLoaded || isLoading || !onboardingChecked) return <LoadingScreen />;
   if (!isSignedIn) return <Redirect href="/(auth)/sign-in" />;
+  if (!hasOnboarded) return <Redirect href="/onboarding" />;
   if (error) {
     return (
       <View style={styles.errorContainer}>
