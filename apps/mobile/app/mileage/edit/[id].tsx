@@ -13,7 +13,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../../src/components/layout';
-import { Button, Input } from '../../../src/components/ui';
+import { Button, Input, DatePickerField } from '../../../src/components/ui';
 import {
   useMileageTrip,
   useUpdateMileageTrip,
@@ -156,11 +156,10 @@ export default function EditMileageScreen() {
             keyboardType="decimal-pad"
             placeholder="0.0"
           />
-          <Input
+          <DatePickerField
             label="Date"
             value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
+            onChange={setDate}
           />
           <Input
             label="Purpose"

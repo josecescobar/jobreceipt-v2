@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
-import { Button, Input } from '../../src/components/ui';
+import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { MileageTracker } from '../../src/components/mileage';
 import { useCreateMileageTrip } from '../../src/hooks/useMileage';
 import { useJobs } from '../../src/hooks/useJobs';
@@ -145,11 +145,10 @@ export default function CreateMileageScreen() {
                 keyboardType="decimal-pad"
                 placeholder="0.0"
               />
-              <Input
+              <DatePickerField
                 label="Date"
                 value={date}
-                onChangeText={setDate}
-                placeholder="YYYY-MM-DD"
+                onChange={setDate}
               />
             </>
           )}

@@ -11,7 +11,7 @@ import {
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
-import { Button, Input } from '../../src/components/ui';
+import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { dollarsToCents, formatMoney } from '../../src/lib/format';
@@ -129,11 +129,10 @@ export default function CreateExpenseScreen() {
           />
 
           {/* Date */}
-          <Input
+          <DatePickerField
             label="Date"
             value={date}
-            onChangeText={setDate}
-            placeholder="YYYY-MM-DD"
+            onChange={setDate}
           />
 
           {/* Category chips */}

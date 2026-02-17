@@ -12,7 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../../src/components/layout';
-import { Button, Input } from '../../../src/components/ui';
+import { Button, Input, DatePickerField } from '../../../src/components/ui';
 import { useJob, useUpdateJob, useDeleteJob } from '../../../src/hooks/useJobs';
 import { dollarsToCents, centsToDollars } from '../../../src/lib/format';
 import { colors, spacing } from '../../../src/theme';
@@ -190,19 +190,17 @@ export default function EditJobScreen() {
 
           <View style={styles.row}>
             <View style={styles.halfInput}>
-              <Input
+              <DatePickerField
                 label="Start Date"
                 value={startDate}
-                onChangeText={setStartDate}
-                placeholder="YYYY-MM-DD"
+                onChange={setStartDate}
               />
             </View>
             <View style={styles.halfInput}>
-              <Input
+              <DatePickerField
                 label="End Date"
                 value={endDate}
-                onChangeText={setEndDate}
-                placeholder="YYYY-MM-DD"
+                onChange={setEndDate}
               />
             </View>
           </View>
