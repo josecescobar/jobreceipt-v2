@@ -9,10 +9,12 @@ interface SettingsRowProps {
   value?: string;
   onPress?: () => void;
   danger?: boolean;
+  showChevron?: boolean;
 }
 
-export function SettingsRow({ icon, label, value, onPress, danger }: SettingsRowProps) {
+export function SettingsRow({ icon, label, value, onPress, danger, showChevron }: SettingsRowProps) {
   const Container = onPress ? TouchableOpacity : View;
+  const chevronVisible = showChevron ?? (onPress && !danger);
 
   return (
     <Container
@@ -28,7 +30,7 @@ export function SettingsRow({ icon, label, value, onPress, danger }: SettingsRow
       />
       <Text style={[styles.label, danger && styles.dangerLabel]}>{label}</Text>
       {value && <Text style={styles.value}>{value}</Text>}
-      {onPress && (
+      {chevronVisible && (
         <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
       )}
     </Container>
