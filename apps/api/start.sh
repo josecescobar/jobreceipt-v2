@@ -2,7 +2,7 @@
 set -e
 
 echo "Running database migrations..."
-npx prisma migrate deploy --schema=./apps/api/prisma/schema.prisma
+cd /app/apps/api && npx prisma migrate deploy
 
 echo "Starting API server..."
-node apps/api/dist/main
+cd /app && node apps/api/dist/main
