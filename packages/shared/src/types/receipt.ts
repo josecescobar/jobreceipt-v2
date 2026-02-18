@@ -41,6 +41,8 @@ export interface Receipt {
   duplicateOfId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Signed download URL for the receipt image (included when includeThumbnails is requested) */
+  imageDownloadUrl?: string;
   /** Populated when fetching a single receipt — original receipt if flagged as duplicate */
   duplicateOf?: {
     id: string;

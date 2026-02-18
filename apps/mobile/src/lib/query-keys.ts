@@ -3,7 +3,7 @@ import type { ReceiptQueryDto, ExpenseQueryDto } from '@jobreceipt/shared';
 export const receiptKeys = {
   all: ['receipts'] as const,
   lists: () => [...receiptKeys.all, 'list'] as const,
-  list: (params: ReceiptQueryDto) => [...receiptKeys.lists(), params] as const,
+  list: (params: Omit<ReceiptQueryDto, 'includeThumbnails'> & { includeThumbnails?: boolean }) => [...receiptKeys.lists(), params] as const,
   details: () => [...receiptKeys.all, 'detail'] as const,
   detail: (id: string) => [...receiptKeys.details(), id] as const,
   recent: () => [...receiptKeys.all, 'recent'] as const,

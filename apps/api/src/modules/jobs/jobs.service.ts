@@ -94,7 +94,7 @@ export class JobsService {
     return job;
   }
 
-  async update(orgId: string, id: string, data: Partial<CreateJobData> & { status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED' }) {
+  async update(orgId: string, id: string, data: Partial<CreateJobData> & { status?: 'ACTIVE' | 'COMPLETED' | 'ARCHIVED'; marginAlertThreshold?: number | null }) {
     await this.findOne(orgId, id);
 
     const updateData: Prisma.JobUpdateInput = {};
@@ -111,6 +111,7 @@ export class JobsService {
     if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : null;
     if (data.notes !== undefined) updateData.notes = data.notes;
     if (data.status !== undefined) updateData.status = data.status;
+    if (data.marginAlertThreshold !== undefined) updateData.marginAlertThreshold = data.marginAlertThreshold;
 
     return this.prisma.job.update({
       where: { id },

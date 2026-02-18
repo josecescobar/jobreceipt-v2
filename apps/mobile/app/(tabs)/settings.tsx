@@ -262,6 +262,13 @@ export default function SettingsScreen() {
             onPress={() => router.push('/settings/preferences')}
             showChevron
           />
+          <SettingsRow
+            icon="grid-outline"
+            label="Customize Dashboard"
+            subtitle="Reorder & hide home sections"
+            onPress={() => router.push('/settings/dashboard')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Automation">

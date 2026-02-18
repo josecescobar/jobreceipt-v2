@@ -270,10 +270,12 @@ model Job {
   budgetTotal      Int?      // cents
   budgetMaterials  Int?      // cents
   budgetLabor      Int?      // cents
-  contractValue    Int?      // cents - what the customer pays for the job
-  startDate        DateTime?
-  endDate          DateTime?
-  notes            String?
+  contractValue         Int?      // cents - what the customer pays for the job
+  marginAlertThreshold  Int?      // minimum acceptable margin % (0-100)
+  marginAlertSentAt     DateTime? // tracks last margin alert to avoid repeats
+  startDate             DateTime?
+  endDate               DateTime?
+  notes                 String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

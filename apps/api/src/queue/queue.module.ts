@@ -15,6 +15,7 @@ import { NotificationService } from '../common/services/notification.service';
 import { ReceiptsModule } from '../modules/receipts/receipts.module';
 import { RecurringExpensesModule } from '../modules/recurring-expenses/recurring-expenses.module';
 import { RecurringInvoicesModule } from '../modules/recurring-invoices/recurring-invoices.module';
+import { AnalyticsModule } from '../modules/analytics/analytics.module';
 import { QUEUE_NAMES } from './constants';
 
 @Module({
@@ -38,6 +39,7 @@ import { QUEUE_NAMES } from './constants';
     forwardRef(() => ReceiptsModule),
     RecurringExpensesModule,
     RecurringInvoicesModule,
+    AnalyticsModule,
   ],
   providers: [
     ReceiptOcrProcessor,

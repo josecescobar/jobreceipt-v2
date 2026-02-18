@@ -13,6 +13,11 @@ export class QueryInvoiceDto {
   @IsEnum(['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID'])
   status?: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID';
 
+  @ApiPropertyOptional({ description: 'Search by invoice number, job name, or customer name' })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)

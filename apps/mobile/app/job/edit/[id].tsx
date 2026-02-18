@@ -36,6 +36,7 @@ export default function EditJobScreen() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
+  const [marginAlertThreshold, setMarginAlertThreshold] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -50,6 +51,9 @@ export default function EditJobScreen() {
       setStartDate(job.startDate ? job.startDate.toString().split('T')[0] : '');
       setEndDate(job.endDate ? job.endDate.toString().split('T')[0] : '');
       setNotes(job.notes || '');
+      setMarginAlertThreshold(
+        job.marginAlertThreshold != null ? job.marginAlertThreshold.toString() : '',
+      );
     }
   }, [job]);
 
@@ -80,6 +84,9 @@ export default function EditJobScreen() {
           startDate: startDate || undefined,
           endDate: endDate || undefined,
           notes: notes.trim() || undefined,
+          marginAlertThreshold: marginAlertThreshold
+            ? parseInt(marginAlertThreshold, 10)
+            : undefined,
         },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -203,6 +210,25 @@ export default function EditJobScreen() {
             prefix="$"
             placeholder="0.00"
           />
+
+          {contractValue ? (
+            <>
+              <Text style={styles.sectionTitle}>Profit Margin Alert</Text>
+              <Input
+                label="Alert when margin drops below"
+                value={marginAlertThreshold}
+                onChangeText={(val) => {
+                  const num = val.replace(/[^0-9]/g, '');
+                  if (num === '' || (parseInt(num, 10) >= 0 && parseInt(num, 10) <= 100)) {
+                    setMarginAlertThreshold(num);
+                  }
+                }}
+                keyboardType="number-pad"
+                suffix="%"
+                placeholder="e.g. 20"
+              />
+            </>
+          ) : null}
 
           <Text style={styles.sectionTitle}>Schedule</Text>
 

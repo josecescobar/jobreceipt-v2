@@ -6,7 +6,7 @@ import { receiptKeys, expenseKeys } from '../lib/query-keys';
 
 export { receiptKeys };
 
-export function useReceipts(params?: ReceiptQueryDto) {
+export function useReceipts(params?: Omit<ReceiptQueryDto, 'includeThumbnails'> & { includeThumbnails?: boolean }) {
   return useInfiniteQuery({
     queryKey: receiptKeys.list(params ?? {}),
     queryFn: ({ pageParam = 1 }) =>

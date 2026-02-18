@@ -28,6 +28,10 @@ export interface Job {
   budgetLabor: number | null;
   /** Contract value / revenue in cents */
   contractValue: number | null;
+  /** Margin alert threshold percentage (0-100) */
+  marginAlertThreshold: number | null;
+  /** Last time a margin alert was sent */
+  marginAlertSentAt: Date | null;
   startDate: Date | null;
   endDate: Date | null;
   notes: string | null;

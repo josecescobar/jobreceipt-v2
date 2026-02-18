@@ -3,6 +3,7 @@ import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationService } from '../common/services/notification.service';
+import { AnalyticsService } from '../modules/analytics/analytics.service';
 import { QUEUE_NAMES } from './constants';
 
 @Processor(QUEUE_NAMES.NOTIFICATION_CRON)
@@ -12,6 +13,7 @@ export class NotificationCronProcessor extends WorkerHost {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationService: NotificationService,
+    private readonly analyticsService: AnalyticsService,
   ) {
     super();
   }
@@ -19,6 +21,17 @@ export class NotificationCronProcessor extends WorkerHost {
   async process(job: Job): Promise<void> {
     this.logger.log(`Running notification cron job ${job.id}`);
     await this.sendReceiptReviewReminders();
+    await this.checkMarginAlerts();
+  }
+
+  private async checkMarginAlerts(): Promise<void> {
+    try {
+      this.logger.log('Running daily margin alert checks');
+      await this.analyticsService.checkAllMarginAlerts();
+      this.logger.log('Daily margin alert checks complete');
+    } catch (err) {
+      this.logger.error(`Failed to run margin alert checks: ${err}`);
+    }
   }
 
   private async sendReceiptReviewReminders(): Promise<void> {

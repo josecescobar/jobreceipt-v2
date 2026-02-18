@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsInt, IsDateString, IsEnum } from 'class-validator';
+import { IsString, IsOptional, IsInt, IsDateString, IsEnum, IsBooleanString } from 'class-validator';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 
@@ -46,4 +46,9 @@ export class QueryReceiptDto {
   @Type(() => Number)
   @IsInt()
   limit?: number = 20;
+
+  @ApiPropertyOptional({ description: 'Include signed thumbnail download URLs' })
+  @IsOptional()
+  @IsBooleanString()
+  includeThumbnails?: string;
 }

@@ -571,6 +571,52 @@ export default function JobDetailScreen() {
           </View>
         )}
 
+        {/* Margin alert indicator */}
+        {job.contractValue && job.contractValue > 0 && (
+          (() => {
+            const margin = ((job.contractValue - spent) / job.contractValue) * 100;
+            const threshold = (job as any).marginAlertThreshold as number | null;
+            const isBelowThreshold = threshold != null && margin < threshold;
+            return (
+              <View style={styles.marginAlertCard}>
+                <View style={styles.marginAlertRow}>
+                  <Text style={styles.marginAlertLabel}>Profit Margin</Text>
+                  <Text
+                    style={[
+                      styles.marginAlertValue,
+                      { color: isBelowThreshold ? colors.error : colors.success },
+                    ]}
+                  >
+                    {margin.toFixed(1)}%
+                  </Text>
+                </View>
+                {threshold != null && (
+                  <View style={styles.marginAlertRow}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Ionicons
+                        name="notifications-outline"
+                        size={14}
+                        color={isBelowThreshold ? colors.error : colors.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.marginAlertThresholdText,
+                          { color: isBelowThreshold ? colors.error : colors.textMuted },
+                        ]}
+                      >
+                        Margin Alert: below {threshold}%
+                      </Text>
+                    </View>
+                    {isBelowThreshold && (
+                      <Ionicons name="warning" size={16} color={colors.error} />
+                    )}
+                  </View>
+                )}
+              </View>
+            );
+          })()
+        )}
+
         {/* Budget breakdown chart */}
         {budget > 0 && <BudgetBreakdownChart data={chartData} />}
 
@@ -1348,6 +1394,35 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
     fontSize: 18,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+  },
+  marginAlertCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  marginAlertRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  marginAlertLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  marginAlertValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  marginAlertThresholdText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   sectionTitle: {
     ...typography.label,

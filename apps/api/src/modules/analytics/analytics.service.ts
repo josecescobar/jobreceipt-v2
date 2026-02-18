@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../common/services/notification.service';
 import {
   SCHEDULE_C_CATEGORIES,
   IRS_MILEAGE_RATE_DOLLARS,
@@ -15,7 +16,12 @@ interface AnalyticsQuery {
 
 @Injectable()
 export class AnalyticsService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(AnalyticsService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   async getWeeklyComparison(orgId: string) {
     const now = new Date();
@@ -1024,6 +1030,96 @@ export class AnalyticsService {
         totalExpectedOut,
       },
     };
+  }
+
+  async checkJobMarginAlert(orgId: string, jobId: string): Promise<void> {
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId, organizationId: orgId },
+      select: {
+        id: true,
+        name: true,
+        contractValue: true,
+        marginAlertThreshold: true,
+        marginAlertSentAt: true,
+      },
+    });
+
+    if (!job || job.marginAlertThreshold === null || !job.contractValue || job.contractValue === 0) {
+      return;
+    }
+
+    const { _sum } = await this.prisma.expense.aggregate({
+      where: { jobId },
+      _sum: { amount: true },
+    });
+
+    const totalExpenses = _sum.amount ?? 0;
+    const actualMargin = ((job.contractValue - totalExpenses) / job.contractValue) * 100;
+
+    if (actualMargin < job.marginAlertThreshold) {
+      // Check if we already sent an alert within the last 24 hours
+      if (job.marginAlertSentAt) {
+        const hoursSinceLast = (Date.now() - new Date(job.marginAlertSentAt).getTime()) / (1000 * 60 * 60);
+        if (hoursSinceLast < 24) {
+          return;
+        }
+      }
+
+      // Find org owner to notify
+      const org = await this.prisma.organization.findUnique({
+        where: { id: orgId },
+        select: { ownerId: true },
+      });
+      if (!org) return;
+
+      await this.notificationService.sendPushNotification(
+        org.ownerId,
+        'Margin Alert',
+        `${job.name} margin is ${actualMargin.toFixed(1)}% (below ${job.marginAlertThreshold}% target)`,
+        { jobId: job.id },
+        'margin_alert',
+      );
+
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { marginAlertSentAt: new Date() },
+      });
+
+      this.logger.log(`Margin alert sent for job ${job.name}: ${actualMargin.toFixed(1)}% < ${job.marginAlertThreshold}%`);
+    } else if (actualMargin >= job.marginAlertThreshold && job.marginAlertSentAt !== null) {
+      // Margin recovered — clear the sent timestamp so future alerts can fire
+      await this.prisma.job.update({
+        where: { id: jobId },
+        data: { marginAlertSentAt: null },
+      });
+      this.logger.log(`Margin recovered for job ${job.name}: ${actualMargin.toFixed(1)}% >= ${job.marginAlertThreshold}%`);
+    }
+  }
+
+  async checkAllMarginAlerts(orgId?: string): Promise<void> {
+    const where: Prisma.JobWhereInput = {
+      status: 'ACTIVE',
+      marginAlertThreshold: { not: null },
+      contractValue: { not: null },
+    };
+    if (orgId) {
+      where.organizationId = orgId;
+    }
+
+    const jobs = await this.prisma.job.findMany({
+      where,
+      select: { id: true, organizationId: true },
+    });
+
+    this.logger.log(`Checking margin alerts for ${jobs.length} jobs`);
+
+    for (const job of jobs) {
+      try {
+        await this.checkJobMarginAlert(job.organizationId, job.id);
+      } catch (err) {
+        this.logger.error(`Failed to check margin alert for job ${job.id}: ${err}`);
+      }
+    }
   }
 
   private projectRecurringOccurrences(

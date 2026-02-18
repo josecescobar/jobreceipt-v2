@@ -15,6 +15,7 @@ interface ReceiptQuery {
   endDate?: string;
   page: number;
   limit: number;
+  includeThumbnails?: string;
 }
 
 @Injectable()
@@ -94,6 +95,21 @@ export class ReceiptsService {
       }),
       this.prisma.receipt.count({ where }),
     ]);
+
+    if (query.includeThumbnails === 'true') {
+      const receiptsWithUrls = await Promise.all(
+        receipts.map(async (receipt) => {
+          if (!receipt.imageUrl) return receipt;
+          try {
+            const imageDownloadUrl = await this.s3Service.generateDownloadUrl(receipt.imageUrl);
+            return { ...receipt, imageDownloadUrl };
+          } catch {
+            return receipt;
+          }
+        }),
+      );
+      return { data: receiptsWithUrls, total, page: query.page, limit: query.limit };
+    }
 
     return { data: receipts, total, page: query.page, limit: query.limit };
   }

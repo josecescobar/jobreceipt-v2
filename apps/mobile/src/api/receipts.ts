@@ -15,8 +15,12 @@ interface UploadUrlResponse {
 }
 
 export const receiptsApi = {
-  list: async (params?: ReceiptQueryDto): Promise<PaginatedResponse<Receipt>> => {
-    const { data } = await apiClient.get('/receipts', { params });
+  list: async (params?: Omit<ReceiptQueryDto, 'includeThumbnails'> & { includeThumbnails?: boolean }): Promise<PaginatedResponse<Receipt>> => {
+    const queryParams = params ? {
+      ...params,
+      includeThumbnails: params.includeThumbnails ? 'true' : undefined,
+    } : undefined;
+    const { data } = await apiClient.get('/receipts', { params: queryParams });
     return data;
   },
 

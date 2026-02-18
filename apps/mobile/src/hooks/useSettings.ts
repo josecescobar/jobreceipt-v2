@@ -12,6 +12,7 @@ export interface NotificationPrefs {
   expenseApproval: boolean;
   reviewReminders: boolean;
   recurringExpenses: boolean;
+  marginAlerts: boolean;
 }
 
 const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -20,7 +21,28 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   expenseApproval: true,
   reviewReminders: true,
   recurringExpenses: true,
+  marginAlerts: true,
 };
+
+export interface DashboardSection {
+  id: string;
+  visible: boolean;
+}
+
+const DEFAULT_DASHBOARD_LAYOUT: DashboardSection[] = [
+  { id: 'quickActions', visible: true },
+  { id: 'templateQuickAdd', visible: true },
+  { id: 'syncStatus', visible: true },
+  { id: 'statsRow', visible: true },
+  { id: 'weeklySpending', visible: true },
+  { id: 'unpaidInvoices', visible: true },
+  { id: 'cashFlow', visible: true },
+  { id: 'todaySchedule', visible: true },
+  { id: 'monthlySpending', visible: true },
+  { id: 'categoryBreakdown', visible: true },
+  { id: 'topJobBudget', visible: true },
+  { id: 'recentActivity', visible: true },
+];
 
 interface SettingsState {
   mileageRateCents: number;
@@ -28,6 +50,7 @@ interface SettingsState {
   defaultTaxRate: number;
   defaultExpenseCategory: string | null;
   themeMode: ThemeMode;
+  dashboardLayout: DashboardSection[];
 
   setMileageRateCents: (rate: number) => void;
   setNotificationPref: (key: keyof NotificationPrefs, enabled: boolean) => void;
@@ -36,6 +59,8 @@ interface SettingsState {
   setDefaultTaxRate: (rate: number) => void;
   setDefaultExpenseCategory: (category: string | null) => void;
   setThemeMode: (mode: ThemeMode) => void;
+  setDashboardLayout: (layout: DashboardSection[]) => void;
+  resetDashboardLayout: () => void;
 }
 
 function syncPrefsToApi(prefs: NotificationPrefs) {
@@ -50,6 +75,7 @@ export const useSettings = create<SettingsState>()(
       defaultTaxRate: 0,
       defaultExpenseCategory: null,
       themeMode: 'dark' as ThemeMode,
+      dashboardLayout: [...DEFAULT_DASHBOARD_LAYOUT],
 
       setMileageRateCents: (rate) => set({ mileageRateCents: rate }),
       setNotificationPref: (key, enabled) => {
@@ -64,6 +90,7 @@ export const useSettings = create<SettingsState>()(
           expenseApproval: enabled,
           reviewReminders: enabled,
           recurringExpenses: enabled,
+          marginAlerts: enabled,
         };
         set({ notifications: updated });
         syncPrefsToApi(updated);
@@ -72,12 +99,14 @@ export const useSettings = create<SettingsState>()(
       setDefaultTaxRate: (rate) => set({ defaultTaxRate: rate }),
       setDefaultExpenseCategory: (category) => set({ defaultExpenseCategory: category }),
       setThemeMode: (mode) => set({ themeMode: mode }),
+      setDashboardLayout: (layout) => set({ dashboardLayout: layout }),
+      resetDashboardLayout: () => set({ dashboardLayout: [...DEFAULT_DASHBOARD_LAYOUT] }),
     }),
     {
       name: 'jobreceipt-settings',
       storage: createJSONStorage(() => AsyncStorage),
       migrate: (persisted: any, version: number) => {
-        // Migrate from old notificationsEnabled boolean to granular prefs
+        // v0 → v1: notificationsEnabled boolean → granular prefs object
         if (persisted && 'notificationsEnabled' in persisted && !('notifications' in persisted)) {
           const enabled = persisted.notificationsEnabled !== false;
           persisted.notifications = {
@@ -89,9 +118,18 @@ export const useSettings = create<SettingsState>()(
           };
           delete persisted.notificationsEnabled;
         }
+        // v1 → v2: add dashboardLayout + marginAlerts
+        if (version < 2) {
+          if (!persisted.dashboardLayout) {
+            persisted.dashboardLayout = DEFAULT_DASHBOARD_LAYOUT;
+          }
+          if (persisted.notifications && !('marginAlerts' in persisted.notifications)) {
+            persisted.notifications.marginAlerts = true;
+          }
+        }
         return persisted as SettingsState;
       },
-      version: 1,
+      version: 2,
     },
   ),
 );

@@ -6,9 +6,10 @@ interface InputProps extends TextInputProps {
   label?: string;
   error?: string;
   prefix?: string;
+  suffix?: string;
 }
 
-export function Input({ label, error, prefix, style, ...props }: InputProps) {
+export function Input({ label, error, prefix, suffix, style, ...props }: InputProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -18,10 +19,11 @@ export function Input({ label, error, prefix, style, ...props }: InputProps) {
       <View style={[styles.inputWrapper, error && styles.inputError]}>
         {prefix && <Text style={styles.prefix}>{prefix}</Text>}
         <TextInput
-          style={[styles.input, prefix && styles.inputWithPrefix, style]}
+          style={[styles.input, prefix && styles.inputWithPrefix, suffix && styles.inputWithSuffix, style]}
           placeholderTextColor={colors.textMuted}
           {...props}
         />
+        {suffix && <Text style={styles.suffix}>{suffix}</Text>}
       </View>
       {error && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -64,6 +66,14 @@ const createStyles = (colors: ThemeColors) =>
     },
     inputWithPrefix: {
       paddingLeft: spacing.xs,
+    },
+    inputWithSuffix: {
+      paddingRight: spacing.xs,
+    },
+    suffix: {
+      paddingRight: spacing.md,
+      fontSize: 16,
+      color: colors.textSecondary,
     },
     error: {
       fontSize: 12,

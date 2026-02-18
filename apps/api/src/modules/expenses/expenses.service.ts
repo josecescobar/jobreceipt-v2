@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { S3Service } from '../../common/services/s3.service';
 import { NotificationService } from '../../common/services/notification.service';
+import { AnalyticsService } from '../analytics/analytics.service';
 import { Prisma } from '@prisma/client';
 import { v4 as uuid } from 'uuid';
 
@@ -39,6 +40,8 @@ export class ExpensesService {
     private prisma: PrismaService,
     private s3Service: S3Service,
     private notificationService: NotificationService,
+    @Inject(forwardRef(() => AnalyticsService))
+    private analyticsService: AnalyticsService,
   ) {}
 
   async create(orgId: string, userId: string, data: CreateExpenseData) {
@@ -61,6 +64,8 @@ export class ExpensesService {
 
     // Check budget thresholds (fire-and-forget)
     this.checkBudgetAlert(data.jobId, orgId, data.amount).catch(() => {});
+    // Check margin alert (fire-and-forget)
+    this.analyticsService.checkJobMarginAlert(orgId, data.jobId).catch(() => {});
 
     return expense;
   }
@@ -98,6 +103,8 @@ export class ExpensesService {
     }
     for (const [jobId, amount] of jobAmounts) {
       this.checkBudgetAlert(jobId, orgId, amount).catch(() => {});
+      // Check margin alert (fire-and-forget)
+      this.analyticsService.checkJobMarginAlert(orgId, jobId).catch(() => {});
     }
 
     return expenses;

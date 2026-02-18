@@ -19,6 +19,7 @@ export const CreateJobSchema = z.object({
 
 export const UpdateJobSchema = CreateJobSchema.partial().extend({
   status: z.enum(['ACTIVE', 'COMPLETED', 'ARCHIVED']).optional(),
+  marginAlertThreshold: z.number().int().min(0).max(100).nullable().optional(),
 });
 
 export const JobQuerySchema = z.object({

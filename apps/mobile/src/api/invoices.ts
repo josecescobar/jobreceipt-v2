@@ -54,6 +54,7 @@ export const invoicesApi = {
   list: async (params?: {
     jobId?: string;
     status?: string;
+    search?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedResponse<Invoice>> => {

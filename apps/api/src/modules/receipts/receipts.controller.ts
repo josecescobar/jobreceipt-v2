@@ -62,6 +62,7 @@ export class ReceiptsController {
       endDate: query.endDate,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
+      includeThumbnails: query.includeThumbnails,
     });
   }
 

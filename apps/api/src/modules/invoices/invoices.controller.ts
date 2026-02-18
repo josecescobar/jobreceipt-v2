@@ -53,6 +53,7 @@ export class InvoicesController {
     return this.service.findAll(orgId, {
       jobId: query.jobId,
       status: query.status,
+      search: query.search,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
     });

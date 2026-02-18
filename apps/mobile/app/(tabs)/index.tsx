@@ -34,6 +34,7 @@ import { useAgingSummary } from '../../src/hooks/useInvoiceAging';
 import { useCashFlowForecast } from '../../src/hooks/useCashFlow';
 import { useUnreadCount } from '../../src/hooks/useMessages';
 import { useUpcomingMaintenance } from '../../src/hooks/useEquipment';
+import { useSettings } from '../../src/hooks/useSettings';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -190,118 +191,22 @@ export default function HomeScreen() {
   const topJob = activeJobs[0];
   const topJobBudget = useBudget(topJob?.id ?? '');
 
-  return (
-    <Screen>
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            tintColor={colors.primary}
-          />
-        }
-      >
-        {/* Greeting */}
-        <View style={styles.greetingRow}>
-          <View style={styles.greetingText}>
-            <Text style={styles.greeting}>Hi, {firstName}</Text>
-            <Text style={styles.subGreeting}>Here's your business overview</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              onPress={() => router.push('/messages')}
-              style={styles.searchBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
-              {unreadCount > 0 && (
-                <View style={styles.msgBadge}>
-                  <Text style={styles.msgBadgeText}>
-                    {unreadCount > 99 ? '99+' : unreadCount}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/calendar')}
-              style={styles.searchBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="calendar-outline" size={22} color={colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/search')}
-              style={styles.searchBtn}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="search" size={22} color={colors.text} />
-            </TouchableOpacity>
-          </View>
-        </View>
+  const { dashboardLayout } = useSettings();
 
-        {/* Quick Actions */}
-        <QuickActionGrid actions={QUICK_ACTIONS} />
-
-        {/* Template quick-add */}
-        <TemplateQuickAddRow />
-
-        {/* Pending review banner */}
-        {reviewCount > 0 && (
-          <TouchableOpacity
-            style={styles.reviewBanner}
-            onPress={() => router.push('/(tabs)/receipts')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.reviewBannerLeft}>
-              <Ionicons name="document-text" size={20} color={colors.review} />
-              <Text style={styles.reviewBannerText}>
-                {reviewCount} receipt{reviewCount !== 1 ? 's' : ''} pending review
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-
-        {/* Pending expense approvals banner */}
-        {canApprove && pendingExpenseCount > 0 && (
-          <TouchableOpacity
-            style={[styles.reviewBanner, { borderColor: colors.warning + '40' }]}
-            onPress={() => router.push('/(tabs)/expenses')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.reviewBannerLeft}>
-              <Ionicons name="wallet" size={20} color={colors.warning} />
-              <Text style={styles.reviewBannerText}>
-                {pendingExpenseCount} expense{pendingExpenseCount !== 1 ? 's' : ''} pending approval
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-
-        {/* Maintenance due banner */}
-        {maintenanceDueCount > 0 && (
-          <TouchableOpacity
-            style={styles.maintenanceBanner}
-            onPress={() => router.push('/equipment')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.reviewBannerLeft}>
-              <Ionicons name="build-outline" size={20} color={colors.warning} />
-              <Text style={styles.maintenanceBannerText}>
-                {maintenanceDueCount} equipment item{maintenanceDueCount !== 1 ? 's' : ''} due for maintenance
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-
-        {/* Sync status */}
-        <SyncStatusCard />
-
-        {/* Stats cards */}
-        <View style={styles.statsRow}>
+  // Map section IDs to their render functions
+  const SECTION_RENDERERS: Record<string, () => JSX.Element | null> = useMemo(
+    () => ({
+      quickActions: () => (
+        <QuickActionGrid key="quickActions" actions={QUICK_ACTIONS} />
+      ),
+      templateQuickAdd: () => (
+        <TemplateQuickAddRow key="templateQuickAdd" />
+      ),
+      syncStatus: () => (
+        <SyncStatusCard key="syncStatus" />
+      ),
+      statsRow: () => (
+        <View key="statsRow" style={styles.statsRow}>
           <TouchableOpacity
             style={styles.statCard}
             onPress={() => router.push('/(tabs)/jobs')}
@@ -329,33 +234,17 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Mileage</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Weekly spending comparison */}
-        <WeeklySpendingCard />
-
-        {/* Unpaid invoices */}
-        <UnpaidInvoicesCard />
-
-        {/* Overdue invoices banner */}
-        {agingSummary && agingSummary.overdueCount > 0 && (
-          <TouchableOpacity
-            style={styles.overdueBanner}
-            onPress={() => router.push('/invoice/aging')}
-            activeOpacity={0.7}
-          >
-            <View style={styles.reviewBannerLeft}>
-              <Ionicons name="alert-circle" size={20} color={colors.error} />
-              <Text style={styles.overdueBannerText}>
-                {agingSummary.overdueCount} overdue invoice{agingSummary.overdueCount !== 1 ? 's' : ''} — {formatMoney(agingSummary.totalOutstanding)} outstanding
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
-        )}
-
-        {/* Cash Flow Forecast */}
-        {cashFlowData && cashFlowData.periods.length > 0 && (
-          <>
+      ),
+      weeklySpending: () => (
+        <WeeklySpendingCard key="weeklySpending" />
+      ),
+      unpaidInvoices: () => (
+        <UnpaidInvoicesCard key="unpaidInvoices" />
+      ),
+      cashFlow: () => {
+        if (!cashFlowData || cashFlowData.periods.length === 0) return null;
+        return (
+          <React.Fragment key="cashFlow">
             <Text style={styles.sectionTitle}>Cash Flow Forecast</Text>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -393,12 +282,13 @@ export default function HomeScreen() {
                 )}
               </Card>
             </TouchableOpacity>
-          </>
-        )}
-
-        {/* Today's Schedule */}
-        {todaySchedule && todaySchedule.length > 0 && (
-          <>
+          </React.Fragment>
+        );
+      },
+      todaySchedule: () => {
+        if (!todaySchedule || todaySchedule.length === 0) return null;
+        return (
+          <React.Fragment key="todaySchedule">
             <Text style={styles.sectionTitle}>Today's Schedule</Text>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -418,26 +308,29 @@ export default function HomeScreen() {
                 ))}
               </Card>
             </TouchableOpacity>
-          </>
-        )}
-
-        {/* Spending chart */}
-        {analyticsSummary && analyticsSummary.monthlySpending.length > 0 && (
-          <View style={styles.chartContainer}>
+          </React.Fragment>
+        );
+      },
+      monthlySpending: () => {
+        if (!analyticsSummary || analyticsSummary.monthlySpending.length === 0) return null;
+        return (
+          <View key="monthlySpending" style={styles.chartContainer}>
             <MonthlySpendingChart data={analyticsSummary.monthlySpending} />
           </View>
-        )}
-
-        {/* Category breakdown */}
-        {analyticsSummary && analyticsSummary.categoryBreakdown.length > 0 && (
-          <View style={styles.chartContainer}>
+        );
+      },
+      categoryBreakdown: () => {
+        if (!analyticsSummary || analyticsSummary.categoryBreakdown.length === 0) return null;
+        return (
+          <View key="categoryBreakdown" style={styles.chartContainer}>
             <CategoryBreakdownChart data={analyticsSummary.categoryBreakdown} />
           </View>
-        )}
-
-        {/* Top job budget */}
-        {topJob && topJobBudget.budget > 0 && (
-          <>
+        );
+      },
+      topJobBudget: () => {
+        if (!topJob || topJobBudget.budget <= 0) return null;
+        return (
+          <React.Fragment key="topJobBudget">
             <Text style={styles.sectionTitle}>Top Job</Text>
             <TouchableOpacity
               activeOpacity={0.7}
@@ -464,12 +357,145 @@ export default function HomeScreen() {
                 />
               </Card>
             </TouchableOpacity>
-          </>
+          </React.Fragment>
+        );
+      },
+      recentActivity: () => (
+        <React.Fragment key="recentActivity">
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <ActivityFeed items={activityItems} />
+        </React.Fragment>
+      ),
+    }),
+    [
+      QUICK_ACTIONS, styles, router, colors, activeJobs, monthTotal,
+      monthLabel, mileageSummary, cashFlowData, todaySchedule,
+      analyticsSummary, topJob, topJobBudget, activityItems,
+    ],
+  );
+
+  return (
+    <Screen>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {/* Greeting — always first */}
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingText}>
+            <Text style={styles.greeting}>Hi, {firstName}</Text>
+            <Text style={styles.subGreeting}>Here's your business overview</Text>
+          </View>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/messages')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+              {unreadCount > 0 && (
+                <View style={styles.msgBadge}>
+                  <Text style={styles.msgBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/calendar')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/search')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="search" size={22} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Banners — always shown, not customizable */}
+        {reviewCount > 0 && (
+          <TouchableOpacity
+            style={styles.reviewBanner}
+            onPress={() => router.push('/(tabs)/receipts')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="document-text" size={20} color={colors.review} />
+              <Text style={styles.reviewBannerText}>
+                {reviewCount} receipt{reviewCount !== 1 ? 's' : ''} pending review
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
         )}
 
-        {/* Recent activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <ActivityFeed items={activityItems} />
+        {canApprove && pendingExpenseCount > 0 && (
+          <TouchableOpacity
+            style={[styles.reviewBanner, { borderColor: colors.warning + '40' }]}
+            onPress={() => router.push('/(tabs)/expenses')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="wallet" size={20} color={colors.warning} />
+              <Text style={styles.reviewBannerText}>
+                {pendingExpenseCount} expense{pendingExpenseCount !== 1 ? 's' : ''} pending approval
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {agingSummary && agingSummary.overdueCount > 0 && (
+          <TouchableOpacity
+            style={styles.overdueBanner}
+            onPress={() => router.push('/invoice/aging')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={styles.overdueBannerText}>
+                {agingSummary.overdueCount} overdue invoice{agingSummary.overdueCount !== 1 ? 's' : ''} — {formatMoney(agingSummary.totalOutstanding)} outstanding
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {maintenanceDueCount > 0 && (
+          <TouchableOpacity
+            style={styles.maintenanceBanner}
+            onPress={() => router.push('/equipment')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="build-outline" size={20} color={colors.warning} />
+              <Text style={styles.maintenanceBannerText}>
+                {maintenanceDueCount} equipment item{maintenanceDueCount !== 1 ? 's' : ''} due for maintenance
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* Dynamic sections — ordered and filtered by user preferences */}
+        {dashboardLayout
+          .filter((section) => section.visible)
+          .map((section) => {
+            const render = SECTION_RENDERERS[section.id];
+            return render ? render() : null;
+          })}
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
