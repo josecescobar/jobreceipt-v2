@@ -84,6 +84,15 @@ export class EstimatesController {
     return this.service.remove(orgId, id);
   }
 
+  @Post(':id/share-link')
+  @ApiOperation({ summary: 'Generate a shareable public link for this estimate' })
+  async generateShareLink(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.generateShareLink(orgId, id);
+  }
+
   @Post(':id/convert')
   @ApiOperation({ summary: 'Convert accepted estimate to invoice' })
   async convertToInvoice(

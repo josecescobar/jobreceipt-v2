@@ -36,6 +36,11 @@ export class QueryExpenseDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  subcontractorId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
   search?: string;
 
   @ApiPropertyOptional({ default: 1 })

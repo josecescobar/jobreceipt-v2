@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { InvoicesService } from '../invoices/invoices.service';
 import { CreateEstimateLineItemDto } from './dto/create-estimate.dto';
@@ -186,6 +187,21 @@ export class EstimatesService {
   async remove(orgId: string, id: string) {
     await this.findOne(orgId, id);
     return this.prisma.estimate.delete({ where: { id } });
+  }
+
+  async generateShareLink(orgId: string, id: string): Promise<{ url: string; token: string }> {
+    const estimate = await this.findOne(orgId, id);
+
+    if (estimate.shareToken) {
+      const url = `${process.env.API_BASE_URL || 'https://api-production-5d58.up.railway.app'}/api/public/estimate/${estimate.shareToken}`;
+      return { url, token: estimate.shareToken };
+    }
+
+    const token = randomUUID();
+    await this.prisma.estimate.update({ where: { id }, data: { shareToken: token } });
+
+    const url = `${process.env.API_BASE_URL || 'https://api-production-5d58.up.railway.app'}/api/public/estimate/${token}`;
+    return { url, token };
   }
 
   async convertToInvoice(orgId: string, estimateId: string, userId: string) {

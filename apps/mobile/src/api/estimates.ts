@@ -66,4 +66,9 @@ export const estimatesApi = {
     const { data } = await apiClient.post(`/estimates/${id}/convert`);
     return data;
   },
+
+  generateShareLink: async (id: string): Promise<{ url: string; token: string }> => {
+    const { data } = await apiClient.post(`/estimates/${id}/share-link`);
+    return data;
+  },
 };

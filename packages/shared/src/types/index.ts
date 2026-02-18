@@ -15,3 +15,5 @@ export * from './calendar';
 export * from './recurring-invoice';
 export * from './pnl';
 export * from './job-template';
+export * from './vendor';
+export * from './subcontractor';

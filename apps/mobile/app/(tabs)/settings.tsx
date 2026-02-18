@@ -182,12 +182,38 @@ export default function SettingsScreen() {
           />
           {isOwner && (
             <SettingsRow
+              icon="pricetag-outline"
+              label="Cost Codes"
+              subtitle="Manage job cost codes"
+              onPress={() => router.push('/settings/cost-codes')}
+              showChevron
+            />
+          )}
+          {isOwner && (
+            <SettingsRow
               icon="people-outline"
               label="Manage Members"
               onPress={() => router.push('/settings/members')}
               showChevron
             />
           )}
+        </SettingsSection>
+
+        <SettingsSection title="Directory">
+          <SettingsRow
+            icon="storefront-outline"
+            label="Vendors"
+            subtitle="Suppliers and material vendors"
+            onPress={() => router.push('/vendor')}
+            showChevron
+          />
+          <SettingsRow
+            icon="hammer-outline"
+            label="Subcontractors"
+            subtitle="Subs and 1099 readiness"
+            onPress={() => router.push('/subcontractor')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Preferences">

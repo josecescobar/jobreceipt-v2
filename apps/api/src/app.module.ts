@@ -19,6 +19,9 @@ import { EstimatesModule } from './modules/estimates/estimates.module';
 import { ChangeOrdersModule } from './modules/change-orders/change-orders.module';
 import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
 import { JobTemplatesModule } from './modules/job-templates/job-templates.module';
+import { VendorsModule } from './modules/vendors/vendors.module';
+import { SubcontractorsModule } from './modules/subcontractors/subcontractors.module';
+import { PublicModule } from './modules/public/public.module';
 
 @Module({
   controllers: [AppController],
@@ -42,6 +45,9 @@ import { JobTemplatesModule } from './modules/job-templates/job-templates.module
     ChangeOrdersModule,
     RecurringInvoicesModule,
     JobTemplatesModule,
+    VendorsModule,
+    SubcontractorsModule,
+    PublicModule,
   ],
 })
 export class AppModule {}

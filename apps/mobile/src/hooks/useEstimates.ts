@@ -74,3 +74,9 @@ export function useConvertEstimateToInvoice() {
     },
   });
 }
+
+export function useGenerateEstimateShareLink() {
+  return useMutation({
+    mutationFn: (id: string) => estimatesApi.generateShareLink(id),
+  });
+}

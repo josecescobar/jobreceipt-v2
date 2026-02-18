@@ -9,6 +9,6 @@ import { EstimateReportService } from './estimate-report.service';
   imports: [AuthModule, InvoicesModule],
   controllers: [EstimatesController],
   providers: [EstimatesService, EstimateReportService],
-  exports: [EstimatesService],
+  exports: [EstimatesService, EstimateReportService],
 })
 export class EstimatesModule {}

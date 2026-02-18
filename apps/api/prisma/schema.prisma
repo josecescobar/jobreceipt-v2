@@ -116,6 +116,8 @@ model User {
   approvedChangeOrders     ChangeOrder[]    @relation("ChangeOrderApprover")
   createdRecurringInvoices RecurringInvoice[] @relation("RecurringInvoiceCreator")
   createdJobTemplates      JobTemplate[]    @relation("JobTemplateCreator")
+  createdVendors           Vendor[]         @relation("VendorCreator")
+  createdSubcontractors    Subcontractor[]  @relation("SubcontractorCreator")
 
   @@index([email])
 }
@@ -147,6 +149,8 @@ model Organization {
   changeOrders       ChangeOrder[]
   recurringInvoices  RecurringInvoice[]
   jobTemplates       JobTemplate[]
+  vendors            Vendor[]
+  subcontractors     Subcontractor[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -218,6 +222,7 @@ model CostCode {
   expenseTemplates  ExpenseTemplate[]
   changeOrderLineItems ChangeOrderLineItem[]
   jobTemplateLineItems JobTemplateLineItem[]
+  vendorDefaults       Vendor[]             @relation("VendorDefaultCostCode")
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -244,6 +249,7 @@ model Receipt {
   suggestedCategory String?
   autoAssigned    Boolean       @default(false)
   duplicateOfId   String?
+  vendorId        String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -251,6 +257,7 @@ model Receipt {
   uploadedBy   User              @relation("ReceiptUploader", fields: [uploadedById], references: [id])
   duplicateOf  Receipt?          @relation("ReceiptDuplicate", fields: [duplicateOfId], references: [id])
   duplicates   Receipt[]         @relation("ReceiptDuplicate")
+  vendor       Vendor?           @relation(fields: [vendorId], references: [id])
   lineItems    ReceiptLineItem[]
   expenses     Expense[]
 
@@ -297,16 +304,18 @@ model Expense {
   date           DateTime
   createdById    String
   approvedById   String?
-  approvedAt     DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  approvedAt       DateTime?
+  subcontractorId  String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  receipt      Receipt?     @relation(fields: [receiptId], references: [id])
-  job          Job          @relation(fields: [jobId], references: [id])
-  costCode     CostCode?    @relation(fields: [costCodeId], references: [id])
-  createdBy    User         @relation("ExpenseCreator", fields: [createdById], references: [id])
-  approvedBy   User?        @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  receipt        Receipt?      @relation(fields: [receiptId], references: [id])
+  job            Job           @relation(fields: [jobId], references: [id])
+  costCode       CostCode?     @relation(fields: [costCodeId], references: [id])
+  createdBy      User          @relation("ExpenseCreator", fields: [createdById], references: [id])
+  approvedBy     User?         @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  subcontractor  Subcontractor? @relation(fields: [subcontractorId], references: [id])
   invoiceLineItems InvoiceLineItem[]
 
   @@index([organizationId])
@@ -485,6 +494,7 @@ model Invoice {
   taxAmount      Int           @default(0) // cents
   total          Int           @default(0) // cents
   paidAmount     Int           @default(0) // cents — denormalized sum of payments
+  shareToken     String?       @unique
   createdById    String
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -583,6 +593,7 @@ model Estimate {
   taxAmount          Int            @default(0) // cents
   total              Int            @default(0) // cents
   convertedInvoiceId String?        @unique
+  shareToken         String?        @unique
   createdById        String
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
@@ -753,4 +764,56 @@ model JobTemplateLineItem {
   costCode CostCode?   @relation(fields: [costCodeId], references: [id])
 
   @@index([templateId])
+}
+
+// ─── Vendors ────────────────────────────────────────────
+
+model Vendor {
+  id                String   @id @default(uuid())
+  organizationId    String
+  name              String
+  contactName       String?
+  phone             String?
+  email             String?
+  address           String?
+  website           String?
+  defaultCategory   String?
+  defaultCostCodeId String?
+  notes             String?
+  createdById       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  defaultCostCode CostCode?    @relation("VendorDefaultCostCode", fields: [defaultCostCodeId], references: [id])
+  createdBy       User         @relation("VendorCreator", fields: [createdById], references: [id])
+  receipts        Receipt[]
+
+  @@index([organizationId])
+}
+
+// ─── Subcontractors ─────────────────────────────────────
+
+model Subcontractor {
+  id              String    @id @default(uuid())
+  organizationId  String
+  name            String
+  companyName     String?
+  phone           String?
+  email           String?
+  address         String?
+  trade           String?
+  licenseNumber   String?
+  insuranceExpiry DateTime?
+  w9Received      Boolean   @default(false)
+  notes           String?
+  createdById     String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("SubcontractorCreator", fields: [createdById], references: [id])
+  expenses     Expense[]
+
+  @@index([organizationId])
 }

@@ -11,7 +11,10 @@ export class InvoiceReportService {
     invoiceId: string,
   ): Promise<{ buffer: Buffer; filename: string }> {
     const invoice = await this.invoicesService.findOne(orgId, invoiceId);
+    return this.generatePdfFromData(invoice);
+  }
 
+  async generatePdfFromData(invoice: any): Promise<{ buffer: Buffer; filename: string }> {
     const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));

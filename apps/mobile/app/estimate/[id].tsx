@@ -7,6 +7,7 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,7 @@ import {
   useUpdateEstimate,
   useDeleteEstimate,
   useConvertEstimateToInvoice,
+  useGenerateEstimateShareLink,
 } from '../../src/hooks/useEstimates';
 import { formatMoney } from '../../src/lib/format';
 import { exportEstimatePdf } from '../../src/lib/export';
@@ -41,7 +43,17 @@ export default function EstimateDetailScreen() {
   const updateEstimate = useUpdateEstimate();
   const deleteEstimate = useDeleteEstimate();
   const convertToInvoice = useConvertEstimateToInvoice();
+  const generateShareLink = useGenerateEstimateShareLink();
   const [exporting, setExporting] = useState(false);
+
+  const handleShareLink = async () => {
+    try {
+      const { url } = await generateShareLink.mutateAsync(id!);
+      await Share.share({ message: `View estimate: ${url}`, url });
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to generate share link');
+    }
+  };
 
   const handleSharePdf = async () => {
     if (!estimate) return;
@@ -273,6 +285,14 @@ export default function EstimateDetailScreen() {
             title={exporting ? 'Generating PDF...' : 'Share PDF'}
             onPress={handleSharePdf}
             loading={exporting}
+          />
+
+          <Button
+            title="Share Customer Link"
+            onPress={handleShareLink}
+            variant="secondary"
+            loading={generateShareLink.isPending}
+            style={styles.actionBtn}
           />
 
           {estimate.status === 'DRAFT' && (

@@ -117,3 +117,9 @@ export function useRemovePayment() {
     },
   });
 }
+
+export function useGenerateInvoiceShareLink() {
+  return useMutation({
+    mutationFn: (id: string) => invoicesApi.generateShareLink(id),
+  });
+}

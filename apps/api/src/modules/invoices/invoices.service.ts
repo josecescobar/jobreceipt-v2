@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceLineItemDto } from './dto/create-invoice.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
@@ -190,6 +191,21 @@ export class InvoicesService {
   async remove(orgId: string, id: string) {
     await this.findOne(orgId, id);
     return this.prisma.invoice.delete({ where: { id } });
+  }
+
+  async generateShareLink(orgId: string, id: string): Promise<{ url: string; token: string }> {
+    const invoice = await this.findOne(orgId, id);
+
+    if (invoice.shareToken) {
+      const url = `${process.env.API_BASE_URL || 'https://api-production-5d58.up.railway.app'}/api/public/invoice/${invoice.shareToken}`;
+      return { url, token: invoice.shareToken };
+    }
+
+    const token = randomUUID();
+    await this.prisma.invoice.update({ where: { id }, data: { shareToken: token } });
+
+    const url = `${process.env.API_BASE_URL || 'https://api-production-5d58.up.railway.app'}/api/public/invoice/${token}`;
+    return { url, token };
   }
 
   private determineInvoiceStatus(paidAmount: number, total: number): 'SENT' | 'PARTIALLY_PAID' | 'PAID' {

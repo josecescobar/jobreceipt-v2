@@ -114,6 +114,15 @@ export class InvoicesController {
     return this.service.removePayment(orgId, id, paymentId);
   }
 
+  @Post(':id/share-link')
+  @ApiOperation({ summary: 'Generate a shareable public link for this invoice' })
+  async generateShareLink(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.generateShareLink(orgId, id);
+  }
+
   @Get(':id/pdf')
   @ApiOperation({ summary: 'Generate invoice PDF' })
   async getPdf(

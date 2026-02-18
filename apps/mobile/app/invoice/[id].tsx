@@ -10,13 +10,14 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
-import { useInvoice, useUpdateInvoice, useDeleteInvoice, useAddPayment, useRemovePayment } from '../../src/hooks/useInvoices';
+import { useInvoice, useUpdateInvoice, useDeleteInvoice, useAddPayment, useRemovePayment, useGenerateInvoiceShareLink } from '../../src/hooks/useInvoices';
 import { formatMoney, dollarsToCents, centsToDollars } from '../../src/lib/format';
 import { exportInvoicePdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
@@ -49,12 +50,22 @@ export default function InvoiceDetailScreen() {
   const deleteInvoice = useDeleteInvoice();
   const addPayment = useAddPayment();
   const removePayment = useRemovePayment();
+  const generateShareLink = useGenerateInvoiceShareLink();
   const [exporting, setExporting] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentMethod, setPaymentMethod] = useState<typeof PAYMENT_METHODS[number]>('CHECK');
   const [paymentNote, setPaymentNote] = useState('');
+
+  const handleShareLink = async () => {
+    try {
+      const { url } = await generateShareLink.mutateAsync(id!);
+      await Share.share({ message: `View invoice: ${url}`, url });
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to generate share link');
+    }
+  };
 
   const handleSharePdf = async () => {
     if (!invoice) return;
@@ -314,6 +325,14 @@ export default function InvoiceDetailScreen() {
             title={exporting ? 'Generating PDF...' : 'Share PDF'}
             onPress={handleSharePdf}
             loading={exporting}
+          />
+
+          <Button
+            title="Share Customer Link"
+            onPress={handleShareLink}
+            variant="secondary"
+            loading={generateShareLink.isPending}
+            style={styles.actionBtn}
           />
 
           {invoice.status === 'DRAFT' && (

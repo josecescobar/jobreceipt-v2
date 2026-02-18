@@ -11,7 +11,10 @@ export class EstimateReportService {
     estimateId: string,
   ): Promise<{ buffer: Buffer; filename: string }> {
     const estimate = await this.estimatesService.findOne(orgId, estimateId);
+    return this.generatePdfFromData(estimate);
+  }
 
+  async generatePdfFromData(estimate: any): Promise<{ buffer: Buffer; filename: string }> {
     const doc = new PDFDocument({ margin: 50, size: 'LETTER' });
     const chunks: Buffer[] = [];
     doc.on('data', (chunk: Buffer) => chunks.push(chunk));

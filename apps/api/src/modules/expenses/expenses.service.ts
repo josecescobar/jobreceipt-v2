@@ -23,6 +23,7 @@ interface ExpenseQuery {
   category?: string;
   taxCategory?: string;
   status?: 'pending' | 'approved';
+  subcontractorId?: string;
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -108,6 +109,7 @@ export class ExpensesService {
     if (query.jobId) where.jobId = query.jobId;
     if (query.category) where.category = query.category;
     if (query.taxCategory) where.taxCategory = query.taxCategory;
+    if (query.subcontractorId) where.subcontractorId = query.subcontractorId;
     if (query.status === 'pending') where.approvedAt = null;
     if (query.status === 'approved') where.approvedAt = { not: null };
 

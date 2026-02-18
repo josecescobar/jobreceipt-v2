@@ -8,6 +8,6 @@ import { InvoiceReportService } from './invoice-report.service';
   imports: [AuthModule],
   controllers: [InvoicesController],
   providers: [InvoicesService, InvoiceReportService],
-  exports: [InvoicesService],
+  exports: [InvoicesService, InvoiceReportService],
 })
 export class InvoicesModule {}

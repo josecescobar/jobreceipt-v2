@@ -94,4 +94,9 @@ export const invoicesApi = {
     const { data } = await apiClient.delete(`/invoices/${invoiceId}/payments/${paymentId}`);
     return data;
   },
+
+  generateShareLink: async (id: string): Promise<{ url: string; token: string }> => {
+    const { data } = await apiClient.post(`/invoices/${id}/share-link`);
+    return data;
+  },
 };
