@@ -22,6 +22,24 @@ export class BatchCreateExpensesDto {
   items: CreateExpenseDto[];
 }
 
+export class BatchApproveExpensesDto {
+  @ApiProperty({ description: 'Array of expense IDs to approve' })
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  ids: string[];
+}
+
+export class BatchRejectExpensesDto {
+  @ApiProperty({ description: 'Array of expense IDs to reject' })
+  @IsArray()
+  @IsString({ each: true })
+  @ArrayMinSize(1)
+  @ArrayMaxSize(100)
+  ids: string[];
+}
+
 export class BatchUpdateExpensesDto {
   @ApiProperty({ description: 'Array of expense IDs to update' })
   @IsArray()

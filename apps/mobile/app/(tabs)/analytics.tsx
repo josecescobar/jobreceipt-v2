@@ -13,9 +13,10 @@ import {
   TopJobsList,
   TopMerchantsList,
   BudgetHealthCard,
+  ProfitabilityCard,
 } from '../../src/components/analytics';
 import type { Period } from '../../src/components/analytics';
-import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
+import { useAnalyticsSummary, useJobProfitability } from '../../src/hooks/useAnalytics';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 
 export default function AnalyticsScreen() {
@@ -27,6 +28,7 @@ export default function AnalyticsScreen() {
   const dateRange = useMemo(() => getDateRange(period), [period]);
 
   const { data, isLoading, refetch, isRefetching } = useAnalyticsSummary(dateRange);
+  const profitability = useJobProfitability(dateRange);
 
   if (isLoading) return <LoadingScreen />;
 
@@ -59,6 +61,9 @@ export default function AnalyticsScreen() {
             <CategoryBreakdownChart data={data.categoryBreakdown} />
             {data.budgetHealth && data.budgetHealth.jobs.length > 0 && (
               <BudgetHealthCard data={data.budgetHealth} />
+            )}
+            {profitability.data && profitability.data.jobs.length > 0 && (
+              <ProfitabilityCard data={profitability.data} />
             )}
             <TopJobsList data={data.topJobs} />
             {data.topMerchants && data.topMerchants.length > 0 && (

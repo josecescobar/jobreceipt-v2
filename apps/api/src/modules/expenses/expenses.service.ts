@@ -259,6 +259,79 @@ export class ExpensesService {
     await this.prisma.expense.delete({ where: { id: expenseId } });
   }
 
+  async batchApprove(orgId: string, ids: string[], approverId: string) {
+    const expenses = await this.prisma.expense.findMany({
+      where: { id: { in: ids }, organizationId: orgId, approvedAt: null },
+      select: { id: true, createdById: true, description: true, amount: true },
+    });
+
+    if (expenses.length === 0) return { count: 0 };
+
+    const result = await this.prisma.$transaction(async (tx: any) => {
+      return tx.expense.updateMany({
+        where: { id: { in: expenses.map((e) => e.id) }, organizationId: orgId },
+        data: { approvedById: approverId, approvedAt: new Date() },
+      });
+    });
+
+    // Grouped notifications per creator (fire-and-forget)
+    const formatDollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+    const byCreator = new Map<string, typeof expenses>();
+    for (const exp of expenses) {
+      const list = byCreator.get(exp.createdById) || [];
+      list.push(exp);
+      byCreator.set(exp.createdById, list);
+    }
+    for (const [creatorId, creatorExpenses] of byCreator) {
+      const total = creatorExpenses.reduce((sum, e) => sum + e.amount, 0);
+      this.notificationService.sendPushNotification(
+        creatorId,
+        'Expenses Approved',
+        `${creatorExpenses.length} expense${creatorExpenses.length !== 1 ? 's' : ''} (${formatDollars(total)}) approved`,
+        { screen: 'expenses' },
+        'expense_approval',
+      ).catch(() => {});
+    }
+
+    return { count: result.count };
+  }
+
+  async batchReject(orgId: string, ids: string[]) {
+    const expenses = await this.prisma.expense.findMany({
+      where: { id: { in: ids }, organizationId: orgId },
+      select: { id: true, createdById: true, description: true, amount: true },
+    });
+
+    if (expenses.length === 0) return { count: 0 };
+
+    // Notify creators before deletion (fire-and-forget)
+    const formatDollars = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+    const byCreator = new Map<string, typeof expenses>();
+    for (const exp of expenses) {
+      const list = byCreator.get(exp.createdById) || [];
+      list.push(exp);
+      byCreator.set(exp.createdById, list);
+    }
+    for (const [creatorId, creatorExpenses] of byCreator) {
+      const total = creatorExpenses.reduce((sum, e) => sum + e.amount, 0);
+      this.notificationService.sendPushNotification(
+        creatorId,
+        'Expenses Rejected',
+        `${creatorExpenses.length} expense${creatorExpenses.length !== 1 ? 's' : ''} (${formatDollars(total)}) rejected`,
+        { screen: 'expenses' },
+        'expense_approval',
+      ).catch(() => {});
+    }
+
+    const result = await this.prisma.$transaction(async (tx: any) => {
+      return tx.expense.deleteMany({
+        where: { id: { in: expenses.map((e) => e.id) }, organizationId: orgId },
+      });
+    });
+
+    return { count: result.count };
+  }
+
   async checkBudgetAlert(jobId: string, orgId: string, newExpenseAmount: number): Promise<void> {
     const job = await this.prisma.job.findUnique({
       where: { id: jobId },

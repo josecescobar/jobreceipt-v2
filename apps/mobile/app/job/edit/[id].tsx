@@ -32,6 +32,7 @@ export default function EditJobScreen() {
   const [totalBudget, setTotalBudget] = useState('');
   const [materialsBudget, setMaterialsBudget] = useState('');
   const [laborBudget, setLaborBudget] = useState('');
+  const [contractValue, setContractValue] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -45,6 +46,7 @@ export default function EditJobScreen() {
       setTotalBudget(job.budgetTotal ? centsToDollars(job.budgetTotal).toString() : '');
       setMaterialsBudget(job.budgetMaterials ? centsToDollars(job.budgetMaterials).toString() : '');
       setLaborBudget(job.budgetLabor ? centsToDollars(job.budgetLabor).toString() : '');
+      setContractValue(job.contractValue ? centsToDollars(job.contractValue).toString() : '');
       setStartDate(job.startDate ? job.startDate.toString().split('T')[0] : '');
       setEndDate(job.endDate ? job.endDate.toString().split('T')[0] : '');
       setNotes(job.notes || '');
@@ -71,6 +73,9 @@ export default function EditJobScreen() {
             : undefined,
           budgetLabor: laborBudget
             ? dollarsToCents(parseFloat(laborBudget))
+            : undefined,
+          contractValue: contractValue
+            ? dollarsToCents(parseFloat(contractValue))
             : undefined,
           startDate: startDate || undefined,
           endDate: endDate || undefined,
@@ -187,6 +192,17 @@ export default function EditJobScreen() {
               />
             </View>
           </View>
+
+          <Text style={styles.sectionTitle}>Revenue</Text>
+
+          <Input
+            label="Contract Value"
+            value={contractValue}
+            onChangeText={setContractValue}
+            keyboardType="decimal-pad"
+            prefix="$"
+            placeholder="0.00"
+          />
 
           <Text style={styles.sectionTitle}>Schedule</Text>
 

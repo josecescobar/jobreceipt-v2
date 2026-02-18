@@ -387,6 +387,131 @@ export class AnalyticsService {
     };
   }
 
+  async getJobProfitability(orgId: string, query: AnalyticsQuery) {
+    const startDate = query.startDate ? new Date(query.startDate) : undefined;
+    const endDate = query.endDate ? new Date(query.endDate) : undefined;
+
+    const jobs = await this.prisma.job.findMany({
+      where: {
+        organizationId: orgId,
+        status: { in: ['ACTIVE', 'COMPLETED'] },
+      },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        contractValue: true,
+        budgetTotal: true,
+        customerName: true,
+      },
+    });
+
+    if (jobs.length === 0) {
+      return {
+        jobs: [],
+        totals: { totalRevenue: 0, totalExpenses: 0, totalProfit: 0, avgMargin: null },
+      };
+    }
+
+    const expenseWhere: Prisma.ExpenseWhereInput = {
+      organizationId: orgId,
+      jobId: { in: jobs.map((j) => j.id) },
+    };
+    if (startDate || endDate) {
+      expenseWhere.date = {};
+      if (startDate) expenseWhere.date.gte = startDate;
+      if (endDate) expenseWhere.date.lte = endDate;
+    }
+
+    // Aggregate expenses per job
+    const expensesByJob = await this.prisma.expense.groupBy({
+      by: ['jobId'],
+      where: expenseWhere,
+      _sum: { amount: true },
+      _count: true,
+    });
+
+    // Get per-job category breakdown
+    const expensesWithCategory = await this.prisma.expense.findMany({
+      where: expenseWhere,
+      select: {
+        jobId: true,
+        amount: true,
+        costCode: { select: { category: true } },
+      },
+    });
+
+    const jobCategoryMap = new Map<string, Record<string, number>>();
+    for (const exp of expensesWithCategory) {
+      const cat = exp.costCode?.category || 'MATERIALS';
+      if (!jobCategoryMap.has(exp.jobId)) jobCategoryMap.set(exp.jobId, {});
+      const catMap = jobCategoryMap.get(exp.jobId)!;
+      catMap[cat] = (catMap[cat] || 0) + exp.amount;
+    }
+
+    const spentMap = new Map(
+      expensesByJob.map((g) => [g.jobId, { total: g._sum.amount ?? 0, count: g._count }]),
+    );
+
+    let totalRevenue = 0;
+    let totalExpenses = 0;
+    let jobsWithMargin = 0;
+    let marginSum = 0;
+
+    const profitabilityJobs = jobs.map((job) => {
+      const spent = spentMap.get(job.id)?.total ?? 0;
+      const expenseCount = spentMap.get(job.id)?.count ?? 0;
+      const revenue = job.contractValue ?? 0;
+      const profit = revenue - spent;
+      const marginPercent =
+        revenue > 0
+          ? Math.round(((revenue - spent) / revenue) * 10000) / 100
+          : null;
+
+      totalRevenue += revenue;
+      totalExpenses += spent;
+      if (marginPercent !== null) {
+        marginSum += marginPercent;
+        jobsWithMargin++;
+      }
+
+      return {
+        jobId: job.id,
+        jobName: job.name,
+        customerName: job.customerName,
+        status: job.status,
+        contractValue: revenue,
+        totalExpenses: spent,
+        expenseCount,
+        netProfit: profit,
+        profitMarginPercent: marginPercent,
+        budgetTotal: job.budgetTotal ?? 0,
+        expensesByCategory: jobCategoryMap.get(job.id) ?? {},
+      };
+    });
+
+    // Sort: highest margin first, jobs without contract at end
+    profitabilityJobs.sort((a, b) => {
+      if (a.profitMarginPercent === null && b.profitMarginPercent === null) return 0;
+      if (a.profitMarginPercent === null) return 1;
+      if (b.profitMarginPercent === null) return -1;
+      return b.profitMarginPercent - a.profitMarginPercent;
+    });
+
+    return {
+      jobs: profitabilityJobs,
+      totals: {
+        totalRevenue,
+        totalExpenses,
+        totalProfit: totalRevenue - totalExpenses,
+        avgMargin:
+          jobsWithMargin > 0
+            ? Math.round((marginSum / jobsWithMargin) * 100) / 100
+            : null,
+      },
+    };
+  }
+
   private async getTopJobs(orgId: string, startDate?: Date, endDate?: Date) {
     const where: Prisma.ExpenseWhereInput = { organizationId: orgId };
     if (startDate || endDate) {

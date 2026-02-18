@@ -6,3 +6,4 @@ export { CategoryBreakdownChart } from './CategoryBreakdownChart';
 export { TopJobsList } from './TopJobsList';
 export { TopMerchantsList } from './TopMerchantsList';
 export { BudgetHealthCard } from './BudgetHealthCard';
+export { ProfitabilityCard } from './ProfitabilityCard';

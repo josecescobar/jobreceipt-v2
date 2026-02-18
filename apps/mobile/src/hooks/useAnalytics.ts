@@ -13,6 +13,14 @@ export function useAnalyticsSummary(params?: AnalyticsQueryParams) {
   });
 }
 
+export function useJobProfitability(params?: AnalyticsQueryParams) {
+  return useQuery({
+    queryKey: analyticsKeys.profitability(params ?? {}),
+    queryFn: () => analyticsApi.getProfitability(params),
+    staleTime: QUERY_STALE_TIME,
+  });
+}
+
 export function useTaxSummary(year: number) {
   return useQuery({
     queryKey: analyticsKeys.taxSummary(year),

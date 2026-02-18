@@ -119,6 +119,26 @@ export function useBatchUpdateExpenses() {
   });
 }
 
+export function useBatchApproveExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => expensesApi.batchApprove(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}
+
+export function useBatchRejectExpenses() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => expensesApi.batchReject(ids),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}
+
 export function useApproveExpense() {
   const queryClient = useQueryClient();
   return useMutation({

@@ -13,6 +13,7 @@ interface CreateJobData {
   budgetTotal?: number | null;
   budgetMaterials?: number | null;
   budgetLabor?: number | null;
+  contractValue?: number | null;
   startDate?: string | null;
   endDate?: string | null;
   notes?: string | null;
@@ -44,6 +45,7 @@ export class JobsService {
         budgetTotal: data.budgetTotal,
         budgetMaterials: data.budgetMaterials,
         budgetLabor: data.budgetLabor,
+        contractValue: data.contractValue,
         startDate: data.startDate ? new Date(data.startDate) : null,
         endDate: data.endDate ? new Date(data.endDate) : null,
         notes: data.notes,
@@ -101,6 +103,7 @@ export class JobsService {
     if (data.budgetTotal !== undefined) updateData.budgetTotal = data.budgetTotal;
     if (data.budgetMaterials !== undefined) updateData.budgetMaterials = data.budgetMaterials;
     if (data.budgetLabor !== undefined) updateData.budgetLabor = data.budgetLabor;
+    if (data.contractValue !== undefined) updateData.contractValue = data.contractValue;
     if (data.startDate !== undefined) updateData.startDate = data.startDate ? new Date(data.startDate) : null;
     if (data.endDate !== undefined) updateData.endDate = data.endDate ? new Date(data.endDate) : null;
     if (data.notes !== undefined) updateData.notes = data.notes;

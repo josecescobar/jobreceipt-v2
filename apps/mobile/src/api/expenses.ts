@@ -67,6 +67,16 @@ export const expensesApi = {
     return data;
   },
 
+  batchApprove: async (ids: string[]): Promise<{ count: number }> => {
+    const { data } = await apiClient.post('/expenses/batch/approve', { ids });
+    return data;
+  },
+
+  batchReject: async (ids: string[]): Promise<{ count: number }> => {
+    const { data } = await apiClient.post('/expenses/batch/reject', { ids });
+    return data;
+  },
+
   approve: async (id: string): Promise<Expense> => {
     const { data } = await apiClient.post(`/expenses/${id}/approve`);
     return data;

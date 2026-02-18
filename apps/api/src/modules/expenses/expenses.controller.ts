@@ -20,7 +20,13 @@ import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { QueryExpenseDto } from './dto/query-expense.dto';
-import { BatchCreateExpensesDto, BatchDeleteExpensesDto, BatchUpdateExpensesDto } from './dto/batch-expense.dto';
+import {
+  BatchCreateExpensesDto,
+  BatchDeleteExpensesDto,
+  BatchUpdateExpensesDto,
+  BatchApproveExpensesDto,
+  BatchRejectExpensesDto,
+} from './dto/batch-expense.dto';
 
 @ApiTags('Expenses')
 @Controller('expenses')
@@ -96,6 +102,33 @@ export class ExpensesController {
       jobId: body.jobId,
       category: body.category,
     });
+  }
+
+  @Post('batch/approve')
+  @ApiOperation({ summary: 'Batch approve expenses' })
+  async batchApprove(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: BatchApproveExpensesDto,
+    @Req() req: any,
+  ) {
+    if (req.userRole !== 'OWNER' && req.userRole !== 'BOOKKEEPER') {
+      throw new ForbiddenException('Only owners and bookkeepers can approve expenses');
+    }
+    return this.expensesService.batchApprove(orgId, body.ids, userId);
+  }
+
+  @Post('batch/reject')
+  @ApiOperation({ summary: 'Batch reject expenses' })
+  async batchReject(
+    @CurrentOrg() orgId: string,
+    @Body() body: BatchRejectExpensesDto,
+    @Req() req: any,
+  ) {
+    if (req.userRole !== 'OWNER' && req.userRole !== 'BOOKKEEPER') {
+      throw new ForbiddenException('Only owners and bookkeepers can reject expenses');
+    }
+    return this.expensesService.batchReject(orgId, body.ids);
   }
 
   @Post(':id/approve')

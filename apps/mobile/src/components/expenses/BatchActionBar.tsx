@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '../../stores/ui.store';
-import { useBatchDeleteExpenses, useBatchUpdateExpenses } from '../../hooks/useExpenses';
+import { useAuthStore } from '../../stores/auth.store';
+import { useBatchDeleteExpenses, useBatchUpdateExpenses, useBatchApproveExpenses, useBatchRejectExpenses } from '../../hooks/useExpenses';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { Job } from '@jobreceipt/shared';
 
@@ -34,8 +35,12 @@ export function BatchActionBar({ jobs }: BatchActionBarProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
+  const { userRole } = useAuthStore();
   const batchDelete = useBatchDeleteExpenses();
   const batchUpdate = useBatchUpdateExpenses();
+  const batchApprove = useBatchApproveExpenses();
+  const batchReject = useBatchRejectExpenses();
+  const canApprove = userRole === 'OWNER' || userRole === 'BOOKKEEPER';
 
   const [showJobPicker, setShowJobPicker] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
@@ -129,12 +134,75 @@ export function BatchActionBar({ jobs }: BatchActionBarProps) {
       });
   };
 
+  const handleBatchApprove = () => {
+    Alert.alert(
+      `Approve ${count} expense${count !== 1 ? 's' : ''}?`,
+      'These expenses will be marked as approved.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Approve',
+          onPress: async () => {
+            try {
+              const result = await batchApprove.mutateAsync(selectedExpenseIds);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              addToast({
+                id: `batch_approve_${Date.now()}`,
+                message: `Approved ${result.count} expense${result.count !== 1 ? 's' : ''}`,
+                type: 'success',
+              });
+              clearExpenseSelection();
+            } catch {
+              addToast({
+                id: `batch_approve_err_${Date.now()}`,
+                message: 'Failed to approve expenses',
+                type: 'error',
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleBatchReject = () => {
+    Alert.alert(
+      `Reject ${count} expense${count !== 1 ? 's' : ''}?`,
+      'Rejected expenses will be deleted. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reject',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const result = await batchReject.mutateAsync(selectedExpenseIds);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              addToast({
+                id: `batch_reject_${Date.now()}`,
+                message: `Rejected ${result.count} expense${result.count !== 1 ? 's' : ''}`,
+                type: 'success',
+              });
+              clearExpenseSelection();
+            } catch {
+              addToast({
+                id: `batch_reject_err_${Date.now()}`,
+                message: 'Failed to reject expenses',
+                type: 'error',
+              });
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [200, 0],
   });
 
-  const isLoading = batchDelete.isPending || batchUpdate.isPending;
+  const isLoading = batchDelete.isPending || batchUpdate.isPending || batchApprove.isPending || batchReject.isPending;
 
   return (
     <Animated.View
@@ -153,6 +221,26 @@ export function BatchActionBar({ jobs }: BatchActionBarProps) {
           {count} selected
         </Text>
         <View style={styles.actions}>
+          {canApprove && (
+            <>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.success + '20' }]}
+                onPress={handleBatchApprove}
+                disabled={count === 0 || isLoading}
+              >
+                <Ionicons name="checkmark-circle-outline" size={18} color={colors.success} />
+                <Text style={[styles.actionText, { color: colors.success }]}>Approve</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: colors.error + '20' }]}
+                onPress={handleBatchReject}
+                disabled={count === 0 || isLoading}
+              >
+                <Ionicons name="close-circle-outline" size={18} color={colors.error} />
+                <Text style={[styles.actionText, { color: colors.error }]}>Reject</Text>
+              </TouchableOpacity>
+            </>
+          )}
           <TouchableOpacity
             style={styles.actionButton}
             onPress={() => { setShowCategoryPicker(!showCategoryPicker); setShowJobPicker(false); }}

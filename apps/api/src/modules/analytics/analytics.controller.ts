@@ -31,4 +31,13 @@ export class AnalyticsController {
     const year = yearStr ? parseInt(yearStr, 10) : new Date().getFullYear();
     return this.analyticsService.getTaxSummary(orgId, year);
   }
+
+  @Get('profitability')
+  @ApiOperation({ summary: 'Get job profitability analysis with income vs expenses' })
+  async getJobProfitability(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryAnalyticsDto,
+  ) {
+    return this.analyticsService.getJobProfitability(orgId, query);
+  }
 }

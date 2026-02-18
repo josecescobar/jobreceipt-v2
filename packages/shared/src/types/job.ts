@@ -25,6 +25,8 @@ export interface Job {
   budgetTotal: number | null;
   budgetMaterials: number | null;
   budgetLabor: number | null;
+  /** Contract value / revenue in cents */
+  contractValue: number | null;
   startDate: Date | null;
   endDate: Date | null;
   notes: string | null;

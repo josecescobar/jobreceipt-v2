@@ -27,6 +27,7 @@ export default function CreateJobScreen() {
   const [totalBudget, setTotalBudget] = useState('');
   const [materialsBudget, setMaterialsBudget] = useState('');
   const [laborBudget, setLaborBudget] = useState('');
+  const [contractValue, setContractValue] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
@@ -50,6 +51,9 @@ export default function CreateJobScreen() {
           : undefined,
         budgetLabor: laborBudget
           ? dollarsToCents(parseFloat(laborBudget))
+          : undefined,
+        contractValue: contractValue
+          ? dollarsToCents(parseFloat(contractValue))
           : undefined,
         startDate: startDate || undefined,
         endDate: endDate || undefined,
@@ -131,6 +135,17 @@ export default function CreateJobScreen() {
               />
             </View>
           </View>
+
+          <Text style={styles.sectionTitle}>Revenue</Text>
+
+          <Input
+            label="Contract Value"
+            value={contractValue}
+            onChangeText={setContractValue}
+            keyboardType="decimal-pad"
+            prefix="$"
+            placeholder="0.00"
+          />
 
           <Text style={styles.sectionTitle}>Schedule</Text>
 

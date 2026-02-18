@@ -93,6 +93,40 @@ export interface AnalyticsSummary {
   budgetHealth?: BudgetHealthOverview;
 }
 
+export interface JobProfitability {
+  jobId: string;
+  jobName: string;
+  customerName: string | null;
+  status: string;
+  /** In cents */
+  contractValue: number;
+  /** In cents */
+  totalExpenses: number;
+  expenseCount: number;
+  /** In cents (contractValue - totalExpenses) */
+  netProfit: number;
+  /** 0-100 or null if no contract value set */
+  profitMarginPercent: number | null;
+  /** In cents */
+  budgetTotal: number;
+  /** Spend per cost code category */
+  expensesByCategory: Record<string, number>;
+}
+
+export interface ProfitabilityOverview {
+  jobs: JobProfitability[];
+  totals: {
+    /** In cents */
+    totalRevenue: number;
+    /** In cents */
+    totalExpenses: number;
+    /** In cents */
+    totalProfit: number;
+    /** Average margin %, null if no jobs have contract values */
+    avgMargin: number | null;
+  };
+}
+
 export interface TaxCategoryTotal {
   taxCategory: string;
   /** e.g., "Line 22" */

@@ -45,6 +45,12 @@ export class CreateJobDto {
   @Min(0)
   budgetLabor?: number;
 
+  @ApiPropertyOptional({ description: 'Contract value / revenue in cents' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  contractValue?: number;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

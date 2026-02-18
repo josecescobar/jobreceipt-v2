@@ -25,4 +25,7 @@ export const analyticsKeys = {
   taxSummaries: () => [...analyticsKeys.all, 'tax-summary'] as const,
   taxSummary: (year: number) =>
     [...analyticsKeys.taxSummaries(), year] as const,
+  profitabilities: () => [...analyticsKeys.all, 'profitability'] as const,
+  profitability: (params: { startDate?: string; endDate?: string }) =>
+    [...analyticsKeys.profitabilities(), params] as const,
 };

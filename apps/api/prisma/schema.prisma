@@ -161,6 +161,7 @@ model Job {
   budgetTotal      Int?      // cents
   budgetMaterials  Int?      // cents
   budgetLabor      Int?      // cents
+  contractValue    Int?      // cents - what the customer pays for the job
   startDate        DateTime?
   endDate          DateTime?
   notes            String?

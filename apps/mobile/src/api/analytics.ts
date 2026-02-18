@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { AnalyticsSummary, TaxSummary } from '@jobreceipt/shared';
+import type { AnalyticsSummary, TaxSummary, ProfitabilityOverview } from '@jobreceipt/shared';
 
 export interface AnalyticsQueryParams {
   startDate?: string;
@@ -16,6 +16,11 @@ export const analyticsApi = {
     const { data } = await apiClient.get('/analytics/tax-summary', {
       params: { year },
     });
+    return data;
+  },
+
+  getProfitability: async (params?: AnalyticsQueryParams): Promise<ProfitabilityOverview> => {
+    const { data } = await apiClient.get('/analytics/profitability', { params });
     return data;
   },
 };
