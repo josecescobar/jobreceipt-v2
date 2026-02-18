@@ -15,6 +15,8 @@ import { QuickActionGrid, ActivityFeed } from '../../src/components/dashboard';
 import { MonthlySpendingChart, CategoryBreakdownChart } from '../../src/components/analytics';
 import type { QuickAction, ActivityItem } from '../../src/components/dashboard';
 import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
+import { usePendingExpenseCount } from '../../src/hooks/useExpenses';
+import { useAuthStore } from '../../src/stores/auth.store';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
@@ -57,6 +59,10 @@ export default function HomeScreen() {
   );
 
   const { data: mileageSummary, refetch: refetchMileageSummary } = useMileageSummary();
+  const userRole = useAuthStore((s) => s.userRole);
+  const { data: pendingData, refetch: refetchPending } = usePendingExpenseCount();
+  const pendingExpenseCount = pendingData?.pages?.[0]?.total ?? 0;
+  const canApprove = userRole === 'OWNER' || userRole === 'BOOKKEEPER';
 
   const { data: expensesData, refetch: refetchExpenses } = useExpenses({ limit: 100 });
   const allExpenses = useMemo(
@@ -82,11 +88,12 @@ export default function HomeScreen() {
         refetchExpenses(),
         refetchMileage(),
         refetchAnalytics(),
+        refetchPending(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -194,6 +201,23 @@ export default function HomeScreen() {
               <Ionicons name="document-text" size={20} color={colors.review} />
               <Text style={styles.reviewBannerText}>
                 {reviewCount} receipt{reviewCount !== 1 ? 's' : ''} pending review
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* Pending expense approvals banner */}
+        {canApprove && pendingExpenseCount > 0 && (
+          <TouchableOpacity
+            style={[styles.reviewBanner, { borderColor: colors.warning + '40' }]}
+            onPress={() => router.push('/(tabs)/expenses')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="wallet" size={20} color={colors.warning} />
+              <Text style={styles.reviewBannerText}>
+                {pendingExpenseCount} expense{pendingExpenseCount !== 1 ? 's' : ''} pending approval
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

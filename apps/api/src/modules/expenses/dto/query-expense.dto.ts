@@ -18,6 +18,11 @@ export class QueryExpenseDto {
   @IsString()
   taxCategory?: string;
 
+  @ApiPropertyOptional({ enum: ['pending', 'approved'] })
+  @IsOptional()
+  @IsString()
+  status?: 'pending' | 'approved';
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()

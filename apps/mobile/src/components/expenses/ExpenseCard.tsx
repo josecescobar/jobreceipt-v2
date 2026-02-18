@@ -72,6 +72,11 @@ export function ExpenseCard({
             {expense.date && (
               <Text style={styles.date}>{formatDate(expense.date)}</Text>
             )}
+            {expense.approvedAt ? (
+              <Text style={styles.approvedLabel}>Approved</Text>
+            ) : (
+              <Text style={styles.pendingLabel}>Pending</Text>
+            )}
             {jobName && (
               <Badge label={jobName} />
             )}
@@ -153,6 +158,16 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   date: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  approvedLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  pendingLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.warning,
   },
   amount: {
     fontSize: 16,

@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/layout';
 import { FAB, EmptyState, LoadingScreen } from '../../src/components/ui';
@@ -19,6 +19,8 @@ export default function ExpensesScreen() {
     expenseMerchantSearch,
     expenseDateFrom,
     expenseDateTo,
+    expenseStatusFilter,
+    setExpenseStatusFilter,
     expenseSelectionMode,
     selectedExpenseIds,
     enterExpenseSelectionMode,
@@ -38,11 +40,12 @@ export default function ExpensesScreen() {
     () => ({
       jobId: expenseJobFilter || undefined,
       category: expenseCategoryFilter || undefined,
+      status: expenseStatusFilter,
       search: debouncedSearch || undefined,
       startDate: expenseDateFrom || undefined,
       endDate: expenseDateTo || undefined,
     }),
-    [expenseJobFilter, expenseCategoryFilter, debouncedSearch, expenseDateFrom, expenseDateTo],
+    [expenseJobFilter, expenseCategoryFilter, expenseStatusFilter, debouncedSearch, expenseDateFrom, expenseDateTo],
   );
 
   const { data, isLoading, fetchNextPage, hasNextPage, refetch, isRefetching } =
@@ -80,6 +83,28 @@ export default function ExpensesScreen() {
   return (
     <Screen>
       <ExpenseFilterBar jobs={jobs} />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.statusChips}
+      >
+        {([undefined, 'pending', 'approved'] as const).map((s) => {
+          const label = s === undefined ? 'All' : s === 'pending' ? 'Pending' : 'Approved';
+          const isActive = expenseStatusFilter === s;
+          return (
+            <TouchableOpacity
+              key={label}
+              style={[styles.statusChip, isActive && { backgroundColor: colors.primary }]}
+              onPress={() => setExpenseStatusFilter(s)}
+            >
+              <Text style={[styles.statusChipText, isActive && { color: colors.white }]}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
 
       {expenseSelectionMode && (
         <View style={styles.selectionHeader}>
@@ -142,6 +167,25 @@ export default function ExpensesScreen() {
 }
 
 const createStyles = (colors: ThemeColors) => StyleSheet.create({
+  statusChips: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.xs,
+  },
+  statusChip: {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  statusChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   list: {
     paddingBottom: 100,
   },

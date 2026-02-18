@@ -98,3 +98,28 @@ export function useBatchUpdateExpenses() {
     },
   });
 }
+
+export function useApproveExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expensesApi.approve(id),
+    onSuccess: (data) => {
+      queryClient.setQueryData(expenseKeys.detail(data.id), data);
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}
+
+export function useRejectExpense() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => expensesApi.reject(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+    },
+  });
+}
+
+export function usePendingExpenseCount() {
+  return useExpenses({ status: 'pending', limit: 1 });
+}

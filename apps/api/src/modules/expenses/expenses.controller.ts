@@ -7,7 +7,9 @@ import {
   Param,
   Body,
   Query,
+  Req,
   UseGuards,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
@@ -47,6 +49,7 @@ export class ExpensesController {
       jobId: query.jobId,
       category: query.category,
       taxCategory: query.taxCategory,
+      status: query.status,
       startDate: query.startDate,
       endDate: query.endDate,
       search: query.search,
@@ -83,6 +86,33 @@ export class ExpensesController {
       jobId: body.jobId,
       category: body.category,
     });
+  }
+
+  @Post(':id/approve')
+  @ApiOperation({ summary: 'Approve an expense' })
+  async approve(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    if (req.userRole !== 'OWNER' && req.userRole !== 'BOOKKEEPER') {
+      throw new ForbiddenException('Only owners and bookkeepers can approve expenses');
+    }
+    return this.expensesService.approve(orgId, id, userId);
+  }
+
+  @Post(':id/reject')
+  @ApiOperation({ summary: 'Reject an expense' })
+  async reject(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Req() req: any,
+  ) {
+    if (req.userRole !== 'OWNER' && req.userRole !== 'BOOKKEEPER') {
+      throw new ForbiddenException('Only owners and bookkeepers can reject expenses');
+    }
+    return this.expensesService.reject(orgId, id);
   }
 
   @Get(':id')

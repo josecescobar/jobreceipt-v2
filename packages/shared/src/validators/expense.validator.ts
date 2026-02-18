@@ -20,6 +20,7 @@ export const ExpenseQuerySchema = z.object({
   jobId: z.string().uuid().optional(),
   category: z.string().optional(),
   taxCategory: z.string().optional(),
+  status: z.enum(['pending', 'approved']).optional(),
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   search: z.string().optional(),

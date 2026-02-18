@@ -22,6 +22,7 @@ interface ExpenseQuery {
   jobId?: string;
   category?: string;
   taxCategory?: string;
+  status?: 'pending' | 'approved';
   startDate?: string;
   endDate?: string;
   search?: string;
@@ -69,6 +70,8 @@ export class ExpensesService {
     if (query.jobId) where.jobId = query.jobId;
     if (query.category) where.category = query.category;
     if (query.taxCategory) where.taxCategory = query.taxCategory;
+    if (query.status === 'pending') where.approvedAt = null;
+    if (query.status === 'approved') where.approvedAt = { not: null };
 
     if (query.startDate || query.endDate) {
       where.date = {};
@@ -90,6 +93,7 @@ export class ExpensesService {
           job: { select: { id: true, name: true } },
           costCode: { select: { id: true, code: true, name: true, category: true } },
           receipt: { select: { id: true, thumbnailUrl: true, merchantName: true } },
+          approvedBy: { select: { id: true, name: true } },
         },
       }),
       this.prisma.expense.count({ where }),
@@ -173,6 +177,46 @@ export class ExpensesService {
       data,
     });
     return { count: result.count };
+  }
+
+  async approve(orgId: string, expenseId: string, approverId: string) {
+    const expense = await this.findOne(orgId, expenseId);
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expenseId },
+      data: {
+        approvedById: approverId,
+        approvedAt: new Date(),
+      },
+    });
+
+    // Notify creator (fire-and-forget)
+    const formatDollars = (cents: number) =>
+      `$${(cents / 100).toFixed(2)}`;
+    this.notificationService.sendPushNotification(
+      expense.createdById,
+      'Expense Approved',
+      `${expense.description} (${formatDollars(expense.amount)}) has been approved`,
+      { screen: 'expenses' },
+    ).catch(() => {});
+
+    return updated;
+  }
+
+  async reject(orgId: string, expenseId: string) {
+    const expense = await this.findOne(orgId, expenseId);
+
+    // Notify creator before deleting (fire-and-forget)
+    const formatDollars = (cents: number) =>
+      `$${(cents / 100).toFixed(2)}`;
+    this.notificationService.sendPushNotification(
+      expense.createdById,
+      'Expense Rejected',
+      `${expense.description} (${formatDollars(expense.amount)}) was rejected`,
+      { screen: 'expenses' },
+    ).catch(() => {});
+
+    await this.prisma.expense.delete({ where: { id: expenseId } });
   }
 
   async checkBudgetAlert(jobId: string, orgId: string, newExpenseAmount: number): Promise<void> {

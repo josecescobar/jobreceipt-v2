@@ -18,7 +18,8 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Screen, Header } from '../../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../../src/components/ui';
-import { useExpense, useUpdateExpense, useDeleteExpense } from '../../../src/hooks/useExpenses';
+import { useExpense, useUpdateExpense, useDeleteExpense, useApproveExpense, useRejectExpense } from '../../../src/hooks/useExpenses';
+import { useAuthStore } from '../../../src/stores/auth.store';
 import { useJobs } from '../../../src/hooks/useJobs';
 import { expensesApi } from '../../../src/api/expenses';
 import { dollarsToCents, centsToDollars, formatMoney } from '../../../src/lib/format';
@@ -40,6 +41,10 @@ export default function EditExpenseScreen() {
   const { data: expense, isLoading } = useExpense(id ?? '');
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
+  const approveExpense = useApproveExpense();
+  const rejectExpense = useRejectExpense();
+  const userRole = useAuthStore((s) => s.userRole);
+  const canApprove = userRole === 'OWNER' || userRole === 'BOOKKEEPER';
   const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 100 });
   const jobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
@@ -347,6 +352,63 @@ export default function EditExpenseScreen() {
             loading={deleteExpense.isPending}
             style={styles.deleteButton}
           />
+
+          {/* Approval section */}
+          {canApprove && !expense.approvedAt && (
+            <View style={styles.approvalSection}>
+              <Text style={styles.approvalTitle}>Approval</Text>
+              <View style={styles.approvalButtons}>
+                <Button
+                  title="Approve"
+                  onPress={async () => {
+                    try {
+                      await approveExpense.mutateAsync(id!);
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      router.back();
+                    } catch {
+                      Alert.alert('Error', 'Failed to approve expense.');
+                    }
+                  }}
+                  loading={approveExpense.isPending}
+                />
+                <Button
+                  title="Reject"
+                  variant="danger"
+                  onPress={() => {
+                    Alert.alert(
+                      'Reject Expense?',
+                      'This expense will be deleted.',
+                      [
+                        { text: 'Cancel', style: 'cancel' },
+                        {
+                          text: 'Reject',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await rejectExpense.mutateAsync(id!);
+                              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+                              router.back();
+                            } catch {
+                              Alert.alert('Error', 'Failed to reject expense.');
+                            }
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                  loading={rejectExpense.isPending}
+                />
+              </View>
+            </View>
+          )}
+          {expense.approvedAt && (
+            <View style={styles.approvedInfo}>
+              <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+              <Text style={styles.approvedText}>
+                Approved{(expense as any).approvedBy?.name ? ` by ${(expense as any).approvedBy.name}` : ''}
+              </Text>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </Screen>
@@ -505,5 +567,32 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   deleteButton: {
     marginTop: spacing.md,
+  },
+  approvalSection: {
+    marginTop: spacing.xl,
+    paddingTop: spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  approvalTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  approvalButtons: {
+    gap: spacing.sm,
+  },
+  approvedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    justifyContent: 'center',
+  },
+  approvedText: {
+    fontSize: 14,
+    color: colors.success,
+    fontWeight: '500',
   },
 });

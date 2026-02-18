@@ -62,6 +62,15 @@ export const expensesApi = {
     return data;
   },
 
+  approve: async (id: string): Promise<Expense> => {
+    const { data } = await apiClient.post(`/expenses/${id}/approve`);
+    return data;
+  },
+
+  reject: async (id: string): Promise<void> => {
+    await apiClient.post(`/expenses/${id}/reject`);
+  },
+
   /**
    * Upload an image from a local URI and return the S3 imageKey.
    */

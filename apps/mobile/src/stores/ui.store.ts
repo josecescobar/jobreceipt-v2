@@ -15,6 +15,7 @@ interface UIState {
   expenseDateFrom: string | null;
   expenseDateTo: string | null;
   expenseMerchantSearch: string;
+  expenseStatusFilter: 'pending' | 'approved' | undefined;
 
   // Expense selection
   expenseSelectionMode: boolean;
@@ -29,6 +30,7 @@ interface UIState {
   setExpenseCategoryFilter: (category: string | null) => void;
   setExpenseDateRange: (from: string | null, to: string | null) => void;
   setExpenseMerchantSearch: (search: string) => void;
+  setExpenseStatusFilter: (status: 'pending' | 'approved' | undefined) => void;
   enterExpenseSelectionMode: () => void;
   toggleExpenseSelection: (id: string) => void;
   selectAllExpenses: (ids: string[]) => void;
@@ -44,6 +46,7 @@ export const useUIStore = create<UIState>((set) => ({
   expenseDateFrom: null,
   expenseDateTo: null,
   expenseMerchantSearch: '',
+  expenseStatusFilter: undefined,
   expenseSelectionMode: false,
   selectedExpenseIds: [],
   toasts: [],
@@ -56,6 +59,8 @@ export const useUIStore = create<UIState>((set) => ({
     set({ expenseDateFrom: from, expenseDateTo: to }),
   setExpenseMerchantSearch: (search) =>
     set({ expenseMerchantSearch: search }),
+  setExpenseStatusFilter: (status) =>
+    set({ expenseStatusFilter: status }),
   enterExpenseSelectionMode: () =>
     set({ expenseSelectionMode: true }),
   toggleExpenseSelection: (id) =>
