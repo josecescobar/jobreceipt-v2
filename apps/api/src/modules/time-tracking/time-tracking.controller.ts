@@ -17,6 +17,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { TimeTrackingService } from './time-tracking.service';
 import { CreateTimeEntryDto } from './dto/create-time-entry.dto';
 import { UpdateTimeEntryDto } from './dto/update-time-entry.dto';
+import { ClockInDto } from './dto/clock-in.dto';
 
 @ApiTags('Time Tracking')
 @Controller('time-entries')
@@ -33,6 +34,35 @@ export class TimeTrackingController {
     @Body() body: CreateTimeEntryDto,
   ) {
     return this.timeTrackingService.create(orgId, userId, body);
+  }
+
+  // Clock-in, clock-out, and active routes BEFORE :id routes to avoid conflicts
+  @Post('clock-in')
+  @ApiOperation({ summary: 'Clock in to start a timer' })
+  async clockIn(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: ClockInDto,
+  ) {
+    return this.timeTrackingService.clockIn(orgId, userId, body.jobId, body.hourlyRate);
+  }
+
+  @Post(':id/clock-out')
+  @ApiOperation({ summary: 'Clock out to stop a running timer' })
+  async clockOut(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.timeTrackingService.clockOut(orgId, id);
+  }
+
+  @Get('active')
+  @ApiOperation({ summary: 'Get the currently running timer' })
+  async getActiveTimer(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.timeTrackingService.getActiveTimer(orgId, userId);
   }
 
   @Get()

@@ -11,6 +11,10 @@ interface TimeEntry {
   durationMinutes: number;
   hourlyRate: number;
   totalCost: number;
+  overtimeMinutes: number;
+  overtimeRate?: number | null;
+  isRunning: boolean;
+  clockInAt?: string | null;
   description?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +33,8 @@ interface TimeEntrySummary {
   totalEntries: number;
   totalMinutes: number;
   totalCost: number;
+  overtimeMinutes: number;
+  regularMinutes: number;
 }
 
 interface TimeEntryQueryParams {
@@ -47,6 +53,7 @@ interface CreateTimeEntryData {
   endTime?: string;
   durationMinutes: number;
   hourlyRate: number;
+  overtimeRate?: number;
   description?: string;
 }
 
@@ -57,6 +64,7 @@ interface UpdateTimeEntryData {
   endTime?: string;
   durationMinutes?: number;
   hourlyRate?: number;
+  overtimeRate?: number;
   description?: string;
 }
 
@@ -87,6 +95,21 @@ export const timeTrackingApi = {
 
   getSummary: async (params?: Omit<TimeEntryQueryParams, 'page' | 'limit'>): Promise<TimeEntrySummary> => {
     const { data } = await apiClient.get('/time-tracking/summary', { params });
+    return data;
+  },
+
+  clockIn: async (jobId: string, hourlyRate?: number): Promise<TimeEntry> => {
+    const { data } = await apiClient.post('/time-tracking/clock-in', { jobId, hourlyRate });
+    return data;
+  },
+
+  clockOut: async (id: string): Promise<TimeEntry> => {
+    const { data } = await apiClient.post(`/time-tracking/${id}/clock-out`);
+    return data;
+  },
+
+  getActive: async (): Promise<TimeEntry | null> => {
+    const { data } = await apiClient.get('/time-tracking/active');
     return data;
   },
 };

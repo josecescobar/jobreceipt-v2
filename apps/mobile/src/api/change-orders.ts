@@ -35,7 +35,7 @@ interface UpdateChangeOrderInput {
 
 export const changeOrdersApi = {
   list: async (params: {
-    jobId: string;
+    jobId?: string;
     status?: string;
     page?: number;
     limit?: number;

@@ -5,7 +5,7 @@ import { QUERY_STALE_TIME } from '../lib/constants';
 export const changeOrderKeys = {
   all: ['changeOrders'] as const,
   lists: () => [...changeOrderKeys.all, 'list'] as const,
-  list: (params: { jobId: string; status?: string }) =>
+  list: (params: { jobId?: string; status?: string }) =>
     [...changeOrderKeys.lists(), params] as const,
   details: () => [...changeOrderKeys.all, 'detail'] as const,
   detail: (id: string) => [...changeOrderKeys.details(), id] as const,
@@ -16,6 +16,14 @@ export function useChangeOrders(params: { jobId: string; status?: string }) {
     queryKey: changeOrderKeys.list(params),
     queryFn: () => changeOrdersApi.list({ ...params, limit: 100 }),
     enabled: !!params.jobId,
+    staleTime: QUERY_STALE_TIME,
+  });
+}
+
+export function useAllChangeOrders(params: { status?: string } = {}) {
+  return useQuery({
+    queryKey: changeOrderKeys.list(params),
+    queryFn: () => changeOrdersApi.list({ ...params, limit: 100 }),
     staleTime: QUERY_STALE_TIME,
   });
 }

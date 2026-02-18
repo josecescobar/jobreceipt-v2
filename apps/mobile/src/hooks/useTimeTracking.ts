@@ -12,6 +12,7 @@ export const timeEntryKeys = {
   summaries: () => [...timeEntryKeys.all, 'summary'] as const,
   summary: (params: Omit<TimeEntryQueryParams, 'page' | 'limit'>) =>
     [...timeEntryKeys.summaries(), params] as const,
+  active: () => [...timeEntryKeys.all, 'active'] as const,
 };
 
 export function useTimeEntries(params?: TimeEntryQueryParams) {
@@ -42,6 +43,40 @@ export function useTimeEntrySummary(params?: Omit<TimeEntryQueryParams, 'page' |
     queryKey: timeEntryKeys.summary(params ?? {}),
     queryFn: () => timeTrackingApi.getSummary(params),
     staleTime: QUERY_STALE_TIME,
+  });
+}
+
+export function useActiveTimer() {
+  return useQuery({
+    queryKey: timeEntryKeys.active(),
+    queryFn: () => timeTrackingApi.getActive(),
+    refetchInterval: 30000,
+    staleTime: 10000,
+  });
+}
+
+export function useClockIn() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, hourlyRate }: { jobId: string; hourlyRate?: number }) =>
+      timeTrackingApi.clockIn(jobId, hourlyRate),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.summaries() });
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.active() });
+    },
+  });
+}
+
+export function useClockOut() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => timeTrackingApi.clockOut(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.summaries() });
+      queryClient.invalidateQueries({ queryKey: timeEntryKeys.active() });
+    },
   });
 }
 

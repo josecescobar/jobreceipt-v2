@@ -657,12 +657,16 @@ model TimeEntry {
   date            DateTime
   startTime       String?  // "09:00" format
   endTime         String?  // "17:00" format
-  durationMinutes Int      // total minutes worked
-  hourlyRate      Int      // cents per hour
-  totalCost       Int      // cents — precomputed: (durationMinutes / 60) * hourlyRate
+  durationMinutes Int       // total minutes worked
+  hourlyRate      Int       // cents per hour
+  totalCost       Int       // cents — precomputed: (durationMinutes / 60) * hourlyRate
+  overtimeMinutes Int       @default(0)  // minutes beyond regular hours
+  overtimeRate    Int?      // overtime rate cents/hr (null = 1.5x hourlyRate)
+  isRunning       Boolean   @default(false) // active timer indicator
+  clockInAt       DateTime? // exact clock-in timestamp for active timer
   description     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   job          Job          @relation(fields: [jobId], references: [id])
@@ -671,6 +675,7 @@ model TimeEntry {
   @@index([organizationId])
   @@index([organizationId, jobId])
   @@index([organizationId, date])
+  @@index([organizationId, userId, isRunning])
 }
 
 // ─── Estimates ────────────────────────────────────────────

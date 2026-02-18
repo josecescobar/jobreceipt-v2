@@ -39,7 +39,7 @@ export class ChangeOrdersController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List change orders for a job' })
+  @ApiOperation({ summary: 'List change orders (optionally filtered by job)' })
   async findAll(
     @CurrentOrg() orgId: string,
     @Query() query: QueryChangeOrderDto,

@@ -3,9 +3,10 @@ import { IsOptional, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class QueryChangeOrderDto {
-  @ApiProperty()
+  @ApiPropertyOptional()
+  @IsOptional()
   @IsString()
-  jobId: string;
+  jobId?: string;
 
   @ApiPropertyOptional({ enum: ['DRAFT', 'SUBMITTED', 'APPROVED', 'REJECTED'] })
   @IsOptional()

@@ -34,6 +34,9 @@ import { useAgingSummary } from '../../src/hooks/useInvoiceAging';
 import { useCashFlowForecast } from '../../src/hooks/useCashFlow';
 import { useUnreadCount } from '../../src/hooks/useMessages';
 import { useUpcomingMaintenance } from '../../src/hooks/useEquipment';
+import { useAllChangeOrders } from '../../src/hooks/useChangeOrders';
+import { useEstimates } from '../../src/hooks/useEstimates';
+import { useActiveTimer, useClockOut } from '../../src/hooks/useTimeTracking';
 import { useSettings } from '../../src/hooks/useSettings';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
@@ -91,6 +94,11 @@ export default function HomeScreen() {
   const { data: unreadData, refetch: refetchUnread } = useUnreadCount();
   const unreadCount = unreadData?.count ?? 0;
   const { data: upcomingMaintenanceData, refetch: refetchUpcomingMaintenance } = useUpcomingMaintenance();
+  const { data: pendingChangeOrdersData, refetch: refetchPendingCOs } = useAllChangeOrders({ status: 'SUBMITTED' });
+  const pendingChangeOrderCount = pendingChangeOrdersData?.total ?? 0;
+  const { data: estimatesData, refetch: refetchEstimates } = useEstimates();
+  const { data: activeTimer, refetch: refetchActiveTimer } = useActiveTimer();
+  const clockOutMutation = useClockOut();
   const maintenanceDueCount = useMemo(() => {
     if (!upcomingMaintenanceData) return 0;
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -101,6 +109,10 @@ export default function HomeScreen() {
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
+  );
+  const recentEstimates = useMemo(
+    () => (estimatesData?.data ?? []).slice(0, 3),
+    [estimatesData],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -120,11 +132,14 @@ export default function HomeScreen() {
         refetchCashFlow(),
         refetchUnread(),
         refetchUpcomingMaintenance(),
+        refetchPendingCOs(),
+        refetchEstimates(),
+        refetchActiveTimer(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance, refetchPendingCOs, refetchEstimates, refetchActiveTimer]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -360,6 +375,85 @@ export default function HomeScreen() {
           </React.Fragment>
         );
       },
+      estimates: () => {
+        if (recentEstimates.length === 0) return null;
+        return (
+          <React.Fragment key="estimates">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Estimates</Text>
+              <TouchableOpacity onPress={() => router.push('/estimate')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <Card>
+              {recentEstimates.map((est: any, index: number) => {
+                const statusColor =
+                  est.status === 'ACCEPTED' ? colors.success
+                  : est.status === 'SENT' ? colors.primary
+                  : est.status === 'REJECTED' ? colors.error
+                  : est.status === 'EXPIRED' ? colors.warning
+                  : est.status === 'CONVERTED' ? '#9333ea'
+                  : colors.textMuted;
+                return (
+                  <TouchableOpacity
+                    key={est.id}
+                    style={[
+                      styles.estimateRow,
+                      index < recentEstimates.length - 1 && styles.estimateRowBorder,
+                    ]}
+                    onPress={() => router.push(`/estimate/${est.id}`)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.estimateRowLeft}>
+                      <Text style={styles.estimateNumber}>{est.estimateNumber}</Text>
+                      <Text style={styles.estimateRowSub} numberOfLines={1}>
+                        {est.job?.customerName
+                          ? `${est.job.customerName} - ${est.job.name}`
+                          : est.job?.name ?? ''}
+                      </Text>
+                    </View>
+                    <View style={styles.estimateRowRight}>
+                      <Text style={styles.estimateRowAmount}>{formatMoney(est.total)}</Text>
+                      <View style={[styles.estimateStatusBadge, { backgroundColor: statusColor + '20' }]}>
+                        <Text style={[styles.estimateStatusText, { color: statusColor }]}>
+                          {est.status}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </Card>
+          </React.Fragment>
+        );
+      },
+      timeTracking: () => {
+        return (
+          <React.Fragment key="timeTracking">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Time Tracking</Text>
+              <TouchableOpacity onPress={() => router.push('/time-tracking')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/time-tracking/weekly')}
+            >
+              <Card>
+                <View style={styles.timeTrackingCard}>
+                  <Ionicons name="time-outline" size={24} color={colors.primary} />
+                  <View style={styles.timeTrackingInfo}>
+                    <Text style={styles.timeTrackingLabel}>Weekly Timesheet</Text>
+                    <Text style={styles.timeTrackingDesc}>View hours by day this week</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </React.Fragment>
+        );
+      },
       recentActivity: () => (
         <React.Fragment key="recentActivity">
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -370,7 +464,8 @@ export default function HomeScreen() {
     [
       QUICK_ACTIONS, styles, router, colors, activeJobs, monthTotal,
       monthLabel, mileageSummary, cashFlowData, todaySchedule,
-      analyticsSummary, topJob, topJobBudget, activityItems,
+      analyticsSummary, topJob, topJobBudget, activityItems, recentEstimates,
+      activeTimer, clockOutMutation,
     ],
   );
 
@@ -486,6 +581,52 @@ export default function HomeScreen() {
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {canApprove && pendingChangeOrderCount > 0 && (
+          <TouchableOpacity
+            style={styles.changeOrderBanner}
+            onPress={() => router.push('/change-order')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="document-text" size={20} color={colors.warning} />
+              <Text style={styles.changeOrderBannerText}>
+                {pendingChangeOrderCount} change order{pendingChangeOrderCount !== 1 ? 's' : ''} pending review
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {activeTimer && (
+          <TouchableOpacity
+            style={styles.activeTimerBanner}
+            onPress={() => router.push('/time-tracking')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="time" size={20} color={colors.success} />
+              <View>
+                <Text style={styles.activeTimerText}>
+                  Timer running — {activeTimer.job?.name ?? 'Unknown Job'}
+                </Text>
+                <Text style={styles.activeTimerSub}>
+                  Started {new Date(activeTimer.clockInAt ?? activeTimer.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              style={styles.clockOutBtn}
+              onPress={(e) => {
+                e.stopPropagation();
+                clockOutMutation.mutate(activeTimer.id);
+              }}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.clockOutBtnText}>Clock Out</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         )}
 
@@ -730,6 +871,127 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   chartContainer: {
     marginHorizontal: -spacing.lg,
     marginBottom: spacing.sm,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  seeAllLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  estimateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  estimateRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  estimateRowLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  estimateNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  estimateRowSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  estimateRowRight: {
+    alignItems: 'flex-end',
+  },
+  estimateRowAmount: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    marginBottom: 2,
+  },
+  estimateStatusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 1,
+    borderRadius: borderRadius.full,
+  },
+  estimateStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  changeOrderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.warning + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.warning + '40',
+  },
+  changeOrderBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.warning,
+    flex: 1,
+  },
+  activeTimerBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.success + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.success + '40',
+  },
+  activeTimerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  activeTimerSub: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  clockOutBtn: {
+    backgroundColor: colors.error,
+    borderRadius: borderRadius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  clockOutBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  timeTrackingCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  timeTrackingInfo: {
+    flex: 1,
+  },
+  timeTrackingLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  timeTrackingDesc: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   bottomSpacer: {
     height: spacing.xxxl,

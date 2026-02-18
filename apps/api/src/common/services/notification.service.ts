@@ -9,7 +9,8 @@ export type NotificationType =
   | 'recurring_expense'
   | 'invoice_reminder'
   | 'new_message'
-  | 'margin_alert';
+  | 'margin_alert'
+  | 'change_order';
 
 const TYPE_TO_PREF_KEY: Record<NotificationType, string> = {
   receipt_processed: 'receiptProcessed',
@@ -20,6 +21,7 @@ const TYPE_TO_PREF_KEY: Record<NotificationType, string> = {
   invoice_reminder: 'invoiceReminders',
   new_message: 'messages',
   margin_alert: 'marginAlerts',
+  change_order: 'changeOrders',
 };
 
 @Injectable()

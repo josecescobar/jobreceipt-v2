@@ -13,6 +13,7 @@ export interface NotificationPrefs {
   reviewReminders: boolean;
   recurringExpenses: boolean;
   marginAlerts: boolean;
+  changeOrders: boolean;
 }
 
 const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -22,6 +23,7 @@ const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   reviewReminders: true,
   recurringExpenses: true,
   marginAlerts: true,
+  changeOrders: true,
 };
 
 export interface DashboardSection {
@@ -42,6 +44,8 @@ const DEFAULT_DASHBOARD_LAYOUT: DashboardSection[] = [
   { id: 'categoryBreakdown', visible: true },
   { id: 'topJobBudget', visible: true },
   { id: 'recentActivity', visible: true },
+  { id: 'timeTracking', visible: true },
+  { id: 'estimates', visible: true },
 ];
 
 interface SettingsState {
@@ -91,6 +95,7 @@ export const useSettings = create<SettingsState>()(
           reviewReminders: enabled,
           recurringExpenses: enabled,
           marginAlerts: enabled,
+          changeOrders: enabled,
         };
         set({ notifications: updated });
         syncPrefsToApi(updated);
@@ -127,9 +132,24 @@ export const useSettings = create<SettingsState>()(
             persisted.notifications.marginAlerts = true;
           }
         }
+        // v2 → v3: add changeOrders pref + timeTracking/estimates dashboard sections
+        if (version < 3) {
+          if (persisted.notifications && !('changeOrders' in persisted.notifications)) {
+            persisted.notifications.changeOrders = true;
+          }
+          if (persisted.dashboardLayout) {
+            const ids = persisted.dashboardLayout.map((s: any) => s.id);
+            if (!ids.includes('timeTracking')) {
+              persisted.dashboardLayout.push({ id: 'timeTracking', visible: true });
+            }
+            if (!ids.includes('estimates')) {
+              persisted.dashboardLayout.push({ id: 'estimates', visible: true });
+            }
+          }
+        }
         return persisted as SettingsState;
       },
-      version: 2,
+      version: 3,
     },
   ),
 );

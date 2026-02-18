@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../common/services/notification.service';
 import { CreateChangeOrderLineItemDto } from './dto/create-change-order.dto';
 
 interface CreateChangeOrderData {
@@ -32,7 +33,14 @@ const changeOrderInclude = {
 
 @Injectable()
 export class ChangeOrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
+
+  private formatMoney(cents: number): string {
+    return '$' + (cents / 100).toFixed(2);
+  }
 
   private async generateChangeOrderNumber(orgId: string): Promise<string> {
     const latest = await this.prisma.changeOrder.findFirst({
@@ -106,9 +114,10 @@ export class ChangeOrdersService {
 
   async findAll(
     orgId: string,
-    query: { jobId: string; status?: string; page: number; limit: number },
+    query: { jobId?: string; status?: string; page: number; limit: number },
   ) {
-    const where: any = { organizationId: orgId, jobId: query.jobId };
+    const where: any = { organizationId: orgId };
+    if (query.jobId) where.jobId = query.jobId;
     if (query.status) where.status = query.status;
 
     const [data, total] = await Promise.all([
@@ -202,7 +211,7 @@ export class ChangeOrdersService {
       throw new BadRequestException('Only submitted change orders can be approved');
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.changeOrder.update({
         where: { id },
         data: {
@@ -224,6 +233,20 @@ export class ChangeOrdersService {
 
       return updated;
     });
+
+    // Send push notification to the creator (fire-and-forget)
+    const jobName = changeOrder.job?.name ?? 'Unknown Job';
+    this.notificationService
+      .sendPushNotification(
+        changeOrder.createdById,
+        'Change Order Approved',
+        `${changeOrder.changeOrderNumber} for ${jobName} approved (+${this.formatMoney(changeOrder.total)})`,
+        { screen: 'change-order', changeOrderId: changeOrder.id },
+        'change_order',
+      )
+      .catch(() => {});
+
+    return result;
   }
 
   async reject(orgId: string, id: string, approverId: string) {
@@ -233,7 +256,7 @@ export class ChangeOrdersService {
       throw new BadRequestException('Only submitted change orders can be rejected');
     }
 
-    return this.prisma.changeOrder.update({
+    const result = await this.prisma.changeOrder.update({
       where: { id },
       data: {
         status: 'REJECTED',
@@ -242,5 +265,19 @@ export class ChangeOrdersService {
       },
       include: changeOrderInclude,
     });
+
+    // Send push notification to the creator (fire-and-forget)
+    const jobName = changeOrder.job?.name ?? 'Unknown Job';
+    this.notificationService
+      .sendPushNotification(
+        changeOrder.createdById,
+        'Change Order Rejected',
+        `${changeOrder.changeOrderNumber} for ${jobName} was rejected`,
+        { screen: 'change-order', changeOrderId: changeOrder.id },
+        'change_order',
+      )
+      .catch(() => {});
+
+    return result;
   }
 }

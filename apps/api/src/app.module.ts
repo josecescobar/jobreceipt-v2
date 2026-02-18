@@ -31,6 +31,7 @@ import { MessagesModule } from './modules/messages/messages.module';
 import { MaterialsModule } from './modules/materials/materials.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
 import { CloseOutModule } from './modules/close-out/close-out.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   controllers: [AppController],
@@ -66,6 +67,7 @@ import { CloseOutModule } from './modules/close-out/close-out.module';
     MaterialsModule,
     EquipmentModule,
     CloseOutModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

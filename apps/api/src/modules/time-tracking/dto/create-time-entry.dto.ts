@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsOptional, IsDateString, IsPositive, Min } from 'class-validator';
+import { IsString, IsNumber, IsOptional, IsDateString, IsPositive, IsInt, Min } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CreateTimeEntryDto {
@@ -29,6 +29,11 @@ export class CreateTimeEntryDto {
   @IsNumber()
   @Min(0)
   hourlyRate: number;
+
+  @ApiPropertyOptional({ description: 'Overtime rate in cents per hour (null = 1.5x hourlyRate)' })
+  @IsOptional()
+  @IsInt()
+  overtimeRate?: number;
 
   @ApiPropertyOptional()
   @IsOptional()

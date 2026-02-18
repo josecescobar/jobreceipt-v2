@@ -252,6 +252,20 @@ export default function SettingsScreen() {
             onPress={() => router.push('/equipment')}
             showChevron
           />
+          <SettingsRow
+            icon="time-outline"
+            label="Time Tracking"
+            subtitle="Clock in/out & labor hours"
+            onPress={() => router.push('/time-tracking')}
+            showChevron
+          />
+          <SettingsRow
+            icon="document-text-outline"
+            label="Change Orders"
+            subtitle="Track scope changes"
+            onPress={() => router.push('/change-order')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Preferences">
@@ -281,6 +295,16 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
+        <SettingsSection title="Sales">
+          <SettingsRow
+            icon="document-outline"
+            label="Estimates"
+            subtitle="Proposals & quotes"
+            onPress={() => router.push('/estimate')}
+            showChevron
+          />
+        </SettingsSection>
+
         <SettingsSection title="Reports">
           <SettingsRow
             icon="calculator-outline"
@@ -301,6 +325,13 @@ export default function SettingsScreen() {
             label="Cash Flow"
             subtitle="Forecast income & expenses"
             onPress={() => router.push('/analytics/cash-flow')}
+            showChevron
+          />
+          <SettingsRow
+            icon="bar-chart-outline"
+            label="Custom Reports"
+            subtitle="Generate job, profit & tax reports"
+            onPress={() => router.push('/reports')}
             showChevron
           />
         </SettingsSection>

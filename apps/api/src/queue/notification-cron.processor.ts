@@ -22,6 +22,7 @@ export class NotificationCronProcessor extends WorkerHost {
     this.logger.log(`Running notification cron job ${job.id}`);
     await this.sendReceiptReviewReminders();
     await this.checkMarginAlerts();
+    await this.checkEstimateExpirations();
   }
 
   private async checkMarginAlerts(): Promise<void> {
@@ -74,6 +75,62 @@ export class NotificationCronProcessor extends WorkerHost {
       } catch (err) {
         this.logger.error(`Failed to send review reminder to user ${userId}: ${err}`);
       }
+    }
+  }
+
+  private async checkEstimateExpirations(): Promise<void> {
+    try {
+      this.logger.log('Checking for expiring estimates');
+
+      const now = new Date();
+      const threeDaysFromNow = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
+
+      const expiringEstimates = await this.prisma.estimate.findMany({
+        where: {
+          status: 'SENT',
+          expiresAt: {
+            not: null,
+            gt: now,
+            lte: threeDaysFromNow,
+          },
+        },
+        select: {
+          id: true,
+          estimateNumber: true,
+          expiresAt: true,
+          createdById: true,
+          job: { select: { name: true } },
+        },
+      });
+
+      if (expiringEstimates.length === 0) {
+        this.logger.log('No expiring estimates found');
+        return;
+      }
+
+      this.logger.log(`Found ${expiringEstimates.length} expiring estimate(s)`);
+
+      for (const estimate of expiringEstimates) {
+        const daysUntilExpiry = Math.ceil(
+          (new Date(estimate.expiresAt!).getTime() - now.getTime()) / (24 * 60 * 60 * 1000),
+        );
+
+        try {
+          this.notificationService.sendPushNotification(
+            estimate.createdById,
+            'Estimate Expiring',
+            `${estimate.estimateNumber} for ${estimate.job.name} expires in ${daysUntilExpiry} day(s)`,
+            { screen: 'estimate', estimateId: estimate.id },
+            'review_reminder',
+          );
+        } catch (err) {
+          this.logger.error(
+            `Failed to send expiration reminder for estimate ${estimate.id}: ${err}`,
+          );
+        }
+      }
+    } catch (err) {
+      this.logger.error(`Failed to check estimate expirations: ${err}`);
     }
   }
 }

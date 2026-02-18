@@ -28,3 +28,4 @@ export * from './cash-flow';
 export * from './material';
 export * from './equipment';
 export * from './close-out';
+export * from './report';
