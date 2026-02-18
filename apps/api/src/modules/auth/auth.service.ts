@@ -77,6 +77,18 @@ export class AuthService {
       include: { organization: true },
     });
 
+    // Auto-accept any pending invites
+    const pendingInvites = memberships.filter((m: any) => !m.acceptedAt);
+    if (pendingInvites.length > 0) {
+      await this.prisma.organizationMember.updateMany({
+        where: {
+          id: { in: pendingInvites.map((m: any) => m.id) },
+        },
+        data: { acceptedAt: new Date() },
+      });
+      this.logger.log(`Auto-accepted ${pendingInvites.length} pending invite(s) for ${email}`);
+    }
+
     // Auto-create organization if user has none
     if (memberships.length === 0) {
       const slug = email.split('@')[0].replace(/[^a-z0-9]/gi, '-').toLowerCase();

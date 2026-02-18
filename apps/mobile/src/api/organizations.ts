@@ -31,4 +31,13 @@ export const organizationsApi = {
     });
     return data;
   },
+
+  removeMember: async (orgId: string, memberId: string): Promise<void> => {
+    await apiClient.delete(`/organizations/${orgId}/members/${memberId}`);
+  },
+
+  updateMemberRole: async (orgId: string, memberId: string, role: string) => {
+    const { data } = await apiClient.patch(`/organizations/${orgId}/members/${memberId}`, { role });
+    return data;
+  },
 };

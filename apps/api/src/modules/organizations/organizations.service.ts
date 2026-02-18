@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { DEFAULT_COST_CODES } from '@jobreceipt/shared';
 
@@ -102,6 +102,50 @@ export class OrganizationsService {
         user: { select: { id: true, name: true, email: true, phone: true } },
       },
       orderBy: { invitedAt: 'desc' },
+    });
+  }
+
+  async removeMember(orgId: string, memberId: string, requestingUserId: string) {
+    const member = await this.prisma.organizationMember.findFirst({
+      where: { id: memberId, organizationId: orgId },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    // Prevent removing the org owner
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { ownerId: true },
+    });
+    if (member.userId === org?.ownerId) {
+      throw new ForbiddenException('Cannot remove the organization owner');
+    }
+
+    // Prevent removing yourself
+    if (member.userId === requestingUserId) {
+      throw new ForbiddenException('Cannot remove yourself');
+    }
+
+    await this.prisma.organizationMember.delete({ where: { id: memberId } });
+  }
+
+  async updateMemberRole(orgId: string, memberId: string, newRole: 'OWNER' | 'BOOKKEEPER' | 'CREW') {
+    const member = await this.prisma.organizationMember.findFirst({
+      where: { id: memberId, organizationId: orgId },
+    });
+    if (!member) throw new NotFoundException('Member not found');
+
+    // Prevent changing the org owner's role
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { ownerId: true },
+    });
+    if (member.userId === org?.ownerId) {
+      throw new ForbiddenException('Cannot change the organization owner\'s role');
+    }
+
+    return this.prisma.organizationMember.update({
+      where: { id: memberId },
+      data: { role: newRole },
     });
   }
 }

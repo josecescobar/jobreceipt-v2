@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -72,5 +73,29 @@ export class OrganizationsController {
   @ApiOperation({ summary: 'List organization members' })
   async listMembers(@Param('organizationId') orgId: string) {
     return this.organizationsService.listMembers(orgId);
+  }
+
+  @Patch(':organizationId/members/:memberId')
+  @UseGuards(ClerkAuthGuard, OrgMemberGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update a member\'s role' })
+  async updateMemberRole(
+    @Param('organizationId') orgId: string,
+    @Param('memberId') memberId: string,
+    @Body() body: { role: 'BOOKKEEPER' | 'CREW' },
+  ) {
+    return this.organizationsService.updateMemberRole(orgId, memberId, body.role);
+  }
+
+  @Delete(':organizationId/members/:memberId')
+  @UseGuards(ClerkAuthGuard, OrgMemberGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a member from the organization' })
+  async removeMember(
+    @Param('organizationId') orgId: string,
+    @Param('memberId') memberId: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationsService.removeMember(orgId, memberId, userId);
   }
 }

@@ -1,13 +1,17 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   FlatList,
   Alert,
   Platform,
+  ActionSheetIOS,
   ActivityIndicator,
   StyleSheet,
+  TouchableOpacity,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Button, Badge } from '../../src/components/ui';
@@ -16,6 +20,7 @@ import { useAuthStore } from '../../src/stores/auth.store';
 import { useTheme, type ThemeColors, spacing } from '../../src/theme';
 
 export default function MembersScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -28,7 +33,6 @@ export default function MembersScreen() {
   const orgId = useAuthStore((s) => s.organizationId);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inviting, setInviting] = useState(false);
 
   const loadMembers = async () => {
     if (!orgId) return;
@@ -42,51 +46,92 @@ export default function MembersScreen() {
     }
   };
 
-  useEffect(() => {
-    loadMembers();
-  }, [orgId]);
+  // Reload members on mount and when returning from invite screen
+  useFocusEffect(
+    useCallback(() => {
+      loadMembers();
+    }, [orgId]),
+  );
 
-  const handleInvite = () => {
+  const handleMemberAction = (member: OrgMember) => {
+    if (member.role === 'OWNER') return;
+
+    const options = ['Change Role', 'Remove Member', 'Cancel'];
     if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Invite Member',
-        'Enter the email address of the person to invite.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Invite as Crew',
-            onPress: (email) => doInvite(email, 'CREW'),
-          },
-          {
-            text: 'Invite as Bookkeeper',
-            onPress: (email) => doInvite(email, 'BOOKKEEPER'),
-          },
-        ],
-        'plain-text',
-        '',
-        'email-address',
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options,
+          destructiveButtonIndex: 1,
+          cancelButtonIndex: 2,
+          title: member.user?.name || member.user?.email || 'Member',
+        },
+        (index) => {
+          if (index === 0) handleChangeRole(member);
+          else if (index === 1) handleRemove(member);
+        },
       );
     } else {
       Alert.alert(
-        'Invite Member',
-        'Member invitations are coming soon on Android.',
+        member.user?.name || member.user?.email || 'Member',
+        undefined,
+        [
+          { text: 'Change Role', onPress: () => handleChangeRole(member) },
+          { text: 'Remove Member', style: 'destructive', onPress: () => handleRemove(member) },
+          { text: 'Cancel', style: 'cancel' },
+        ],
       );
     }
   };
 
-  const doInvite = async (email: string | undefined, role: string) => {
-    if (!email?.trim() || !orgId) return;
-    setInviting(true);
-    try {
-      await organizationsApi.inviteMember(orgId, email.trim(), role);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Invited', `Invitation sent to ${email.trim()}.`);
-      loadMembers();
-    } catch {
-      Alert.alert('Error', 'Failed to send invitation.');
-    } finally {
-      setInviting(false);
-    }
+  const handleChangeRole = (member: OrgMember) => {
+    const newRole = member.role === 'CREW' ? 'BOOKKEEPER' : 'CREW';
+    const roleName = newRole === 'BOOKKEEPER' ? 'Bookkeeper' : 'Crew';
+
+    Alert.alert(
+      'Change Role',
+      `Change ${member.user?.name || member.user?.email} to ${roleName}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: `Make ${roleName}`,
+          onPress: async () => {
+            if (!orgId) return;
+            try {
+              await organizationsApi.updateMemberRole(orgId, member.id, newRole);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              loadMembers();
+            } catch {
+              Alert.alert('Error', 'Failed to update role.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleRemove = (member: OrgMember) => {
+    Alert.alert(
+      'Remove Member?',
+      `${member.user?.name || member.user?.email} will lose access to this organization.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!orgId) return;
+            try {
+              await organizationsApi.removeMember(orgId, member.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              loadMembers();
+            } catch (err: any) {
+              const msg = err.response?.data?.message || 'Failed to remove member.';
+              Alert.alert('Error', msg);
+            }
+          },
+        },
+      ],
+    );
   };
 
   const renderMember = ({ item }: { item: OrgMember }) => {
@@ -94,9 +139,15 @@ export default function MembersScreen() {
     const name = item.user?.name || 'Unnamed';
     const email = item.user?.email || '';
     const isPending = !item.acceptedAt;
+    const isOwner = item.role === 'OWNER';
 
     return (
-      <View style={styles.memberRow}>
+      <TouchableOpacity
+        style={styles.memberRow}
+        onLongPress={() => handleMemberAction(item)}
+        disabled={isOwner}
+        activeOpacity={isOwner ? 1 : 0.7}
+      >
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>
             {name.charAt(0).toUpperCase()}
@@ -120,13 +171,13 @@ export default function MembersScreen() {
           color={roleStyle.text}
           backgroundColor={roleStyle.bg}
         />
-      </View>
+      </TouchableOpacity>
     );
   };
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
-      <Header title="Members" showBack />
+      <Header title={`Members (${members.length})`} showBack />
 
       {loading ? (
         <View style={styles.loading}>
@@ -145,10 +196,14 @@ export default function MembersScreen() {
           ListFooterComponent={
             <View style={styles.footer}>
               <Button
-                title={inviting ? 'Inviting...' : 'Invite Member'}
-                onPress={handleInvite}
-                loading={inviting}
+                title="Invite Member"
+                onPress={() => router.push('/settings/invite-member')}
               />
+              {members.some((m) => m.role !== 'OWNER') && (
+                <Text style={styles.hint}>
+                  Long-press a member to change their role or remove them
+                </Text>
+              )}
             </View>
           }
         />
@@ -221,5 +276,11 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   footer: {
     marginTop: spacing.xl,
+    gap: spacing.md,
+  },
+  hint: {
+    fontSize: 13,
+    color: colors.textMuted,
+    textAlign: 'center',
   },
 });
