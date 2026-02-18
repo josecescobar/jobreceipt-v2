@@ -4,6 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { ReceiptOcrProcessor } from './receipt-ocr.processor';
 import { RecurringExpensesProcessor } from './recurring-expenses.processor';
 import { RecurringExpensesScheduler } from './recurring-expenses.scheduler';
+import { NotificationCronProcessor } from './notification-cron.processor';
+import { NotificationCronScheduler } from './notification-cron.scheduler';
 import { S3Service } from '../common/services/s3.service';
 import { NotificationService } from '../common/services/notification.service';
 import { ReceiptsModule } from '../modules/receipts/receipts.module';
@@ -24,6 +26,7 @@ import { QUEUE_NAMES } from './constants';
       { name: QUEUE_NAMES.RECEIPT_OCR },
       { name: QUEUE_NAMES.QB_SYNC },
       { name: QUEUE_NAMES.RECURRING_EXPENSES },
+      { name: QUEUE_NAMES.NOTIFICATION_CRON },
     ),
     forwardRef(() => ReceiptsModule),
     RecurringExpensesModule,
@@ -32,6 +35,8 @@ import { QUEUE_NAMES } from './constants';
     ReceiptOcrProcessor,
     RecurringExpensesProcessor,
     RecurringExpensesScheduler,
+    NotificationCronProcessor,
+    NotificationCronScheduler,
     S3Service,
     NotificationService,
   ],

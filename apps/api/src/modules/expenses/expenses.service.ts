@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { S3Service } from '../../common/services/s3.service';
+import { NotificationService } from '../../common/services/notification.service';
 import { Prisma } from '@prisma/client';
 import { v4 as uuid } from 'uuid';
 
@@ -30,13 +31,16 @@ interface ExpenseQuery {
 
 @Injectable()
 export class ExpensesService {
+  private readonly logger = new Logger(ExpensesService.name);
+
   constructor(
     private prisma: PrismaService,
     private s3Service: S3Service,
+    private notificationService: NotificationService,
   ) {}
 
   async create(orgId: string, userId: string, data: CreateExpenseData) {
-    return this.prisma.expense.create({
+    const expense = await this.prisma.expense.create({
       data: {
         organizationId: orgId,
         jobId: data.jobId,
@@ -52,6 +56,11 @@ export class ExpensesService {
         createdById: userId,
       },
     });
+
+    // Check budget thresholds (fire-and-forget)
+    this.checkBudgetAlert(data.jobId, orgId, data.amount).catch(() => {});
+
+    return expense;
   }
 
   async findAll(orgId: string, query: ExpenseQuery) {
@@ -164,5 +173,54 @@ export class ExpensesService {
       data,
     });
     return { count: result.count };
+  }
+
+  async checkBudgetAlert(jobId: string, orgId: string, newExpenseAmount: number): Promise<void> {
+    const job = await this.prisma.job.findUnique({
+      where: { id: jobId },
+      select: { id: true, name: true, budgetTotal: true, organizationId: true },
+    });
+
+    if (!job || !job.budgetTotal || job.budgetTotal <= 0) return;
+
+    const { _sum } = await this.prisma.expense.aggregate({
+      where: { jobId, organizationId: orgId },
+      _sum: { amount: true },
+    });
+
+    const currentTotal = _sum.amount || 0;
+    const previousTotal = currentTotal - newExpenseAmount;
+    const budget = job.budgetTotal;
+
+    // Find org owner to notify
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { ownerId: true },
+    });
+    if (!org) return;
+
+    const formatDollars = (cents: number) =>
+      `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+    // Over budget transition (crossed 100%)
+    if (currentTotal >= budget && previousTotal < budget) {
+      await this.notificationService.sendPushNotification(
+        org.ownerId,
+        'Over Budget',
+        `${job.name} has exceeded its ${formatDollars(budget)} budget (now at ${formatDollars(currentTotal)})`,
+        { jobId: job.id },
+      );
+      this.logger.log(`Budget alert: ${job.name} is over budget`);
+    }
+    // Warning transition (crossed 80%)
+    else if (currentTotal >= budget * 0.8 && previousTotal < budget * 0.8) {
+      await this.notificationService.sendPushNotification(
+        org.ownerId,
+        'Budget Warning',
+        `${job.name} has used ${Math.round((currentTotal / budget) * 100)}% of its ${formatDollars(budget)} budget`,
+        { jobId: job.id },
+      );
+      this.logger.log(`Budget warning: ${job.name} at ${Math.round((currentTotal / budget) * 100)}%`);
+    }
   }
 }

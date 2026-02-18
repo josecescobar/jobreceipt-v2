@@ -21,12 +21,18 @@ export function useNotifications() {
   useEffect(() => {
     registerForPushNotifications();
 
-    // Handle notification taps
+    // Handle notification taps — deep link to relevant screen
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
         const data = response.notification.request.content.data;
         if (data?.receiptId) {
           router.push(`/receipt/${data.receiptId}`);
+        } else if (data?.jobId) {
+          router.push(`/job/${data.jobId}`);
+        } else if (data?.screen === 'receipts') {
+          router.push('/(tabs)/receipts');
+        } else if (data?.screen === 'expenses') {
+          router.push('/(tabs)/expenses');
         }
       },
     );

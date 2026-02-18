@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../common/services/notification.service';
 import { Prisma, RecurringExpenseFrequency } from '@prisma/client';
 
 interface CreateRecurringExpenseData {
@@ -31,7 +32,10 @@ interface UpdateRecurringExpenseData {
 export class RecurringExpensesService {
   private readonly logger = new Logger(RecurringExpensesService.name);
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   async create(orgId: string, userId: string, data: CreateRecurringExpenseData) {
     return this.prisma.recurringExpense.create({
@@ -135,6 +139,9 @@ export class RecurringExpensesService {
         isActive: true,
         nextOccurrence: { lte: now },
       },
+      include: {
+        job: { select: { name: true } },
+      },
     });
 
     this.logger.log(`Found ${dueItems.length} due recurring expenses`);
@@ -174,6 +181,17 @@ export class RecurringExpensesService {
             },
           });
         });
+
+        // Send confirmation notification (fire-and-forget)
+        const dollars = `$${(item.amount / 100).toFixed(2)}`;
+        this.notificationService
+          .sendPushNotification(
+            item.createdById,
+            'Recurring Expense Created',
+            `${item.description} — ${dollars} added to ${item.job.name}`,
+            { screen: 'expenses' },
+          )
+          .catch(() => {});
 
         processed++;
       } catch (err) {
