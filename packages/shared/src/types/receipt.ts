@@ -37,8 +37,17 @@ export interface Receipt {
   confidenceScore: string | null;
   suggestedJobId: string | null;
   autoAssigned: boolean;
+  duplicateOfId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  /** Populated when fetching a single receipt — original receipt if flagged as duplicate */
+  duplicateOf?: {
+    id: string;
+    merchantName: string | null;
+    totalAmount: number | null;
+    transactionDate: string | null;
+    status: string;
+  } | null;
   /** Populated when fetching a single receipt */
   lineItems?: ReceiptLineItem[];
   /** Parsed OCR data (from ocrRawJson) */

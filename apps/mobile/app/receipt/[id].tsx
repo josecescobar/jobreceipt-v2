@@ -18,6 +18,7 @@ import {
   ZoomableImage,
   ReceiptStatusBadge,
   JobSuggestionBanner,
+  DuplicateWarningBanner,
   OcrFieldEditor,
   LineItemList,
   SplitAssignmentSheet,
@@ -257,6 +258,17 @@ export default function ReceiptDetailScreen() {
     }
   };
 
+  const handleDismissDuplicate = async () => {
+    try {
+      await updateReceipt.mutateAsync({
+        id: receipt.id,
+        updates: { duplicateOfId: null },
+      });
+    } catch {
+      // Silent dismiss failure
+    }
+  };
+
   const handleDelete = () => {
     Alert.alert('Delete Receipt', 'Are you sure you want to delete this receipt?', [
       { text: 'Cancel', style: 'cancel' },
@@ -324,6 +336,16 @@ export default function ReceiptDetailScreen() {
             <Text style={styles.processingSubtext}>
               OCR is extracting data from your receipt. This usually takes a few seconds.
             </Text>
+          </View>
+        )}
+
+        {/* Duplicate warning */}
+        {receipt.duplicateOf && receipt.status === 'REVIEW' && (
+          <View style={styles.suggestionContainer}>
+            <DuplicateWarningBanner
+              duplicateOf={receipt.duplicateOf}
+              onDismiss={handleDismissDuplicate}
+            />
           </View>
         )}
 

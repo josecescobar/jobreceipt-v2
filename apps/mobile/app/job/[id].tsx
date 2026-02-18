@@ -24,7 +24,7 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
 import { formatMoney, formatDate } from '../../src/lib/format';
-import { exportJobReport } from '../../src/lib/export';
+import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 
 const getStatusColors = (colors: ThemeColors): Record<string, { bg: string; text: string }> => ({
@@ -53,6 +53,7 @@ export default function JobDetailScreen() {
   const updateJob = useUpdateJob();
   const [statusLoading, setStatusLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
@@ -163,6 +164,18 @@ export default function JobDetailScreen() {
         { text: 'Archive', style: 'destructive', onPress: () => handleStatusChange('ARCHIVED') },
       ],
     );
+  };
+
+  const handleExportPdf = async () => {
+    setExportingPdf(true);
+    try {
+      await exportJobReportPdf(id!, job.name);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert('Export Failed', err.message || 'Something went wrong.');
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleExport = async () => {
@@ -316,7 +329,12 @@ export default function JobDetailScreen() {
         {/* Export report */}
         <View style={styles.exportSection}>
           <Button
-            title={exporting ? 'Exporting...' : 'Export Job Report'}
+            title={exportingPdf ? 'Generating PDF...' : 'Export PDF Report'}
+            onPress={handleExportPdf}
+            loading={exportingPdf}
+          />
+          <Button
+            title={exporting ? 'Exporting...' : 'Export CSV Report'}
             onPress={handleExport}
             variant="secondary"
             loading={exporting}
@@ -414,6 +432,7 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
   },
   exportSection: {
     marginTop: spacing.xl,
+    gap: spacing.sm,
   },
   bottomSpacer: {
     height: spacing.xxxl,

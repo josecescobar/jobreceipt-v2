@@ -18,6 +18,7 @@ export const UpdateReceiptSchema = z.object({
   transactionDate: z.string().datetime().optional(),
   status: z.enum(['PROCESSING', 'REVIEW', 'APPROVED', 'REJECTED']).optional(),
   suggestedJobId: z.string().uuid().nullable().optional(),
+  duplicateOfId: z.string().uuid().nullable().optional(),
 });
 
 export const SplitLineItemsSchema = z.object({

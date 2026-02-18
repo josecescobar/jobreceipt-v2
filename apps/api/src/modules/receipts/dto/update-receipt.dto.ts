@@ -51,4 +51,9 @@ export class UpdateReceiptDto {
   @IsOptional()
   @IsString()
   suggestedJobId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  duplicateOfId?: string | null;
 }

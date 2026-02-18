@@ -18,6 +18,17 @@ export const apiClient = axios.create({
   },
 });
 
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
+  if (getToken) {
+    const token = await getToken();
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+  }
+  const orgId = useAuthStore.getState().organizationId;
+  if (orgId) headers['x-organization-id'] = orgId;
+  return headers;
+}
+
 apiClient.interceptors.request.use(async (config) => {
   // Inject auth token
   if (getToken) {

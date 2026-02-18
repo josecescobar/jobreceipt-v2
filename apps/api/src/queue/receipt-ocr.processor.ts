@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../common/services/s3.service';
 import { NotificationService } from '../common/services/notification.service';
 import { JobSuggestionService } from '../modules/receipts/job-suggestion.service';
+import { ReceiptsService } from '../modules/receipts/receipts.service';
 import { OcrResultSchema } from '@jobreceipt/shared';
 import { QUEUE_NAMES } from './constants';
 import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
@@ -80,6 +81,7 @@ export class ReceiptOcrProcessor extends WorkerHost {
     private s3Service: S3Service,
     private notificationService: NotificationService,
     private jobSuggestionService: JobSuggestionService,
+    private receiptsService: ReceiptsService,
     private configService: ConfigService,
   ) {
     super();
@@ -119,6 +121,33 @@ export class ReceiptOcrProcessor extends WorkerHost {
 
       // Step 5: Store OCR results
       await this.storeOcrResults(receiptId, ocrResult);
+
+      // Step 5b: Check for duplicate receipts
+      const toCents = (amount: number | null | undefined): number | null => {
+        if (amount == null) return null;
+        return Math.round(amount * 100);
+      };
+      let txnDate: Date | null = null;
+      if (ocrResult.transaction?.date) {
+        txnDate = new Date(ocrResult.transaction.date);
+        if (isNaN(txnDate.getTime())) txnDate = null;
+      }
+      const duplicateId = await this.receiptsService.findPotentialDuplicate(
+        receiptId,
+        organizationId,
+        {
+          merchantName: ocrResult.merchant?.name || null,
+          totalAmount: toCents(ocrResult.totals?.total_amount),
+          transactionDate: txnDate,
+        },
+      );
+      if (duplicateId) {
+        await this.prisma.receipt.update({
+          where: { id: receiptId },
+          data: { duplicateOfId: duplicateId },
+        });
+        this.logger.log(`Receipt ${receiptId} flagged as potential duplicate of ${duplicateId}`);
+      }
 
       // Step 6: Run job suggestion
       const suggestion = await this.jobSuggestionService.suggestJob(

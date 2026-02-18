@@ -109,6 +109,15 @@ export class ReceiptsService {
           },
         },
         uploadedBy: { select: { id: true, name: true, email: true } },
+        duplicateOf: {
+          select: {
+            id: true,
+            merchantName: true,
+            totalAmount: true,
+            transactionDate: true,
+            status: true,
+          },
+        },
         expenses: {
           select: {
             id: true,
@@ -139,6 +148,7 @@ export class ReceiptsService {
     transactionDate?: string;
     status?: 'PROCESSING' | 'REVIEW' | 'APPROVED' | 'REJECTED';
     suggestedJobId?: string | null;
+    duplicateOfId?: string | null;
   }) {
     await this.findOne(orgId, id);
 
@@ -151,6 +161,11 @@ export class ReceiptsService {
     if (data.transactionDate !== undefined) updateData.transactionDate = new Date(data.transactionDate);
     if (data.status !== undefined) updateData.status = data.status;
     if (data.suggestedJobId !== undefined) updateData.suggestedJobId = data.suggestedJobId;
+    if (data.duplicateOfId !== undefined) {
+      updateData.duplicateOf = data.duplicateOfId
+        ? { connect: { id: data.duplicateOfId } }
+        : { disconnect: true };
+    }
 
     return this.prisma.receipt.update({
       where: { id },
@@ -262,6 +277,47 @@ export class ReceiptsService {
     if (!lineItem) throw new NotFoundException('Line item not found');
 
     return this.prisma.receiptLineItem.delete({ where: { id: lineItemId } });
+  }
+
+  async findPotentialDuplicate(
+    receiptId: string,
+    orgId: string,
+    data: { merchantName: string | null; totalAmount: number | null; transactionDate: Date | null },
+  ): Promise<string | null> {
+    if (!data.totalAmount || !data.transactionDate) return null;
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const dateLow = new Date(data.transactionDate.getTime() - dayMs);
+    const dateHigh = new Date(data.transactionDate.getTime() + dayMs);
+
+    const candidates = await this.prisma.receipt.findMany({
+      where: {
+        organizationId: orgId,
+        id: { not: receiptId },
+        status: { in: ['REVIEW', 'APPROVED'] },
+        totalAmount: { gte: data.totalAmount - 100, lte: data.totalAmount + 100 },
+        transactionDate: { gte: dateLow, lte: dateHigh },
+      },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, merchantName: true },
+    });
+
+    if (candidates.length === 0) return null;
+
+    // If no merchant name to match, return first amount+date match
+    if (!data.merchantName) return candidates[0].id;
+
+    const needle = data.merchantName.toLowerCase();
+    for (const c of candidates) {
+      if (!c.merchantName) continue;
+      const hay = c.merchantName.toLowerCase();
+      if (hay.includes(needle) || needle.includes(hay)) {
+        return c.id;
+      }
+    }
+
+    // Return first match even without merchant match (amount + date is strong signal)
+    return candidates[0].id;
   }
 
   async remove(orgId: string, id: string) {

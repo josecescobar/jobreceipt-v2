@@ -2,6 +2,7 @@ export { ReceiptCard } from './ReceiptCard';
 export { ZoomableImage } from './ZoomableImage';
 export { ReceiptStatusBadge } from './ReceiptStatusBadge';
 export { JobSuggestionBanner } from './JobSuggestionBanner';
+export { DuplicateWarningBanner } from './DuplicateWarningBanner';
 export { OcrFieldEditor } from './OcrFieldEditor';
 export { LineItemList } from './LineItemList';
 export { LineItemRow } from './LineItemRow';

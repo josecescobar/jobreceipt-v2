@@ -3,6 +3,8 @@ import * as Sharing from 'expo-sharing';
 import { receiptsApi } from '../api/receipts';
 import { expensesApi } from '../api/expenses';
 import { mileageApi } from '../api/mileage';
+import { getAuthHeaders } from '../api/client';
+import { API_BASE_URL } from './constants';
 import { generateCsv } from './csv';
 import { centsToDollars } from './format';
 
@@ -142,6 +144,33 @@ export async function exportJobReport(jobId: string, jobName: string): Promise<v
 
   const safeName = sanitizeFilename(jobName);
   await shareFile(`${safeName}_${today()}.csv`, lines.join('\n'));
+}
+
+export async function exportJobReportPdf(jobId: string, jobName: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const safeName = sanitizeFilename(jobName);
+  const filename = `${safeName}_report_${today()}.pdf`;
+  const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+  const result = await FileSystem.downloadAsync(
+    `${API_BASE_URL}/api/jobs/${jobId}/report`,
+    fileUri,
+    { headers },
+  );
+
+  if (result.status !== 200) {
+    throw new Error('Failed to download report.');
+  }
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    throw new Error('Sharing is not available on this device.');
+  }
+  await Sharing.shareAsync(fileUri, {
+    mimeType: 'application/pdf',
+    dialogTitle: `Job Report: ${jobName}`,
+    UTI: 'com.adobe.pdf',
+  });
 }
 
 export async function exportMileage(): Promise<void> {
