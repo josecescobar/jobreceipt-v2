@@ -25,3 +25,6 @@ export * from './punch-list';
 export * from './message';
 export * from './invoice-aging';
 export * from './cash-flow';
+export * from './material';
+export * from './equipment';
+export * from './close-out';

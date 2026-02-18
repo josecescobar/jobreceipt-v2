@@ -38,6 +38,9 @@ import { useCreateTemplateFromJob } from '../../src/hooks/useJobTemplates';
 import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
 import { useDailyLogs } from '../../src/hooks/useDailyLogs';
 import { useJobPunchListSummary, usePunchListItems } from '../../src/hooks/usePunchLists';
+import { useCloseOutProgress, useInitiateCloseOut } from '../../src/hooks/useCloseOut';
+import { useJobMaterialSummary, useMaterialItems } from '../../src/hooks/useMaterials';
+import { useJobEquipment } from '../../src/hooks/useEquipment';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
@@ -158,6 +161,24 @@ export default function JobDetailScreen() {
   const punchListCompleted = punchListSummary?.completed ?? 0;
   const punchListPercent = punchListSummary?.completionPercent ?? 0;
 
+  const { data: closeOutProgress } = useCloseOutProgress(id!);
+  const initiateCloseOut = useInitiateCloseOut();
+
+  const { data: materialSummary } = useJobMaterialSummary(id!);
+  const { data: materialListData } = useMaterialItems({ jobId: id, limit: 3 });
+  const materialItems = useMemo(
+    () => materialListData?.data ?? [],
+    [materialListData],
+  );
+  const materialTotalItems = materialSummary?.totalItems ?? 0;
+  const materialTotalValue = materialSummary?.totalValue ?? 0;
+  const materialTotalUsedValue = materialSummary?.totalUsedValue ?? 0;
+  const materialUsagePercent = materialTotalValue > 0
+    ? Math.round((materialTotalUsedValue / materialTotalValue) * 100)
+    : 0;
+
+  const { data: jobEquipment = [], refetch: refetchJobEquipment } = useJobEquipment(id!);
+
   const activityItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
 
@@ -229,15 +250,22 @@ export default function JobDetailScreen() {
     }
   };
 
-  const handleMarkComplete = () => {
-    Alert.alert(
-      'Complete Job?',
-      `${job.name}\n\n${expenses.length} expense${expenses.length !== 1 ? 's' : ''} · ${formatMoney(spent)} total\n${receipts.length} receipt${receipts.length !== 1 ? 's' : ''} · ${mileageTrips.length} trip${mileageTrips.length !== 1 ? 's' : ''}\n\nThis job will be marked as completed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Complete', onPress: () => handleStatusChange('COMPLETED') },
-      ],
-    );
+  const closeOutExists = (closeOutProgress?.total ?? 0) > 0;
+  const closeOutComplete = closeOutProgress?.isComplete ?? false;
+
+  const handleMarkComplete = async () => {
+    // If no close-out exists, initiate one and navigate to close-out screen
+    if (!closeOutExists) {
+      try {
+        await initiateCloseOut.mutateAsync({ jobId: id! });
+        router.push(`/job/close-out/${id}`);
+      } catch (err: any) {
+        Alert.alert('Error', err.response?.data?.message || 'Failed to start close-out.');
+      }
+    } else {
+      // Close-out exists but not complete — navigate to it
+      router.push(`/job/close-out/${id}`);
+    }
   };
 
   const handleArchive = () => {
@@ -449,12 +477,41 @@ export default function JobDetailScreen() {
         </TouchableOpacity>
 
         {/* Status actions */}
-        {job.status === 'ACTIVE' && (
+        {job.status === 'ACTIVE' && !closeOutExists && (
           <View style={styles.statusActions}>
             <Button
               title="Mark Complete"
               onPress={handleMarkComplete}
-              loading={statusLoading}
+              loading={statusLoading || initiateCloseOut.isPending}
+            />
+          </View>
+        )}
+        {job.status === 'ACTIVE' && closeOutExists && !closeOutComplete && (
+          <View style={styles.statusActions}>
+            <TouchableOpacity
+              style={styles.closeOutProgressCard}
+              onPress={() => router.push(`/job/close-out/${id}`)}
+              activeOpacity={0.7}
+            >
+              <View style={styles.closeOutProgressHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Ionicons name="clipboard-outline" size={20} color={colors.primary} />
+                  <Text style={styles.closeOutProgressTitle}>Close-out in Progress</Text>
+                </View>
+                <Text style={styles.closeOutPercentText}>{closeOutProgress?.percent ?? 0}%</Text>
+              </View>
+              <View style={styles.punchListBarBg}>
+                <View
+                  style={[
+                    styles.punchListBarFill,
+                    { width: `${closeOutProgress?.percent ?? 0}%` },
+                  ]}
+                />
+              </View>
+            </TouchableOpacity>
+            <Button
+              title="Continue Close-out"
+              onPress={() => router.push(`/job/close-out/${id}`)}
             />
           </View>
         )}
@@ -561,6 +618,10 @@ export default function JobDetailScreen() {
                       id: photo.id,
                       imageUrl: photo.imageUrl || '',
                       caption: photo.caption || '',
+                      jobId: id!,
+                      annotationsJson: photo.annotationsJson
+                        ? JSON.stringify(photo.annotationsJson)
+                        : '',
                     },
                   })
                 }
@@ -721,6 +782,177 @@ export default function JobDetailScreen() {
               Add first punch list item
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* Materials */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Materials {materialTotalItems > 0 ? `(${materialTotalItems})` : ''}
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push(`/material/create?jobId=${id}`)}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {materialTotalItems > 0 ? (
+          <>
+            {materialTotalValue > 0 && (
+              <View style={styles.timeSummaryRow}>
+                <Text style={styles.timeSummaryLabel}>
+                  {formatMoney(materialTotalValue)} total value
+                </Text>
+                <Text style={styles.timeSummaryValue}>
+                  {materialUsagePercent}% used
+                </Text>
+              </View>
+            )}
+            {materialItems.length > 0 && (
+              <View style={styles.invoiceList}>
+                {materialItems.slice(0, 3).map((mat) => {
+                  const onHand = mat.purchasedQty - mat.usedQty;
+                  const onHandRatio = mat.purchasedQty > 0 ? onHand / mat.purchasedQty : 1;
+                  const onHandColor = onHandRatio > 0.5 ? colors.success : onHandRatio > 0.2 ? colors.warning : colors.error;
+                  return (
+                    <TouchableOpacity
+                      key={mat.id}
+                      style={styles.invoiceRow}
+                      onPress={() => router.push(`/material/${mat.id}`)}
+                    >
+                      <View style={styles.invoiceInfo}>
+                        <Text style={styles.invoiceNumber}>{mat.name}</Text>
+                        {mat.category && (
+                          <Text style={styles.invoiceDate}>{mat.category}</Text>
+                        )}
+                      </View>
+                      <View style={[styles.invoiceStatusBadge, { backgroundColor: onHandColor + '20' }]}>
+                        <Text style={[styles.invoiceStatusText, { color: onHandColor }]}>
+                          {onHand} {mat.unit}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  onPress={() => router.push(`/material?jobId=${id}`)}
+                  style={styles.viewAllBtn}
+                >
+                  <Text style={styles.viewAllText}>View All Materials</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push(`/material/create?jobId=${id}`)}
+            style={styles.punchListEmptyBtn}
+          >
+            <Text style={styles.emptyPhotos}>
+              Add first material
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Equipment */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Equipment ({jobEquipment.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push(`/equipment/check-out?jobId=${id}`)}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {jobEquipment.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {jobEquipment.map((assignment) => (
+              <TouchableOpacity
+                key={assignment.id}
+                style={styles.invoiceRow}
+                onPress={() => router.push(`/equipment/${assignment.equipment?.id ?? assignment.equipmentId}`)}
+              >
+                <View style={styles.invoiceInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="construct-outline" size={14} color={colors.primary} />
+                    <Text style={styles.invoiceNumber}>
+                      {assignment.equipment?.name ?? 'Equipment'}
+                    </Text>
+                  </View>
+                  <Text style={styles.invoiceDate}>
+                    Checked out by {assignment.checkedOutBy?.name ?? 'Unknown'}
+                  </Text>
+                </View>
+                <View style={[styles.invoiceStatusBadge, { backgroundColor: colors.primary + '20' }]}>
+                  <Text style={[styles.invoiceStatusText, { color: colors.primary }]}>
+                    In Use
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              onPress={() => router.push('/equipment')}
+              style={styles.viewAllBtn}
+            >
+              <Text style={styles.viewAllText}>View All Equipment</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push(`/equipment/check-out?jobId=${id}`)}
+            style={styles.punchListEmptyBtn}
+          >
+            <Text style={styles.emptyPhotos}>
+              Assign first equipment
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Close-out */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Close-out
+          </Text>
+        </View>
+        {closeOutExists ? (
+          <TouchableOpacity
+            style={styles.closeOutSectionCard}
+            onPress={() => router.push(`/job/close-out/${id}`)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.closeOutProgressHeader}>
+              <Text style={styles.closeOutSectionLabel}>
+                {closeOutProgress?.completed ?? 0} of {closeOutProgress?.total ?? 0} items
+              </Text>
+              <Text style={styles.closeOutPercentText}>
+                {closeOutProgress?.percent ?? 0}%
+              </Text>
+            </View>
+            <View style={styles.punchListBarBg}>
+              <View
+                style={[
+                  styles.punchListBarFill,
+                  { width: `${closeOutProgress?.percent ?? 0}%` },
+                ]}
+              />
+            </View>
+            <Text style={styles.viewAllText}>View Close-out</Text>
+          </TouchableOpacity>
+        ) : job.status === 'ACTIVE' ? (
+          <TouchableOpacity
+            style={styles.closeOutStartBtn}
+            onPress={handleMarkComplete}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="clipboard-outline" size={20} color={colors.primary} />
+            <Text style={styles.closeOutStartText}>Start Close-out</Text>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No close-out started
+          </Text>
         )}
 
         {/* Invoices */}
@@ -1272,6 +1504,61 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
   },
   punchListEmptyBtn: {
     paddingVertical: spacing.sm,
+  },
+  closeOutProgressCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
+  },
+  closeOutProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  closeOutProgressTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  closeOutPercentText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  closeOutSectionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+    alignItems: 'center',
+  },
+  closeOutSectionLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  closeOutStartBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed' as const,
+  },
+  closeOutStartText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primary,
   },
   exportSection: {
     marginTop: spacing.xl,

@@ -33,6 +33,7 @@ import { useTodayAssignments } from '../../src/hooks/useCrewScheduling';
 import { useAgingSummary } from '../../src/hooks/useInvoiceAging';
 import { useCashFlowForecast } from '../../src/hooks/useCashFlow';
 import { useUnreadCount } from '../../src/hooks/useMessages';
+import { useUpcomingMaintenance } from '../../src/hooks/useEquipment';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,6 +89,14 @@ export default function HomeScreen() {
   const { data: cashFlowData, refetch: refetchCashFlow } = useCashFlowForecast();
   const { data: unreadData, refetch: refetchUnread } = useUnreadCount();
   const unreadCount = unreadData?.count ?? 0;
+  const { data: upcomingMaintenanceData, refetch: refetchUpcomingMaintenance } = useUpcomingMaintenance();
+  const maintenanceDueCount = useMemo(() => {
+    if (!upcomingMaintenanceData) return 0;
+    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return upcomingMaintenanceData.filter(
+      (item) => item.nextDueDate && new Date(item.nextDueDate) <= sevenDaysFromNow,
+    ).length;
+  }, [upcomingMaintenanceData]);
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
@@ -109,11 +118,12 @@ export default function HomeScreen() {
         refetchAging(),
         refetchCashFlow(),
         refetchUnread(),
+        refetchUpcomingMaintenance(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -264,6 +274,23 @@ export default function HomeScreen() {
               <Ionicons name="wallet" size={20} color={colors.warning} />
               <Text style={styles.reviewBannerText}>
                 {pendingExpenseCount} expense{pendingExpenseCount !== 1 ? 's' : ''} pending approval
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* Maintenance due banner */}
+        {maintenanceDueCount > 0 && (
+          <TouchableOpacity
+            style={styles.maintenanceBanner}
+            onPress={() => router.push('/equipment')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="build-outline" size={20} color={colors.warning} />
+              <Text style={styles.maintenanceBannerText}>
+                {maintenanceDueCount} equipment item{maintenanceDueCount !== 1 ? 's' : ''} due for maintenance
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -521,6 +548,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.review,
+  },
+  maintenanceBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.warning + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.warning + '40',
+  },
+  maintenanceBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.warning,
+    flex: 1,
   },
   overdueBanner: {
     flexDirection: 'row',

@@ -122,6 +122,27 @@ enum PunchListItemPriority {
   URGENT
 }
 
+enum EquipmentStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+enum MaintenanceType {
+  INSPECTION
+  REPAIR
+  SERVICING
+  CALIBRATION
+  OTHER
+}
+
+enum CloseOutChecklistItemStatus {
+  PENDING
+  COMPLETE
+  WAIVED
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -166,6 +187,14 @@ model User {
   punchListPhotos          PunchListPhoto[] @relation("PunchListPhotoUploader")
   sentMessages             Message[]        @relation("MessageSender")
   sentInvoiceReminders     InvoiceReminder[] @relation("ReminderSender")
+  createdMaterialItems     MaterialItem[]   @relation("MaterialCreator")
+  materialUsageLogs        MaterialUsageLog[] @relation("MaterialLogger")
+  createdEquipment         Equipment[]      @relation("EquipmentCreator")
+  equipmentCheckOuts       EquipmentAssignment[] @relation("EquipmentCheckOut")
+  equipmentCheckIns        EquipmentAssignment[] @relation("EquipmentCheckIn")
+  maintenanceLogs          MaintenanceLog[] @relation("MaintenancePerformer")
+  initiatedCloseOuts       JobCloseOut[]    @relation("CloseOutInitiator")
+  completedChecklistItems  CloseOutChecklistItem[] @relation("ChecklistCompleter")
 
   @@index([email])
 }
@@ -205,6 +234,10 @@ model Organization {
   crewAssignments    CrewAssignment[]
   punchListItems     PunchListItem[]
   messages           Message[]
+  materialItems      MaterialItem[]
+  equipment          Equipment[]
+  equipmentAssignments EquipmentAssignment[]
+  jobCloseOuts       JobCloseOut[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -262,6 +295,10 @@ model Job {
   crewAssignments   CrewAssignment[]
   punchListItems    PunchListItem[]
   messages          Message[]
+  materialItems     MaterialItem[]
+  materialUsageLogs MaterialUsageLog[]
+  equipmentAssignments EquipmentAssignment[]
+  closeOut          JobCloseOut?
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -285,6 +322,7 @@ model CostCode {
   changeOrderLineItems ChangeOrderLineItem[]
   jobTemplateLineItems JobTemplateLineItem[]
   vendorDefaults       Vendor[]             @relation("VendorDefaultCostCode")
+  materialItems        MaterialItem[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -490,13 +528,15 @@ model RecurringExpense {
 }
 
 model JobPhoto {
-  id             String   @id @default(uuid())
-  jobId          String
-  organizationId String
-  imageKey       String
-  caption        String?
-  uploadedById   String
-  createdAt      DateTime @default(now())
+  id               String   @id @default(uuid())
+  jobId            String
+  organizationId   String
+  imageKey         String
+  caption          String?
+  annotationsJson  Json?
+  annotatedImageKey String?
+  uploadedById     String
+  createdAt        DateTime @default(now())
 
   job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1091,4 +1131,165 @@ model InvoiceReminder {
   sentBy  User?   @relation("ReminderSender", fields: [sentById], references: [id])
 
   @@index([invoiceId])
+}
+
+// ─── Materials ─────────────────────────────────────────
+
+model MaterialItem {
+  id             String            @id @default(uuid())
+  organizationId String
+  jobId          String
+  name           String
+  sku            String?
+  unit           String            @default("ea")
+  unitCost       Int               @default(0) // cents
+  category       MaterialCategory?
+  costCodeId     String?
+  purchasedQty   Float             @default(0)
+  usedQty        Float             @default(0)
+  notes          String?
+  createdById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job               @relation(fields: [jobId], references: [id])
+  costCode     CostCode?         @relation(fields: [costCodeId], references: [id])
+  createdBy    User              @relation("MaterialCreator", fields: [createdById], references: [id])
+  usageLogs    MaterialUsageLog[]
+
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([jobId, category])
+}
+
+model MaterialUsageLog {
+  id             String   @id @default(uuid())
+  materialItemId String
+  jobId          String
+  qty            Float
+  notes          String?
+  loggedById     String
+  loggedAt       DateTime @default(now())
+
+  materialItem MaterialItem @relation(fields: [materialItemId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id])
+  loggedBy     User         @relation("MaterialLogger", fields: [loggedById], references: [id])
+
+  @@index([materialItemId])
+}
+
+// ─── Equipment ─────────────────────────────────────────
+
+model Equipment {
+  id             String          @id @default(uuid())
+  organizationId String
+  name           String
+  type           String?
+  make           String?
+  model          String?
+  serialNumber   String?
+  purchaseDate   DateTime?
+  purchaseCost   Int?            // cents
+  status         EquipmentStatus @default(AVAILABLE)
+  imageKey       String?
+  notes          String?
+  createdById    String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy       User                  @relation("EquipmentCreator", fields: [createdById], references: [id])
+  assignments     EquipmentAssignment[]
+  maintenanceLogs MaintenanceLog[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+model EquipmentAssignment {
+  id             String    @id @default(uuid())
+  organizationId String
+  equipmentId    String
+  jobId          String
+  checkedOutAt   DateTime
+  checkedInAt    DateTime?
+  checkedOutById String
+  checkedInById  String?
+  notes          String?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  equipment    Equipment    @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id])
+  checkedOutBy User         @relation("EquipmentCheckOut", fields: [checkedOutById], references: [id])
+  checkedInBy  User?        @relation("EquipmentCheckIn", fields: [checkedInById], references: [id])
+
+  @@index([equipmentId])
+  @@index([jobId])
+  @@index([equipmentId, checkedInAt])
+}
+
+model MaintenanceLog {
+  id            String          @id @default(uuid())
+  equipmentId   String
+  type          MaintenanceType
+  description   String?
+  performedAt   DateTime
+  performedById String?
+  cost          Int?            // cents
+  nextDueDate   DateTime?
+  notes         String?
+  createdAt     DateTime        @default(now())
+
+  equipment   Equipment @relation(fields: [equipmentId], references: [id], onDelete: Cascade)
+  performedBy User?     @relation("MaintenancePerformer", fields: [performedById], references: [id])
+
+  @@index([equipmentId])
+}
+
+// ─── Job Close-out ──────────────────────────────────────
+
+model JobCloseOut {
+  id                 String    @id @default(uuid())
+  jobId              String    @unique
+  organizationId     String
+  initiatedById      String
+  initiatedAt        DateTime  @default(now())
+  completedAt        DateTime?
+  customerSignature  String?
+  customerSignedAt   DateTime?
+  customerSignedName String?
+  walkthroughDate    DateTime?
+  walkthroughNotes   String?
+  walkthroughPhotos  Json?
+  punchListCleared   Boolean   @default(false)
+  invoicesPaid       Boolean   @default(false)
+  documentsComplete  Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  job            Job                     @relation(fields: [jobId], references: [id])
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  initiatedBy    User                    @relation("CloseOutInitiator", fields: [initiatedById], references: [id])
+  checklistItems CloseOutChecklistItem[]
+
+  @@index([organizationId])
+}
+
+model CloseOutChecklistItem {
+  id            String                      @id @default(uuid())
+  closeOutId    String
+  label         String
+  status        CloseOutChecklistItemStatus  @default(PENDING)
+  completedAt   DateTime?
+  completedById String?
+  notes         String?
+  sortOrder     Int                         @default(0)
+  createdAt     DateTime                    @default(now())
+
+  closeOut    JobCloseOut @relation(fields: [closeOutId], references: [id], onDelete: Cascade)
+  completedBy User?       @relation("ChecklistCompleter", fields: [completedById], references: [id])
+
+  @@index([closeOutId])
 }

@@ -7,13 +7,14 @@ import { useTheme, type ThemeColors, createTypography, spacing, MIN_TOUCH_TARGET
 interface HeaderProps {
   title: string;
   showBack?: boolean;
+  onBackPress?: () => void;
   rightAction?: {
     icon: keyof typeof Ionicons.glyphMap;
     onPress: () => void;
   };
 }
 
-export function Header({ title, showBack = false, rightAction }: HeaderProps) {
+export function Header({ title, showBack = false, onBackPress, rightAction }: HeaderProps) {
   const router = useRouter();
   const { colors } = useTheme();
   const typography = useMemo(() => createTypography(colors), [colors]);
@@ -24,7 +25,7 @@ export function Header({ title, showBack = false, rightAction }: HeaderProps) {
       <View style={styles.left}>
         {showBack && (
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={onBackPress ?? (() => router.back())}
             style={styles.backButton}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >

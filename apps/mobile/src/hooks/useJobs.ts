@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { jobsApi } from '../api/jobs';
+import { photoMarkupApi } from '../api/photo-markup';
 import type { JobQueryDto, CreateJobDto, UpdateJobDto } from '@jobreceipt/shared';
 import { QUERY_STALE_TIME, DEFAULT_PAGE_SIZE } from '../lib/constants';
 
@@ -103,6 +104,26 @@ export function useDeleteJobPhoto() {
   return useMutation({
     mutationFn: ({ jobId, photoId }: { jobId: string; photoId: string }) =>
       jobsApi.deletePhoto(jobId, photoId),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.photos(vars.jobId) });
+    },
+  });
+}
+
+export function useSaveAnnotations() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      jobId,
+      photoId,
+      annotations,
+      annotatedImageKey,
+    }: {
+      jobId: string;
+      photoId: string;
+      annotations: any[];
+      annotatedImageKey?: string;
+    }) => photoMarkupApi.saveAnnotations(jobId, photoId, annotations, annotatedImageKey),
     onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: jobKeys.photos(vars.jobId) });
     },

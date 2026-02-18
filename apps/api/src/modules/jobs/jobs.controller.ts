@@ -84,6 +84,33 @@ export class JobsController {
     return this.jobsService.getPhotos(orgId, id);
   }
 
+  @Patch(':id/photos/:photoId/annotations')
+  @ApiOperation({ summary: 'Save annotations for a job photo' })
+  async updatePhotoAnnotations(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+    @Body() body: { annotations: any[]; annotatedImageKey?: string },
+  ) {
+    return this.jobsService.updatePhotoAnnotations(
+      orgId,
+      id,
+      photoId,
+      body.annotations,
+      body.annotatedImageKey,
+    );
+  }
+
+  @Post(':id/photos/:photoId/annotated-upload-url')
+  @ApiOperation({ summary: 'Get presigned URL for annotated photo upload' })
+  async getAnnotatedUploadUrl(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+  ) {
+    return this.jobsService.getAnnotatedUploadUrl(orgId, id, photoId);
+  }
+
   @Delete(':id/photos/:photoId')
   @ApiOperation({ summary: 'Delete a job photo' })
   async deletePhoto(

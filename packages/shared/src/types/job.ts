@@ -50,9 +50,36 @@ export interface JobPhoto {
   jobId: string;
   imageKey: string;
   caption: string | null;
+  annotationsJson: Annotation[] | null;
+  annotatedImageKey: string | null;
+  annotatedImageUrl?: string;
   uploadedById: string;
   imageUrl?: string;
   createdAt: Date;
+}
+
+export interface Annotation {
+  id: string;
+  type: 'arrow' | 'circle' | 'rectangle' | 'text' | 'freehand';
+  color: string;
+  strokeWidth: number;
+  data: {
+    startX?: number;
+    startY?: number;
+    endX?: number;
+    endY?: number;
+    cx?: number;
+    cy?: number;
+    rx?: number;
+    ry?: number;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+    text?: string;
+    fontSize?: number;
+    points?: { x: number; y: number }[];
+  };
 }
 
 export interface BudgetSummary {

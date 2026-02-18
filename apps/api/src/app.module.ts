@@ -28,6 +28,9 @@ import { DailyLogsModule } from './modules/daily-logs/daily-logs.module';
 import { CrewSchedulingModule } from './modules/crew-scheduling/crew-scheduling.module';
 import { PunchListsModule } from './modules/punch-lists/punch-lists.module';
 import { MessagesModule } from './modules/messages/messages.module';
+import { MaterialsModule } from './modules/materials/materials.module';
+import { EquipmentModule } from './modules/equipment/equipment.module';
+import { CloseOutModule } from './modules/close-out/close-out.module';
 
 @Module({
   controllers: [AppController],
@@ -60,6 +63,9 @@ import { MessagesModule } from './modules/messages/messages.module';
     CrewSchedulingModule,
     PunchListsModule,
     MessagesModule,
+    MaterialsModule,
+    EquipmentModule,
+    CloseOutModule,
   ],
 })
 export class AppModule {}

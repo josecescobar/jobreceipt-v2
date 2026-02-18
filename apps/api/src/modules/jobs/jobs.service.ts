@@ -220,10 +220,55 @@ export class JobsService {
       photos.map(async (photo) => ({
         ...photo,
         imageUrl: await this.s3Service.generateDownloadUrl(photo.imageKey),
+        annotatedImageUrl: photo.annotatedImageKey
+          ? await this.s3Service.generateDownloadUrl(photo.annotatedImageKey)
+          : null,
       })),
     );
 
     return photosWithUrls;
+  }
+
+  async updatePhotoAnnotations(
+    orgId: string,
+    jobId: string,
+    photoId: string,
+    annotationsJson: any[],
+    annotatedImageKey?: string,
+  ) {
+    const photo = await this.prisma.jobPhoto.findFirst({
+      where: { id: photoId, jobId, organizationId: orgId },
+    });
+    if (!photo) throw new NotFoundException('Photo not found');
+
+    const updateData: any = { annotationsJson };
+    if (annotatedImageKey !== undefined) {
+      updateData.annotatedImageKey = annotatedImageKey;
+    }
+
+    const updated = await this.prisma.jobPhoto.update({
+      where: { id: photoId },
+      data: updateData,
+    });
+
+    return {
+      ...updated,
+      imageUrl: await this.s3Service.generateDownloadUrl(updated.imageKey),
+      annotatedImageUrl: updated.annotatedImageKey
+        ? await this.s3Service.generateDownloadUrl(updated.annotatedImageKey)
+        : null,
+    };
+  }
+
+  async getAnnotatedUploadUrl(orgId: string, jobId: string, photoId: string) {
+    const photo = await this.prisma.jobPhoto.findFirst({
+      where: { id: photoId, jobId, organizationId: orgId },
+    });
+    if (!photo) throw new NotFoundException('Photo not found');
+
+    const key = `job-photos/${orgId}/${jobId}/annotated-${photoId}.png`;
+    const { url } = await this.s3Service.generateUploadUrl(key, 'image/png');
+    return { uploadUrl: url, imageKey: key };
   }
 
   async deletePhoto(orgId: string, jobId: string, photoId: string) {

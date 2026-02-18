@@ -238,6 +238,20 @@ export default function SettingsScreen() {
             onPress={() => router.push('/crew-scheduling')}
             showChevron
           />
+          <SettingsRow
+            icon="cube-outline"
+            label="Materials"
+            subtitle="Track materials & inventory"
+            onPress={() => router.push('/material')}
+            showChevron
+          />
+          <SettingsRow
+            icon="construct-outline"
+            label="Equipment"
+            subtitle="Tools & equipment tracking"
+            onPress={() => router.push('/equipment')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Preferences">
