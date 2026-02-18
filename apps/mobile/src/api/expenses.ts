@@ -26,7 +26,9 @@ export const expensesApi = {
   },
 
   create: async (expense: CreateExpenseDto): Promise<Expense> => {
-    const { data } = await apiClient.post('/expenses', expense);
+    const { data } = await apiClient.post('/expenses', expense, {
+      _offlineMeta: { type: 'expense', description: expense.description || 'Expense' },
+    } as any);
     return data;
   },
 

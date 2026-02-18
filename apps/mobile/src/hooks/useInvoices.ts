@@ -52,6 +52,19 @@ export function useUpdateInvoice() {
   });
 }
 
+export function useUnpaidInvoiceSummary() {
+  const { data: draftData, isLoading: draftLoading } = useInvoices({ status: 'DRAFT' });
+  const { data: sentData, isLoading: sentLoading } = useInvoices({ status: 'SENT' });
+
+  const drafts = (draftData as any)?.data ?? [];
+  const sents = (sentData as any)?.data ?? [];
+  const all = [...drafts, ...sents];
+  const count = all.length;
+  const total = all.reduce((sum: number, inv: any) => sum + (inv.total ?? 0), 0);
+
+  return { count, total, isLoading: draftLoading || sentLoading };
+}
+
 export function useDeleteInvoice() {
   const queryClient = useQueryClient();
   return useMutation({

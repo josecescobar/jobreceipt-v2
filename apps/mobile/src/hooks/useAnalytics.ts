@@ -28,3 +28,11 @@ export function useTaxSummary(year: number) {
     staleTime: QUERY_STALE_TIME,
   });
 }
+
+export function useWeeklyComparison() {
+  return useQuery({
+    queryKey: analyticsKeys.weeklyComparison(),
+    queryFn: () => analyticsApi.getWeeklyComparison(),
+    staleTime: QUERY_STALE_TIME,
+  });
+}

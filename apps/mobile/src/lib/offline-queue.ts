@@ -2,11 +2,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import { apiClient } from '../api/client';
 
-interface QueuedAction {
+export interface OfflineMeta {
+  type: 'expense' | 'mileage' | 'receipt';
+  description: string;
+}
+
+export interface QueuedAction {
   id: string;
   method: 'POST' | 'PATCH' | 'DELETE';
   url: string;
   data?: unknown;
+  meta?: OfflineMeta;
   retryCount: number;
   createdAt: number;
 }
@@ -18,7 +24,7 @@ class OfflineQueue {
   private processing = false;
   private unsubscribe: (() => void) | null = null;
 
-  onSync?: (syncedCount: number, remainingCount: number) => void;
+  onSync?: (syncedCount: number, remainingCount: number, syncedTypes: string[]) => void;
 
   async enqueue(action: Omit<QueuedAction, 'id' | 'retryCount' | 'createdAt'>) {
     const queue = await this.getQueue();
@@ -43,6 +49,7 @@ class OfflineQueue {
       if (queue.length === 0) return;
 
       const remaining: QueuedAction[] = [];
+      const syncedTypes: Set<string> = new Set();
 
       for (const action of queue) {
         try {
@@ -51,6 +58,7 @@ class OfflineQueue {
             url: action.url,
             data: action.data,
           });
+          if (action.meta?.type) syncedTypes.add(action.meta.type);
         } catch (error: any) {
           // Client errors (4xx) won't be fixed by retrying — drop them
           if (error.response?.status >= 400 && error.response?.status < 500) {
@@ -67,7 +75,7 @@ class OfflineQueue {
 
       const syncedCount = queue.length - remaining.length;
       if (syncedCount > 0) {
-        this.onSync?.(syncedCount, remaining.length);
+        this.onSync?.(syncedCount, remaining.length, [...syncedTypes]);
       }
     } finally {
       this.processing = false;
@@ -94,7 +102,7 @@ class OfflineQueue {
     return (await this.getQueue()).length;
   }
 
-  private async getQueue(): Promise<QueuedAction[]> {
+  async getQueue(): Promise<QueuedAction[]> {
     const raw = await AsyncStorage.getItem(QUEUE_KEY);
     return raw ? JSON.parse(raw) : [];
   }

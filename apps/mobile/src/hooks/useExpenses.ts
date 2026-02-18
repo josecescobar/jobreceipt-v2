@@ -34,13 +34,40 @@ export function useCreateExpense() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (expense: CreateExpenseDto) => expensesApi.create(expense),
+    onMutate: async (newExpense) => {
+      await queryClient.cancelQueries({ queryKey: expenseKeys.lists() });
+      const listKey = expenseKeys.list({});
+      const previous = queryClient.getQueryData(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old?.pages?.[0]) return old;
+        const optimistic = {
+          id: `__optimistic_${Date.now()}`,
+          ...newExpense,
+          amount: newExpense.amount ?? 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __optimistic: true,
+        };
+        return {
+          ...old,
+          pages: [
+            { ...old.pages[0], data: [optimistic, ...old.pages[0].data] },
+            ...old.pages.slice(1),
+          ],
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(expenseKeys.list({}), context.previous);
+      }
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
-      // Invalidate job budget if expense is linked to a job
       if (data.jobId) {
         queryClient.invalidateQueries({ queryKey: jobKeys.budget(data.jobId) });
       }
-      // Invalidate receipt detail to show linked expense
       if (data.receiptId) {
         queryClient.invalidateQueries({ queryKey: receiptKeys.detail(data.receiptId) });
       }

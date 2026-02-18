@@ -77,7 +77,9 @@ export const mileageApi = {
   },
 
   create: async (trip: CreateMileageTripData): Promise<MileageTrip> => {
-    const { data } = await apiClient.post('/mileage', trip);
+    const { data } = await apiClient.post('/mileage', trip, {
+      _offlineMeta: { type: 'mileage', description: trip.purpose || 'Mileage trip' },
+    } as any);
     return data;
   },
 

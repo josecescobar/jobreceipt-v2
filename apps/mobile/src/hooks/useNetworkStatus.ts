@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
 import { offlineQueue } from '../lib/offline-queue';
+import { getQueryClient } from '../lib/query-client';
 import { useUIStore } from '../stores/ui.store';
 
 export function useNetworkStatus() {
@@ -11,7 +12,7 @@ export function useNetworkStatus() {
 
   useEffect(() => {
     // Set up sync callback for toast notifications
-    offlineQueue.onSync = (syncedCount, remainingCount) => {
+    offlineQueue.onSync = (syncedCount, remainingCount, syncedTypes) => {
       setPendingActions(remainingCount);
       if (syncedCount > 0) {
         addToast({
@@ -19,6 +20,20 @@ export function useNetworkStatus() {
           message: `Synced ${syncedCount} offline action${syncedCount !== 1 ? 's' : ''}`,
           type: 'success',
         });
+        // Invalidate relevant query caches based on what was synced
+        const qc = getQueryClient();
+        if (qc && syncedTypes.length > 0) {
+          for (const type of syncedTypes) {
+            if (type === 'expense') {
+              qc.invalidateQueries({ queryKey: ['expenses'] });
+              qc.invalidateQueries({ queryKey: ['analytics'] });
+            } else if (type === 'mileage') {
+              qc.invalidateQueries({ queryKey: ['mileage'] });
+            } else if (type === 'receipt') {
+              qc.invalidateQueries({ queryKey: ['receipts'] });
+            }
+          }
+        }
       }
     };
 

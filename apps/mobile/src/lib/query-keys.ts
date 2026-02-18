@@ -28,4 +28,5 @@ export const analyticsKeys = {
   profitabilities: () => [...analyticsKeys.all, 'profitability'] as const,
   profitability: (params: { startDate?: string; endDate?: string }) =>
     [...analyticsKeys.profitabilities(), params] as const,
+  weeklyComparison: () => [...analyticsKeys.all, 'weekly-comparison'] as const,
 };

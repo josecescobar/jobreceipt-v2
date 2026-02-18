@@ -49,6 +49,36 @@ export function useCreateMileageTrip() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateMileageTripData) => mileageApi.create(data),
+    onMutate: async (newTrip) => {
+      await queryClient.cancelQueries({ queryKey: mileageKeys.lists() });
+      const listKey = mileageKeys.list({});
+      const previous = queryClient.getQueryData(listKey);
+      queryClient.setQueryData(listKey, (old: any) => {
+        if (!old?.pages?.[0]) return old;
+        const optimistic = {
+          id: `__optimistic_${Date.now()}`,
+          ...newTrip,
+          irsRate: newTrip.irsRate ?? 0.7,
+          totalDeduction: (newTrip.distanceMiles ?? 0) * (newTrip.irsRate ?? 0.7),
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          __optimistic: true,
+        };
+        return {
+          ...old,
+          pages: [
+            { ...old.pages[0], data: [optimistic, ...old.pages[0].data] },
+            ...old.pages.slice(1),
+          ],
+        };
+      });
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(mileageKeys.list({}), context.previous);
+      }
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mileageKeys.lists() });
       queryClient.invalidateQueries({ queryKey: mileageKeys.summaries() });

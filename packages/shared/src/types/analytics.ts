@@ -127,6 +127,15 @@ export interface ProfitabilityOverview {
   };
 }
 
+export interface WeeklyComparison {
+  /** In cents */
+  thisWeek: number;
+  /** In cents */
+  lastWeek: number;
+  /** Percentage change, null if no previous data */
+  changePercent: number | null;
+}
+
 export interface TaxCategoryTotal {
   taxCategory: string;
   /** e.g., "Line 22" */

@@ -16,6 +16,50 @@ interface AnalyticsQuery {
 export class AnalyticsService {
   constructor(private prisma: PrismaService) {}
 
+  async getWeeklyComparison(orgId: string) {
+    const now = new Date();
+    // ISO week: Monday = start of week
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
+    const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const thisWeekStart = new Date(now);
+    thisWeekStart.setDate(now.getDate() - diffToMonday);
+    thisWeekStart.setHours(0, 0, 0, 0);
+
+    const lastWeekStart = new Date(thisWeekStart);
+    lastWeekStart.setDate(thisWeekStart.getDate() - 7);
+    const lastWeekEnd = new Date(thisWeekStart);
+    lastWeekEnd.setMilliseconds(-1);
+
+    const [thisWeekAgg, lastWeekAgg] = await Promise.all([
+      this.prisma.expense.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: thisWeekStart },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.expense.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: lastWeekStart, lte: lastWeekEnd },
+        },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const thisWeek = thisWeekAgg._sum.amount ?? 0;
+    const lastWeek = lastWeekAgg._sum.amount ?? 0;
+
+    let changePercent: number | null = null;
+    if (lastWeek > 0) {
+      changePercent = Math.round(((thisWeek - lastWeek) / lastWeek) * 10000) / 100;
+    } else if (thisWeek > 0) {
+      changePercent = 100;
+    }
+
+    return { thisWeek, lastWeek, changePercent };
+  }
+
   async getSummary(orgId: string, query: AnalyticsQuery) {
     const startDate = query.startDate ? new Date(query.startDate) : undefined;
     const endDate = query.endDate ? new Date(query.endDate) : undefined;

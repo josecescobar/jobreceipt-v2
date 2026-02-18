@@ -2,25 +2,41 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/clerk-expo';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient } from '@tanstack/react-query';
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as SecureStore from 'expo-secure-store';
-import { CLERK_PUBLISHABLE_KEY, QUERY_CACHE_TIME, QUERY_STALE_TIME } from '../src/lib/constants';
+import { CLERK_PUBLISHABLE_KEY, QUERY_STALE_TIME } from '../src/lib/constants';
+import { asyncStoragePersister, QUERY_CACHE_BUSTER } from '../src/lib/query-persister';
+import { setQueryClient } from '../src/lib/query-client';
 import { setTokenGetter } from '../src/api/client';
 import { offlineQueue } from '../src/lib/offline-queue';
 import { useNotifications } from '../src/hooks/useNotifications';
 import { ThemeProvider, useTheme } from '../src/theme';
 import { ErrorBoundary, ToastContainer } from '../src/components/ui';
 
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: QUERY_STALE_TIME,
-      gcTime: QUERY_CACHE_TIME,
+      gcTime: TWENTY_FOUR_HOURS,
       retry: 2,
     },
   },
 });
+
+setQueryClient(queryClient);
+
+const persistOptions = {
+  persister: asyncStoragePersister,
+  maxAge: TWENTY_FOUR_HOURS,
+  buster: QUERY_CACHE_BUSTER,
+  dehydrateOptions: {
+    shouldDehydrateQuery: (query: any) => query.state.status === 'success',
+  },
+};
 
 const tokenCache = {
   async getToken(key: string) {
@@ -75,13 +91,13 @@ export default function RootLayout() {
           tokenCache={tokenCache}
         >
           <ClerkLoaded>
-            <QueryClientProvider client={queryClient}>
+            <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
               <TokenInjector>
                 <ThemeProvider>
                   <ThemedApp />
                 </ThemeProvider>
               </TokenInjector>
-            </QueryClientProvider>
+            </PersistQueryClientProvider>
           </ClerkLoaded>
         </ClerkProvider>
       </ErrorBoundary>

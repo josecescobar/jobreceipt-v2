@@ -11,7 +11,14 @@ import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 import { Screen } from '../../src/components/layout';
 import { Card, ProgressBar } from '../../src/components/ui';
-import { QuickActionGrid, ActivityFeed } from '../../src/components/dashboard';
+import {
+  QuickActionGrid,
+  ActivityFeed,
+  SyncStatusCard,
+  WeeklySpendingCard,
+  UnpaidInvoicesCard,
+  TemplateQuickAddRow,
+} from '../../src/components/dashboard';
 import { MonthlySpendingChart, CategoryBreakdownChart } from '../../src/components/analytics';
 import type { QuickAction, ActivityItem } from '../../src/components/dashboard';
 import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
@@ -190,6 +197,9 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <QuickActionGrid actions={QUICK_ACTIONS} />
 
+        {/* Template quick-add */}
+        <TemplateQuickAddRow />
+
         {/* Pending review banner */}
         {reviewCount > 0 && (
           <TouchableOpacity
@@ -224,6 +234,9 @@ export default function HomeScreen() {
           </TouchableOpacity>
         )}
 
+        {/* Sync status */}
+        <SyncStatusCard />
+
         {/* Stats cards */}
         <View style={styles.statsRow}>
           <TouchableOpacity
@@ -253,6 +266,12 @@ export default function HomeScreen() {
             <Text style={styles.statLabel}>Mileage</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Weekly spending comparison */}
+        <WeeklySpendingCard />
+
+        {/* Unpaid invoices */}
+        <UnpaidInvoicesCard />
 
         {/* Spending chart */}
         {analyticsSummary && analyticsSummary.monthlySpending.length > 0 && (

@@ -59,10 +59,12 @@ apiClient.interceptors.response.use(
     // Network error on write operations — queue for offline retry
     const method = error.config?.method?.toLowerCase();
     if (!error.response && method && ['post', 'patch', 'put', 'delete'].includes(method)) {
+      const meta = (error.config as any)?._offlineMeta;
       await offlineQueue.enqueue({
         method: method.toUpperCase() as 'POST' | 'PATCH' | 'DELETE',
         url: error.config.url,
         data: error.config.data ? JSON.parse(error.config.data) : undefined,
+        ...(meta ? { meta } : {}),
       });
       return { data: { __queued: true }, status: 202 };
     }

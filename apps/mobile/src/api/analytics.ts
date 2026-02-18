@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { AnalyticsSummary, TaxSummary, ProfitabilityOverview } from '@jobreceipt/shared';
+import type { AnalyticsSummary, TaxSummary, ProfitabilityOverview, WeeklyComparison } from '@jobreceipt/shared';
 
 export interface AnalyticsQueryParams {
   startDate?: string;
@@ -21,6 +21,11 @@ export const analyticsApi = {
 
   getProfitability: async (params?: AnalyticsQueryParams): Promise<ProfitabilityOverview> => {
     const { data } = await apiClient.get('/analytics/profitability', { params });
+    return data;
+  },
+
+  getWeeklyComparison: async (): Promise<WeeklyComparison> => {
+    const { data } = await apiClient.get('/analytics/weekly-comparison');
     return data;
   },
 };

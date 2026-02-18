@@ -13,6 +13,12 @@ import { QueryAnalyticsDto } from './dto/query-analytics.dto';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Get('weekly-comparison')
+  @ApiOperation({ summary: 'Get this week vs last week spending comparison' })
+  async getWeeklyComparison(@CurrentOrg() orgId: string) {
+    return this.analyticsService.getWeeklyComparison(orgId);
+  }
+
   @Get('summary')
   @ApiOperation({ summary: 'Get analytics summary with aggregated data' })
   async getSummary(
