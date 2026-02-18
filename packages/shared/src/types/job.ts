@@ -42,6 +42,16 @@ export interface CostCode {
   updatedAt: Date;
 }
 
+export interface JobPhoto {
+  id: string;
+  jobId: string;
+  imageKey: string;
+  caption: string | null;
+  uploadedById: string;
+  imageUrl?: string;
+  createdAt: Date;
+}
+
 export interface BudgetSummary {
   totalBudget: number;
   totalSpent: number;

@@ -15,6 +15,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { ClerkAuthGuard } from '../../common/guards/clerk-auth.guard';
 import { OrgMemberGuard } from '../../common/guards/org-member.guard';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
+import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { JobsService } from './jobs.service';
 import { ReportService } from './report.service';
 import { CreateJobDto } from './dto/create-job.dto';
@@ -52,6 +53,45 @@ export class JobsController {
       page: query.page ?? 1,
       limit: query.limit ?? 20,
     });
+  }
+
+  @Post(':id/photos/upload-url')
+  @ApiOperation({ summary: 'Get a presigned URL for job photo upload' })
+  async getPhotoUploadUrl(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.jobsService.requestPhotoUploadUrl(orgId, id);
+  }
+
+  @Post(':id/photos')
+  @ApiOperation({ summary: 'Create a job photo record after upload' })
+  async createPhoto(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+    @Param('id') id: string,
+    @Body() body: { imageKey: string; caption?: string },
+  ) {
+    return this.jobsService.createPhoto(orgId, id, userId, body.imageKey, body.caption);
+  }
+
+  @Get(':id/photos')
+  @ApiOperation({ summary: 'List progress photos for a job' })
+  async getPhotos(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.jobsService.getPhotos(orgId, id);
+  }
+
+  @Delete(':id/photos/:photoId')
+  @ApiOperation({ summary: 'Delete a job photo' })
+  async deletePhoto(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('photoId') photoId: string,
+  ) {
+    return this.jobsService.deletePhoto(orgId, id, photoId);
   }
 
   @Get(':id/report')

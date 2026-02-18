@@ -11,6 +11,7 @@ export const jobKeys = {
   detail: (id: string) => [...jobKeys.details(), id] as const,
   budgets: () => [...jobKeys.all, 'budget'] as const,
   budget: (id: string) => [...jobKeys.budgets(), id] as const,
+  photos: (id: string) => [...jobKeys.all, 'photos', id] as const,
 };
 
 export function useJobs(params?: JobQueryDto) {
@@ -73,6 +74,37 @@ export function useDeleteJob() {
     mutationFn: (id: string) => jobsApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: jobKeys.lists() });
+    },
+  });
+}
+
+export function useJobPhotos(jobId: string) {
+  return useQuery({
+    queryKey: jobKeys.photos(jobId),
+    queryFn: () => jobsApi.getPhotos(jobId),
+    enabled: !!jobId,
+    staleTime: QUERY_STALE_TIME,
+  });
+}
+
+export function useUploadJobPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, uri, caption }: { jobId: string; uri: string; caption?: string }) =>
+      jobsApi.uploadPhoto(jobId, uri, caption),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.photos(vars.jobId) });
+    },
+  });
+}
+
+export function useDeleteJobPhoto() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ jobId, photoId }: { jobId: string; photoId: string }) =>
+      jobsApi.deletePhoto(jobId, photoId),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: jobKeys.photos(vars.jobId) });
     },
   });
 }

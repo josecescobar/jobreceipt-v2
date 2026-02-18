@@ -104,6 +104,7 @@ model User {
   approvedExpenses         Expense[]            @relation("ExpenseApprover")
   mileageTrips             MileageTrip[]
   createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreator")
+  uploadedJobPhotos        JobPhoto[]           @relation("JobPhotoUploader")
 
   @@index([email])
 }
@@ -127,6 +128,7 @@ model Organization {
   expenses           Expense[]
   mileageTrips       MileageTrip[]
   recurringExpenses  RecurringExpense[]
+  jobPhotos          JobPhoto[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -170,6 +172,7 @@ model Job {
   mileageTrips      MileageTrip[]
   budgetSnapshots   BudgetSnapshot[]
   recurringExpenses RecurringExpense[]
+  photos            JobPhoto[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -384,4 +387,21 @@ model RecurringExpense {
 
   @@index([organizationId])
   @@index([isActive, nextOccurrence])
+}
+
+model JobPhoto {
+  id             String   @id @default(uuid())
+  jobId          String
+  organizationId String
+  imageKey       String
+  caption        String?
+  uploadedById   String
+  createdAt      DateTime @default(now())
+
+  job          Job          @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy   User         @relation("JobPhotoUploader", fields: [uploadedById], references: [id])
+
+  @@index([jobId])
+  @@index([organizationId])
 }

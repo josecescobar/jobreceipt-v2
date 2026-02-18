@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../../common/services/s3.service';
 import { Prisma } from '@prisma/client';
+import { v4 as uuid } from 'uuid';
 
 interface CreateJobData {
   name: string;
@@ -25,7 +27,10 @@ interface JobQuery {
 
 @Injectable()
 export class JobsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private s3Service: S3Service,
+  ) {}
 
   async create(orgId: string, data: CreateJobData) {
     return this.prisma.job.create({
@@ -176,5 +181,52 @@ export class JobsService {
         OVERHEAD: { budget: 0, spent: overheadSpent },
       },
     };
+  }
+
+  async requestPhotoUploadUrl(orgId: string, jobId: string) {
+    await this.findOne(orgId, jobId);
+    const id = uuid();
+    const key = `job-photos/${orgId}/${jobId}/${id}.jpg`;
+    const { url } = await this.s3Service.generateUploadUrl(key, 'image/jpeg');
+    return { uploadUrl: url, imageKey: key };
+  }
+
+  async createPhoto(orgId: string, jobId: string, userId: string, imageKey: string, caption?: string) {
+    await this.findOne(orgId, jobId);
+    return this.prisma.jobPhoto.create({
+      data: {
+        jobId,
+        organizationId: orgId,
+        imageKey,
+        caption: caption || null,
+        uploadedById: userId,
+      },
+    });
+  }
+
+  async getPhotos(orgId: string, jobId: string) {
+    const photos = await this.prisma.jobPhoto.findMany({
+      where: { jobId, organizationId: orgId },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const photosWithUrls = await Promise.all(
+      photos.map(async (photo) => ({
+        ...photo,
+        imageUrl: await this.s3Service.generateDownloadUrl(photo.imageKey),
+      })),
+    );
+
+    return photosWithUrls;
+  }
+
+  async deletePhoto(orgId: string, jobId: string, photoId: string) {
+    const photo = await this.prisma.jobPhoto.findFirst({
+      where: { id: photoId, jobId, organizationId: orgId },
+    });
+    if (!photo) throw new NotFoundException('Photo not found');
+
+    await this.s3Service.deleteObject(photo.imageKey);
+    await this.prisma.jobPhoto.delete({ where: { id: photoId } });
   }
 }

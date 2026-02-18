@@ -6,7 +6,14 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  Image,
+  TouchableOpacity,
+  Dimensions,
+  ActionSheetIOS,
+  Platform,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
@@ -18,7 +25,7 @@ import {
 } from '../../src/components/jobs';
 import { ActivityFeed } from '../../src/components/dashboard';
 import type { ActivityItem } from '../../src/components/dashboard';
-import { useJob, useUpdateJob } from '../../src/hooks/useJobs';
+import { useJob, useUpdateJob, useJobPhotos, useUploadJobPhoto, useDeleteJobPhoto } from '../../src/hooks/useJobs';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
@@ -51,9 +58,13 @@ export default function JobDetailScreen() {
   } = useBudget(id!);
 
   const updateJob = useUpdateJob();
+  const { data: photos = [] } = useJobPhotos(id!);
+  const uploadPhoto = useUploadJobPhoto();
+  const deletePhoto = useDeleteJobPhoto();
   const [statusLoading, setStatusLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
@@ -190,6 +201,82 @@ export default function JobDetailScreen() {
     }
   };
 
+  const photoColumnWidth = (Dimensions.get('window').width - spacing.lg * 2 - spacing.sm * 2) / 3;
+
+  const handleAddPhoto = () => {
+    const options = ['Take Photo', 'Choose from Library', 'Cancel'];
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: 2 },
+        (index) => {
+          if (index === 0) launchCamera();
+          else if (index === 1) launchLibrary();
+        },
+      );
+    } else {
+      Alert.alert('Add Photo', 'Choose a source', [
+        { text: 'Take Photo', onPress: launchCamera },
+        { text: 'Choose from Library', onPress: launchLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const launchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Needed', 'Camera access is required to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      doUpload(result.assets[0].uri);
+    }
+  };
+
+  const launchLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      doUpload(result.assets[0].uri);
+    }
+  };
+
+  const doUpload = async (uri: string) => {
+    setPhotoUploading(true);
+    try {
+      await uploadPhoto.mutateAsync({ jobId: id!, uri });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      Alert.alert('Upload Failed', 'Could not upload photo. Please try again.');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
+  const handleDeletePhoto = (photoId: string) => {
+    Alert.alert('Delete Photo?', 'This photo will be permanently removed.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await deletePhoto.mutateAsync({ jobId: id!, photoId });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch {
+            Alert.alert('Error', 'Failed to delete photo.');
+          }
+        },
+      },
+    ]);
+  };
+
   const activeCategories = [
     { label: 'Materials', ...categories.materials },
     { label: 'Labor', ...categories.labor },
@@ -320,6 +407,55 @@ export default function JobDetailScreen() {
           </>
         )}
 
+        {/* Progress Photos */}
+        <View style={styles.photoSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Progress Photos ({photos.length})
+          </Text>
+          <TouchableOpacity
+            onPress={handleAddPhoto}
+            style={styles.addPhotoBtn}
+            disabled={photoUploading}
+          >
+            {photoUploading ? (
+              <ActivityIndicator size="small" color={colors.primary} />
+            ) : (
+              <Ionicons name="add-circle" size={28} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+        </View>
+        {photos.length > 0 ? (
+          <View style={styles.photoGrid}>
+            {photos.map((photo) => (
+              <TouchableOpacity
+                key={photo.id}
+                onPress={() =>
+                  router.push({
+                    pathname: '/job/photo/[id]',
+                    params: {
+                      id: photo.id,
+                      imageUrl: photo.imageUrl || '',
+                      caption: photo.caption || '',
+                    },
+                  })
+                }
+                onLongPress={() => handleDeletePhoto(photo.id)}
+                style={[styles.photoThumb, { width: photoColumnWidth, height: photoColumnWidth }]}
+              >
+                <Image
+                  source={{ uri: photo.imageUrl }}
+                  style={styles.photoImage}
+                  resizeMode="cover"
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No photos yet — tap + to add progress photos
+          </Text>
+        )}
+
         {/* Activity timeline */}
         <Text style={styles.sectionTitle}>
           Activity ({expenses.length + receipts.length + mileageTrips.length})
@@ -429,6 +565,37 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
     ...typography.label,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
+  },
+  photoSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  addPhotoBtn: {
+    padding: spacing.xs,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  photoThumb: {
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: colors.surface,
+  },
+  photoImage: {
+    width: '100%',
+    height: '100%',
+  },
+  emptyPhotos: {
+    fontSize: 14,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
   },
   exportSection: {
     marginTop: spacing.xl,
