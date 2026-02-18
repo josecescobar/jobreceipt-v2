@@ -8,8 +8,7 @@ import { Screen } from '../../src/components/layout';
 import { Badge } from '../../src/components/ui';
 import { SettingsSection, SettingsRow } from '../../src/components/settings';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { organizationsApi } from '../../src/api/organizations';
-import { exportReceipts, exportExpenses, exportMileage } from '../../src/lib/export';
+import { exportReceipts, exportExpenses, exportMileage, exportTaxSummary } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -36,7 +35,7 @@ export default function SettingsScreen() {
     CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
   }), [colors]);
 
-  const [exporting, setExporting] = useState<'receipts' | 'expenses' | 'mileage' | null>(null);
+  const [exporting, setExporting] = useState<'receipts' | 'expenses' | 'mileage' | 'tax' | null>(null);
 
   const initials = (() => {
     const first = user?.firstName?.charAt(0) || '';
@@ -48,39 +47,17 @@ export default function SettingsScreen() {
 
   const handleEditOrgName = () => {
     if (!isOwner || !orgId) return;
-
-    if (Platform.OS === 'ios') {
-      Alert.prompt(
-        'Organization Name',
-        'Enter the new organization name',
-        async (name) => {
-          if (!name?.trim()) return;
-          try {
-            await organizationsApi.update(orgId, { name: name.trim() });
-            useAuthStore.getState().setOrganization(orgId, name.trim());
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          } catch {
-            Alert.alert('Error', 'Failed to update organization name.');
-          }
-        },
-        'plain-text',
-        orgName || '',
-      );
-    } else {
-      Alert.alert(
-        'Edit Organization',
-        'Organization name editing is coming soon on Android.',
-      );
-    }
+    router.push('/settings/edit-org');
   };
 
-  const handleExport = async (type: 'receipts' | 'expenses' | 'mileage') => {
+  const handleExport = async (type: 'receipts' | 'expenses' | 'mileage' | 'tax') => {
     if (exporting) return;
     setExporting(type);
     try {
       if (type === 'receipts') await exportReceipts();
       else if (type === 'expenses') await exportExpenses();
-      else await exportMileage();
+      else if (type === 'mileage') await exportMileage();
+      else await exportTaxSummary(new Date().getFullYear());
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: any) {
       Alert.alert('Export Failed', err.message || 'Something went wrong.');
@@ -261,6 +238,12 @@ export default function SettingsScreen() {
             label={exporting === 'mileage' ? 'Exporting Mileage...' : 'Export Mileage CSV'}
             onPress={() => handleExport('mileage')}
             showChevron={exporting !== 'mileage'}
+          />
+          <SettingsRow
+            icon="calculator-outline"
+            label={exporting === 'tax' ? 'Exporting Tax Summary...' : 'Export Tax Summary CSV'}
+            onPress={() => handleExport('tax')}
+            showChevron={exporting !== 'tax'}
           />
         </SettingsSection>
 

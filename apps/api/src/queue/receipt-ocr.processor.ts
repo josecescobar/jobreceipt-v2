@@ -180,6 +180,7 @@ export class ReceiptOcrProcessor extends WorkerHost {
           'Receipt Ready for Review',
           `Your receipt from ${merchantName} has been processed.`,
           { receiptId },
+          'receipt_processed',
         );
       }
 

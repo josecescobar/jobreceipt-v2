@@ -15,4 +15,8 @@ export const authApi = {
   registerPushToken: async (token: string): Promise<void> => {
     await apiClient.post('/auth/push-token', { token });
   },
+
+  updateNotificationPrefs: async (prefs: Record<string, boolean>): Promise<void> => {
+    await apiClient.patch('/auth/notification-prefs', prefs);
+  },
 };

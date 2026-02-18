@@ -198,6 +198,7 @@ export class ExpensesService {
       'Expense Approved',
       `${expense.description} (${formatDollars(expense.amount)}) has been approved`,
       { screen: 'expenses' },
+      'expense_approval',
     ).catch(() => {});
 
     return updated;
@@ -214,6 +215,7 @@ export class ExpensesService {
       'Expense Rejected',
       `${expense.description} (${formatDollars(expense.amount)}) was rejected`,
       { screen: 'expenses' },
+      'expense_approval',
     ).catch(() => {});
 
     await this.prisma.expense.delete({ where: { id: expenseId } });
@@ -253,6 +255,7 @@ export class ExpensesService {
         'Over Budget',
         `${job.name} has exceeded its ${formatDollars(budget)} budget (now at ${formatDollars(currentTotal)})`,
         { jobId: job.id },
+        'budget_alert',
       );
       this.logger.log(`Budget alert: ${job.name} is over budget`);
     }
@@ -263,6 +266,7 @@ export class ExpensesService {
         'Budget Warning',
         `${job.name} has used ${Math.round((currentTotal / budget) * 100)}% of its ${formatDollars(budget)} budget`,
         { jobId: job.id },
+        'budget_alert',
       );
       this.logger.log(`Budget warning: ${job.name} at ${Math.round((currentTotal / budget) * 100)}%`);
     }

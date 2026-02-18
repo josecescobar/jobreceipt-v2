@@ -1,6 +1,21 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
+export type NotificationType =
+  | 'receipt_processed'
+  | 'budget_alert'
+  | 'expense_approval'
+  | 'review_reminder'
+  | 'recurring_expense';
+
+const TYPE_TO_PREF_KEY: Record<NotificationType, string> = {
+  receipt_processed: 'receiptProcessed',
+  budget_alert: 'budgetAlerts',
+  expense_approval: 'expenseApproval',
+  review_reminder: 'reviewReminders',
+  recurring_expense: 'recurringExpenses',
+};
+
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
@@ -12,15 +27,26 @@ export class NotificationService {
     title: string,
     body: string,
     data?: Record<string, string>,
+    type?: NotificationType,
   ): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { pushToken: true },
+      select: { pushToken: true, notificationPrefs: true },
     });
 
     if (!user?.pushToken) {
       this.logger.debug(`No push token for user ${userId}, skipping notification`);
       return;
+    }
+
+    // Check user's notification preferences
+    if (type && user.notificationPrefs) {
+      const prefs = user.notificationPrefs as Record<string, boolean>;
+      const prefKey = TYPE_TO_PREF_KEY[type];
+      if (prefKey && prefs[prefKey] === false) {
+        this.logger.debug(`User ${userId} has disabled ${type} notifications, skipping`);
+        return;
+      }
     }
 
     try {

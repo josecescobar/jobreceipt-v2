@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Patch,
   Body,
   Req,
   Res,
@@ -61,6 +62,21 @@ export class AuthController {
       throw new BadRequestException('Token is required');
     }
     await this.authService.savePushToken(clerkId, body.token);
+    return { success: true };
+  }
+
+  @Patch('notification-prefs')
+  @UseGuards(ClerkAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update notification preferences for the current user' })
+  @ApiResponse({ status: 200, description: 'Preferences saved' })
+  async updateNotificationPrefs(
+    @Req() req: Request,
+    @Body() body: Record<string, boolean>,
+  ) {
+    const clerkId = (req as any).clerkUserId;
+    await this.authService.updateNotificationPrefs(clerkId, body);
     return { success: true };
   }
 

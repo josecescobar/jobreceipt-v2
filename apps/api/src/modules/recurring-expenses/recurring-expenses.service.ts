@@ -190,6 +190,7 @@ export class RecurringExpensesService {
             'Recurring Expense Created',
             `${item.description} — ${dollars} added to ${item.job.name}`,
             { screen: 'expenses' },
+            'recurring_expense',
           )
           .catch(() => {});
 

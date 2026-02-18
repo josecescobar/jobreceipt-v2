@@ -122,4 +122,11 @@ export class AuthService {
       data: { pushToken: token },
     });
   }
+
+  async updateNotificationPrefs(clerkId: string, prefs: Record<string, boolean>) {
+    await this.prisma.user.update({
+      where: { clerkId },
+      data: { notificationPrefs: prefs },
+    });
+  }
 }

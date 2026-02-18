@@ -56,6 +56,7 @@ export class NotificationCronProcessor extends WorkerHost {
           'Receipts Need Review',
           `You have ${count} receipt${count !== 1 ? 's' : ''} waiting for review`,
           { screen: 'receipts' },
+          'review_reminder',
         );
       } catch (err) {
         this.logger.error(`Failed to send review reminder to user ${userId}: ${err}`);
