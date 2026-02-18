@@ -12,7 +12,7 @@ import { useUser } from '@clerk/clerk-expo';
 import { Screen } from '../../src/components/layout';
 import { Card, ProgressBar } from '../../src/components/ui';
 import { QuickActionGrid, ActivityFeed } from '../../src/components/dashboard';
-import { MonthlySpendingChart } from '../../src/components/analytics';
+import { MonthlySpendingChart, CategoryBreakdownChart } from '../../src/components/analytics';
 import type { QuickAction, ActivityItem } from '../../src/components/dashboard';
 import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
 import { useJobs } from '../../src/hooks/useJobs';
@@ -220,6 +220,13 @@ export default function HomeScreen() {
         {analyticsSummary && analyticsSummary.monthlySpending.length > 0 && (
           <View style={styles.chartContainer}>
             <MonthlySpendingChart data={analyticsSummary.monthlySpending} />
+          </View>
+        )}
+
+        {/* Category breakdown */}
+        {analyticsSummary && analyticsSummary.categoryBreakdown.length > 0 && (
+          <View style={styles.chartContainer}>
+            <CategoryBreakdownChart data={analyticsSummary.categoryBreakdown} />
           </View>
         )}
 

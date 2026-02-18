@@ -3,7 +3,6 @@ import {
   View,
   ScrollView,
   Text,
-  TouchableOpacity,
   Alert,
   StyleSheet,
   ActivityIndicator,
@@ -12,18 +11,19 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Badge, Button, MoneyText } from '../../src/components/ui';
-import { ReceiptStatusBadge } from '../../src/components/receipt';
 import {
   OverBudgetBanner,
   BudgetBreakdownChart,
   CategoryBreakdownCard,
 } from '../../src/components/jobs';
+import { ActivityFeed } from '../../src/components/dashboard';
+import type { ActivityItem } from '../../src/components/dashboard';
 import { useJob, useUpdateJob } from '../../src/hooks/useJobs';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
-import { formatMoney, formatDate, formatMiles } from '../../src/lib/format';
+import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport } from '../../src/lib/export';
 import { colors, spacing, typography } from '../../src/theme';
 
@@ -67,6 +67,45 @@ export default function JobDetailScreen() {
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
   );
+
+  const activityItems: ActivityItem[] = useMemo(() => {
+    const items: ActivityItem[] = [];
+
+    for (const e of expenses) {
+      items.push({
+        type: 'expense',
+        id: e.id,
+        date: e.date?.toString() ?? '',
+        description: e.description,
+        amount: e.amount,
+      });
+    }
+
+    for (const r of receipts) {
+      items.push({
+        type: 'receipt',
+        id: r.id,
+        date: (r.transactionDate ?? r.createdAt)?.toString() ?? '',
+        merchantName: r.merchantName,
+        totalAmount: r.totalAmount,
+        status: r.status,
+      });
+    }
+
+    for (const m of mileageTrips) {
+      items.push({
+        type: 'mileage',
+        id: m.id,
+        date: m.date?.toString() ?? '',
+        distanceMiles: m.distanceMiles,
+        totalDeduction: m.totalDeduction,
+        purpose: m.purpose ?? null,
+      });
+    }
+
+    items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return items;
+  }, [expenses, receipts, mileageTrips]);
 
   if (jobLoading || !job) {
     return (
@@ -264,98 +303,11 @@ export default function JobDetailScreen() {
           </>
         )}
 
-        {/* Expenses section */}
+        {/* Activity timeline */}
         <Text style={styles.sectionTitle}>
-          Expenses ({expenses.length})
+          Activity ({expenses.length + receipts.length + mileageTrips.length})
         </Text>
-        {expenses.length === 0 ? (
-          <Text style={styles.emptyText}>No expenses yet</Text>
-        ) : (
-          expenses.slice(0, 10).map((expense) => (
-            <TouchableOpacity
-              key={expense.id}
-              style={styles.listRow}
-              onPress={() => router.push(`/expense/edit/${expense.id}`)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listRowInfo}>
-                <Text style={styles.listRowTitle} numberOfLines={1}>
-                  {expense.description || 'Expense'}
-                </Text>
-                <Text style={styles.listRowSub}>
-                  {expense.date ? formatDate(expense.date.toString()) : ''}
-                </Text>
-              </View>
-              <Text style={styles.listRowAmount}>
-                {formatMoney(expense.amount)}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
-
-        {/* Receipts section */}
-        <Text style={styles.sectionTitle}>
-          Receipts ({receipts.length})
-        </Text>
-        {receipts.length === 0 ? (
-          <Text style={styles.emptyText}>No receipts yet</Text>
-        ) : (
-          receipts.slice(0, 5).map((receipt) => (
-            <TouchableOpacity
-              key={receipt.id}
-              style={styles.listRow}
-              onPress={() => router.push(`/receipt/${receipt.id}`)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listRowInfo}>
-                <Text style={styles.listRowTitle} numberOfLines={1}>
-                  {receipt.merchantName || 'Unknown Merchant'}
-                </Text>
-                <View style={styles.receiptSubRow}>
-                  {receipt.transactionDate && (
-                    <Text style={styles.listRowSub}>
-                      {formatDate(receipt.transactionDate.toString())}
-                    </Text>
-                  )}
-                  <ReceiptStatusBadge status={receipt.status} />
-                </View>
-              </View>
-              <Text style={styles.listRowAmount}>
-                {receipt.totalAmount != null ? formatMoney(receipt.totalAmount) : '—'}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
-
-        {/* Mileage section */}
-        <Text style={styles.sectionTitle}>
-          Mileage ({mileageTrips.length})
-        </Text>
-        {mileageTrips.length === 0 ? (
-          <Text style={styles.emptyText}>No mileage trips yet</Text>
-        ) : (
-          mileageTrips.slice(0, 5).map((trip) => (
-            <TouchableOpacity
-              key={trip.id}
-              style={styles.listRow}
-              onPress={() => router.push(`/mileage/edit/${trip.id}`)}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listRowInfo}>
-                <Text style={styles.listRowTitle}>
-                  {formatMiles(trip.distanceMiles)}
-                </Text>
-                <Text style={styles.listRowSub}>
-                  {trip.date ? formatDate(trip.date.toString()) : ''}
-                  {trip.purpose ? ` · ${trip.purpose}` : ''}
-                </Text>
-              </View>
-              <Text style={styles.listRowAmount}>
-                {formatMoney(trip.totalDeduction)}
-              </Text>
-            </TouchableOpacity>
-          ))
-        )}
+        <ActivityFeed items={activityItems} />
 
         {/* Export report */}
         <View style={styles.exportSection}>
@@ -455,45 +407,6 @@ const styles = StyleSheet.create({
     ...typography.label,
     marginTop: spacing.lg,
     marginBottom: spacing.md,
-  },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    paddingVertical: spacing.sm,
-  },
-  listRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  listRowInfo: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  listRowTitle: {
-    fontSize: 14,
-    color: colors.text,
-  },
-  listRowSub: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  listRowAmount: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-  },
-  receiptSubRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: 2,
   },
   exportSection: {
     marginTop: spacing.xl,
