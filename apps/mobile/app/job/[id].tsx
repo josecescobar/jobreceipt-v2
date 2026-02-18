@@ -12,7 +12,7 @@ import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Badge, Button, MoneyText } from '../../src/components/ui';
 import {
-  OverBudgetBanner,
+  BudgetWarningBanner,
   BudgetBreakdownChart,
   CategoryBreakdownCard,
 } from '../../src/components/jobs';
@@ -40,7 +40,7 @@ export default function JobDetailScreen() {
   const {
     spent,
     budget,
-    isOverBudget,
+    ratio,
     remaining,
     color,
     categories,
@@ -256,9 +256,9 @@ export default function JobDetailScreen() {
           </View>
         )}
 
-        {/* Over budget alert */}
-        {isOverBudget && (
-          <OverBudgetBanner overBy={spent - budget} />
+        {/* Budget warning/alert */}
+        {ratio >= 0.8 && budget > 0 && (
+          <BudgetWarningBanner ratio={ratio} remaining={remaining} />
         )}
 
         {/* Total budget summary */}

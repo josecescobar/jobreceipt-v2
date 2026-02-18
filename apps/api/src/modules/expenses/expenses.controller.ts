@@ -55,6 +55,15 @@ export class ExpensesController {
     });
   }
 
+  @Post('upload-url')
+  @ApiOperation({ summary: 'Get a presigned URL for expense photo upload' })
+  async getUploadUrl(
+    @CurrentOrg() orgId: string,
+    @Body() body: { fileName: string; contentType: string },
+  ) {
+    return this.expensesService.requestUploadUrl(orgId, body.fileName, body.contentType);
+  }
+
   @Post('batch/delete')
   @ApiOperation({ summary: 'Batch delete expenses' })
   async batchDelete(
@@ -79,7 +88,21 @@ export class ExpensesController {
   @Get(':id')
   @ApiOperation({ summary: 'Get expense details' })
   async findOne(@CurrentOrg() orgId: string, @Param('id') id: string) {
-    return this.expensesService.findOne(orgId, id);
+    const expense = await this.expensesService.findOne(orgId, id);
+    if (expense.imageKey) {
+      const imageUrl = await this.expensesService.getImageUrl(expense.imageKey);
+      return { ...expense, imageUrl };
+    }
+    return expense;
+  }
+
+  @Get(':id/image-url')
+  @ApiOperation({ summary: 'Get presigned download URL for expense photo' })
+  async getImageDownloadUrl(@CurrentOrg() orgId: string, @Param('id') id: string) {
+    const expense = await this.expensesService.findOne(orgId, id);
+    if (!expense.imageKey) return { imageUrl: null };
+    const imageUrl = await this.expensesService.getImageUrl(expense.imageKey);
+    return { imageUrl };
   }
 
   @Patch(':id')

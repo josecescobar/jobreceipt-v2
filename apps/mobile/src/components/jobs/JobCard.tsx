@@ -1,6 +1,7 @@
 import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Card, ProgressBar } from '../ui';
 import { useBudget } from '../../hooks/useBudget';
@@ -44,9 +45,14 @@ export function JobCard({ job }: JobCardProps) {
           <View style={styles.budgetSection}>
             <ProgressBar spent={spent} budget={budget} />
             <View style={styles.budgetRow}>
-              <Text style={[styles.spent, { color }]}>
-                {formatMoney(spent)}
-              </Text>
+              <View style={styles.spentRow}>
+                {ratio >= 0.8 && (
+                  <Ionicons name="alert-circle" size={14} color={color} />
+                )}
+                <Text style={[styles.spent, { color }]}>
+                  {formatMoney(spent)}
+                </Text>
+              </View>
               <Text style={styles.budgetTotal}>
                 of {formatMoney(budget)}
               </Text>
@@ -106,7 +112,13 @@ const styles = StyleSheet.create({
   budgetRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     marginTop: spacing.xs,
+  },
+  spentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   spent: {
     fontSize: 14,

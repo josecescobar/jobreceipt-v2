@@ -7,11 +7,26 @@ import { colors, spacing, typography } from '../../src/theme';
 import { LoadingScreen, Button } from '../../src/components/ui';
 import { useBootstrap } from '../../src/hooks/useBootstrap';
 import { useAuthStore } from '../../src/stores/auth.store';
+import { useOverBudgetCount } from '../../src/hooks/useOverBudgetCount';
+
+function BadgedIcon({ name, size, color, badge }: { name: React.ComponentProps<typeof Ionicons>['name']; size: number; color: string; badge: number }) {
+  return (
+    <View style={{ width: size + 8, height: size + 4, alignItems: 'center', justifyContent: 'center' }}>
+      <Ionicons name={name} size={size} color={color} />
+      {badge > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
 
 export default function TabsLayout() {
   const { isSignedIn, isLoaded } = useAuth();
   const { isBootstrapped, isLoading, error, retry } = useBootstrap();
   const { hasOnboarded, onboardingChecked, checkOnboarded } = useAuthStore();
+  const overBudgetCount = useOverBudgetCount();
 
   useEffect(() => {
     checkOnboarded();
@@ -75,7 +90,7 @@ export default function TabsLayout() {
         options={{
           title: 'Jobs',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="briefcase" size={size} color={color} />
+            <BadgedIcon name="briefcase" size={size} color={color} badge={overBudgetCount} />
           ),
         }}
       />
@@ -136,5 +151,22 @@ const styles = StyleSheet.create({
     ...typography.bodySmall,
     textAlign: 'center',
     marginBottom: spacing.md,
+  },
+  badge: {
+    position: 'absolute' as const,
+    top: -2,
+    right: -2,
+    backgroundColor: colors.error,
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+    paddingHorizontal: 3,
+  },
+  badgeText: {
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '700' as const,
   },
 });

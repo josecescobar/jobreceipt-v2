@@ -4,16 +4,22 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Image,
+  ActionSheetIOS,
+  Alert,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
+import { expensesApi } from '../../src/api/expenses';
 import { dollarsToCents, formatMoney } from '../../src/lib/format';
 import { colors, spacing, borderRadius } from '../../src/theme';
 
@@ -39,9 +45,57 @@ export default function CreateExpenseScreen() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
   const amountNum = parseFloat(amount) || 0;
+
+  const handlePickPhoto = () => {
+    const options = ['Take Photo', 'Choose from Library', 'Cancel'];
+    const cancelIndex = 2;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex },
+        async (index) => {
+          if (index === 0) await launchCamera();
+          else if (index === 1) await launchLibrary();
+        },
+      );
+    } else {
+      Alert.alert('Add Photo', 'Choose a source', [
+        { text: 'Take Photo', onPress: launchCamera },
+        { text: 'Choose from Library', onPress: launchLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const launchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
+
+  const launchLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!jobId) {
@@ -57,19 +111,27 @@ export default function CreateExpenseScreen() {
       return;
     }
     setError('');
+    setUploading(true);
 
     try {
+      let imageKey: string | undefined;
+      if (imageUri) {
+        imageKey = await expensesApi.uploadImage(imageUri);
+      }
       await createExpense.mutateAsync({
         jobId,
         amount: dollarsToCents(amountNum),
         description: description.trim(),
         category: category || undefined,
+        imageKey: imageKey || undefined,
         date: date || new Date().toISOString(),
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create expense');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -160,6 +222,25 @@ export default function CreateExpenseScreen() {
             ))}
           </View>
 
+          {/* Photo */}
+          <Text style={styles.label}>Photo</Text>
+          {imageUri ? (
+            <View style={styles.photoPreview}>
+              <Image source={{ uri: imageUri }} style={styles.photoImage} />
+              <TouchableOpacity
+                style={styles.photoRemove}
+                onPress={() => setImageUri(null)}
+              >
+                <Ionicons name="close-circle" size={24} color={colors.error} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={handlePickPhoto}>
+              <Ionicons name="camera-outline" size={24} color={colors.primary} />
+              <Text style={styles.addPhotoText}>Add Photo</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Amount preview */}
           {amountNum > 0 && (
             <View style={styles.previewCard}>
@@ -178,9 +259,9 @@ export default function CreateExpenseScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            title="Add Expense"
+            title={uploading ? 'Uploading Photo...' : 'Add Expense'}
             onPress={handleSubmit}
-            loading={createExpense.isPending}
+            loading={createExpense.isPending || uploading}
             disabled={!jobId || !amount || amountNum <= 0}
           />
         </ScrollView>
@@ -262,6 +343,41 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: colors.white,
+  },
+  addPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  addPhotoText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  photoPreview: {
+    marginBottom: spacing.lg,
+    position: 'relative',
+  },
+  photoImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: 12,
   },
   previewCard: {
     backgroundColor: colors.surface,

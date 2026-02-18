@@ -4,26 +4,36 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, borderRadius } from '../../theme';
 import { formatMoney } from '../../lib/format';
 
-interface OverBudgetBannerProps {
-  overBy: number; // cents over budget
+interface BudgetWarningBannerProps {
+  ratio: number;
+  remaining: number; // cents (positive = remaining, negative = over)
 }
 
-export function OverBudgetBanner({ overBy }: OverBudgetBannerProps) {
+export function BudgetWarningBanner({ ratio, remaining }: BudgetWarningBannerProps) {
+  const isOver = ratio >= 1.0;
+  const bgColor = isOver ? colors.error : colors.warning;
+  const icon = isOver ? 'warning' : 'alert-circle';
+  const message = isOver
+    ? `Over budget by ${formatMoney(Math.abs(remaining))}`
+    : `${Math.round(ratio * 100)}% of budget used — ${formatMoney(remaining)} remaining`;
+
   return (
-    <View style={styles.container}>
-      <Ionicons name="warning" size={20} color={colors.white} />
-      <Text style={styles.text}>
-        Over budget by {formatMoney(overBy)}
-      </Text>
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
+      <Ionicons name={icon} size={20} color={colors.white} />
+      <Text style={styles.text}>{message}</Text>
     </View>
   );
+}
+
+/** @deprecated Use BudgetWarningBanner instead */
+export function OverBudgetBanner({ overBy }: { overBy: number }) {
+  return <BudgetWarningBanner ratio={1.0} remaining={-overBy} />;
 }
 
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.error,
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.lg,
     borderRadius: borderRadius.md,
@@ -34,5 +44,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginLeft: spacing.sm,
+    flex: 1,
   },
 });

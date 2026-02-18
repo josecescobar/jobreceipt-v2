@@ -42,6 +42,11 @@ export class CreateExpenseDto {
   @IsNumber()
   mileage?: number;
 
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  imageKey?: string;
+
   @ApiProperty()
   @IsDateString()
   date: string;

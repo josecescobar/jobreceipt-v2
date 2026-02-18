@@ -1,11 +1,17 @@
 import { apiClient } from './client';
 import type { Expense, ExpenseQueryDto, CreateExpenseDto, UpdateExpenseDto } from '@jobreceipt/shared';
+import { processImage } from '../lib/image';
 
 interface PaginatedResponse<T> {
   data: T[];
   total: number;
   page: number;
   limit: number;
+}
+
+interface UploadUrlResponse {
+  uploadUrl: string;
+  imageKey: string;
 }
 
 export const expensesApi = {
@@ -44,5 +50,34 @@ export const expensesApi = {
   ): Promise<{ count: number }> => {
     const { data } = await apiClient.patch('/expenses/batch/update', { ids, ...updates });
     return data;
+  },
+
+  requestUploadUrl: async (fileName: string, contentType: string): Promise<UploadUrlResponse> => {
+    const { data } = await apiClient.post('/expenses/upload-url', { fileName, contentType });
+    return data;
+  },
+
+  getImageUrl: async (expenseId: string): Promise<{ imageUrl: string | null }> => {
+    const { data } = await apiClient.get(`/expenses/${expenseId}/image-url`);
+    return data;
+  },
+
+  /**
+   * Upload an image from a local URI and return the S3 imageKey.
+   */
+  uploadImage: async (uri: string): Promise<string> => {
+    const processed = await processImage(uri);
+    const { uploadUrl, imageKey } = await expensesApi.requestUploadUrl('expense.jpg', 'image/jpeg');
+    const response = await fetch(processed.uri);
+    const blob = await response.blob();
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'PUT',
+      body: blob,
+      headers: { 'Content-Type': 'image/jpeg' },
+    });
+    if (!uploadResponse.ok) {
+      throw new Error(`S3 upload failed (${uploadResponse.status})`);
+    }
+    return imageKey;
   },
 };

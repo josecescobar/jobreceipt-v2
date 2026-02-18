@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { S3Service } from '../../common/services/s3.service';
 import { Prisma } from '@prisma/client';
+import { v4 as uuid } from 'uuid';
 
 interface CreateExpenseData {
   jobId: string;
@@ -11,6 +13,7 @@ interface CreateExpenseData {
   category?: string | null;
   taxCategory?: string | null;
   mileage?: number | null;
+  imageKey?: string | null;
   date: string;
 }
 
@@ -27,7 +30,10 @@ interface ExpenseQuery {
 
 @Injectable()
 export class ExpensesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private s3Service: S3Service,
+  ) {}
 
   async create(orgId: string, userId: string, data: CreateExpenseData) {
     return this.prisma.expense.create({
@@ -41,6 +47,7 @@ export class ExpensesService {
         category: data.category,
         taxCategory: data.taxCategory,
         mileage: data.mileage,
+        imageKey: data.imageKey,
         date: new Date(data.date),
         createdById: userId,
       },
@@ -110,6 +117,7 @@ export class ExpensesService {
     if (data.category !== undefined) updateData.category = data.category;
     if (data.taxCategory !== undefined) updateData.taxCategory = data.taxCategory;
     if (data.mileage !== undefined) updateData.mileage = data.mileage;
+    if (data.imageKey !== undefined) updateData.imageKey = data.imageKey;
     if (data.date !== undefined) updateData.date = new Date(data.date);
 
     return this.prisma.expense.update({
@@ -128,6 +136,18 @@ export class ExpensesService {
       where: { id: { in: ids }, organizationId: orgId },
     });
     return { count: result.count };
+  }
+
+  async requestUploadUrl(orgId: string, fileName: string, contentType: string) {
+    const id = uuid();
+    const ext = fileName.split('.').pop() || 'jpg';
+    const key = `expenses/${orgId}/${id}/original.${ext}`;
+    const { url } = await this.s3Service.generateUploadUrl(key, contentType);
+    return { uploadUrl: url, imageKey: key };
+  }
+
+  async getImageUrl(imageKey: string): Promise<string> {
+    return this.s3Service.generateDownloadUrl(imageKey);
   }
 
   async batchUpdate(

@@ -10,6 +10,7 @@ export const CreateExpenseSchema = z.object({
   category: z.string().max(100).nullable().optional(),
   taxCategory: z.string().max(50).nullable().optional(),
   mileage: z.number().min(0).nullable().optional(),
+  imageKey: z.string().nullable().optional(),
   date: z.string(),
 });
 

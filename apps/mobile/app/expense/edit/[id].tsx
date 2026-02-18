@@ -4,6 +4,8 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Image,
+  ActionSheetIOS,
   Alert,
   StyleSheet,
   KeyboardAvoidingView,
@@ -11,11 +13,14 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { Screen, Header } from '../../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../../src/components/ui';
 import { useExpense, useUpdateExpense, useDeleteExpense } from '../../../src/hooks/useExpenses';
 import { useJobs } from '../../../src/hooks/useJobs';
+import { expensesApi } from '../../../src/api/expenses';
 import { dollarsToCents, centsToDollars, formatMoney } from '../../../src/lib/format';
 import { colors, spacing, borderRadius } from '../../../src/theme';
 
@@ -44,6 +49,10 @@ export default function EditExpenseScreen() {
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
   const [date, setDate] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [existingImageUrl, setExistingImageUrl] = useState<string | null>(null);
+  const [imageChanged, setImageChanged] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -53,10 +62,69 @@ export default function EditExpenseScreen() {
       setDescription(expense.description || '');
       setCategory(expense.category || '');
       setDate(expense.date ? expense.date.toString().split('T')[0] : '');
+      if (expense.imageKey) {
+        expensesApi.getImageUrl(expense.id).then(({ imageUrl }) => {
+          if (imageUrl) setExistingImageUrl(imageUrl);
+        });
+      }
     }
   }, [expense]);
 
   const amountNum = parseFloat(amount) || 0;
+
+  const handlePickPhoto = () => {
+    const options = ['Take Photo', 'Choose from Library', 'Cancel'];
+    const cancelIndex = 2;
+
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options, cancelButtonIndex: cancelIndex },
+        async (index) => {
+          if (index === 0) await launchCamera();
+          else if (index === 1) await launchLibrary();
+        },
+      );
+    } else {
+      Alert.alert('Add Photo', 'Choose a source', [
+        { text: 'Take Photo', onPress: launchCamera },
+        { text: 'Choose from Library', onPress: launchLibrary },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
+  };
+
+  const launchCamera = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Required', 'Camera access is needed to take photos.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+      setImageChanged(true);
+    }
+  };
+
+  const launchLibrary = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      setImageUri(result.assets[0].uri);
+      setImageChanged(true);
+    }
+  };
+
+  const handleRemovePhoto = () => {
+    setImageUri(null);
+    setExistingImageUrl(null);
+    setImageChanged(true);
+  };
 
   const handleSave = async () => {
     if (!jobId) {
@@ -72,8 +140,17 @@ export default function EditExpenseScreen() {
       return;
     }
     setError('');
+    setUploading(true);
 
     try {
+      let imageKey: string | null | undefined;
+      if (imageChanged) {
+        if (imageUri) {
+          imageKey = await expensesApi.uploadImage(imageUri);
+        } else {
+          imageKey = null; // Remove photo
+        }
+      }
       await updateExpense.mutateAsync({
         id: id!,
         updates: {
@@ -82,12 +159,15 @@ export default function EditExpenseScreen() {
           description: description.trim(),
           category: category || undefined,
           date: date || undefined,
+          ...(imageChanged ? { imageKey } : {}),
         },
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to update expense');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -209,6 +289,31 @@ export default function EditExpenseScreen() {
             ))}
           </View>
 
+          {/* Photo */}
+          <Text style={styles.label}>Photo</Text>
+          {imageUri || existingImageUrl ? (
+            <View style={styles.photoPreview}>
+              <Image source={{ uri: imageUri || existingImageUrl! }} style={styles.photoImage} />
+              <TouchableOpacity
+                style={styles.photoRemove}
+                onPress={handleRemovePhoto}
+              >
+                <Ionicons name="close-circle" size={24} color={colors.error} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.photoChange}
+                onPress={handlePickPhoto}
+              >
+                <Ionicons name="camera" size={16} color={colors.white} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.addPhotoBtn} onPress={handlePickPhoto}>
+              <Ionicons name="camera-outline" size={24} color={colors.primary} />
+              <Text style={styles.addPhotoText}>Add Photo</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Amount preview */}
           {amountNum > 0 && (
             <View style={styles.previewCard}>
@@ -227,9 +332,9 @@ export default function EditExpenseScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            title="Save Changes"
+            title={uploading ? 'Uploading Photo...' : 'Save Changes'}
             onPress={handleSave}
-            loading={updateExpense.isPending}
+            loading={updateExpense.isPending || uploading}
             disabled={!jobId || !amount || amountNum <= 0}
           />
 
@@ -318,6 +423,52 @@ const styles = StyleSheet.create({
   },
   categoryTextActive: {
     color: colors.white,
+  },
+  addPhotoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  addPhotoText: {
+    fontSize: 15,
+    color: colors.primary,
+    fontWeight: '500',
+  },
+  photoPreview: {
+    marginBottom: spacing.lg,
+    position: 'relative',
+  },
+  photoImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.surface,
+  },
+  photoRemove: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.white,
+    borderRadius: 12,
+  },
+  photoChange: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.primary,
+    borderRadius: 16,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   previewCard: {
     backgroundColor: colors.surface,
