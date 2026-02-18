@@ -5,3 +5,4 @@ export * from './expense';
 export * from './integration';
 export * from './budget';
 export * from './analytics';
+export * from './recurring-expense';

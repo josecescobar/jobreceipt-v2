@@ -78,6 +78,12 @@ enum SyncStatus {
   FAILED
 }
 
+enum RecurringExpenseFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -91,12 +97,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  ownedOrganizations Organization[]       @relation("OrgOwner")
-  memberships        OrganizationMember[]
-  uploadedReceipts   Receipt[]            @relation("ReceiptUploader")
-  createdExpenses    Expense[]            @relation("ExpenseCreator")
-  approvedExpenses   Expense[]            @relation("ExpenseApprover")
-  mileageTrips       MileageTrip[]
+  ownedOrganizations       Organization[]       @relation("OrgOwner")
+  memberships              OrganizationMember[]
+  uploadedReceipts         Receipt[]            @relation("ReceiptUploader")
+  createdExpenses          Expense[]            @relation("ExpenseCreator")
+  approvedExpenses         Expense[]            @relation("ExpenseApprover")
+  mileageTrips             MileageTrip[]
+  createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreator")
 
   @@index([email])
 }
@@ -119,6 +126,7 @@ model Organization {
   receipts           Receipt[]
   expenses           Expense[]
   mileageTrips       MileageTrip[]
+  recurringExpenses  RecurringExpense[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -156,11 +164,12 @@ model Job {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  expenses        Expense[]
-  lineItems       ReceiptLineItem[]
-  mileageTrips    MileageTrip[]
-  budgetSnapshots BudgetSnapshot[]
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expenses          Expense[]
+  lineItems         ReceiptLineItem[]
+  mileageTrips      MileageTrip[]
+  budgetSnapshots   BudgetSnapshot[]
+  recurringExpenses RecurringExpense[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -175,9 +184,10 @@ model CostCode {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  lineItems    ReceiptLineItem[]
-  expenses     Expense[]
+  organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lineItems         ReceiptLineItem[]
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -346,4 +356,32 @@ model BudgetSnapshot {
 
   @@index([jobId])
   @@index([jobId, snapshotDate])
+}
+
+model RecurringExpense {
+  id             String                    @id @default(uuid())
+  organizationId String
+  jobId          String
+  costCodeId     String?
+  amount         Int                       // cents
+  description    String
+  category       String?
+  taxCategory    String?
+  frequency      RecurringExpenseFrequency
+  isActive       Boolean                   @default(true)
+  nextOccurrence DateTime
+  lastCreatedAt  DateTime?
+  startDate      DateTime
+  endDate        DateTime?
+  createdById    String
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id])
+  costCode     CostCode?    @relation(fields: [costCodeId], references: [id])
+  createdBy    User         @relation("RecurringExpenseCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+  @@index([isActive, nextOccurrence])
 }

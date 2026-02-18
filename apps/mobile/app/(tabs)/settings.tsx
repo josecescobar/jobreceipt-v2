@@ -223,6 +223,16 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
+        <SettingsSection title="Automation">
+          <SettingsRow
+            icon="repeat-outline"
+            label="Recurring Expenses"
+            subtitle="Manage auto-created expenses"
+            onPress={() => router.push('/settings/recurring-expenses')}
+            showChevron
+          />
+        </SettingsSection>
+
         <SettingsSection title="Reports">
           <SettingsRow
             icon="calculator-outline"

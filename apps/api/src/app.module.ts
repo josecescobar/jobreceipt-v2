@@ -11,6 +11,7 @@ import { CostCodesModule } from './modules/cost-codes/cost-codes.module';
 import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { MileageModule } from './modules/mileage/mileage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
+import { RecurringExpensesModule } from './modules/recurring-expenses/recurring-expenses.module';
 
 @Module({
   controllers: [AppController],
@@ -26,6 +27,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
     ReceiptsModule,
     MileageModule,
     AnalyticsModule,
+    RecurringExpensesModule,
   ],
 })
 export class AppModule {}
