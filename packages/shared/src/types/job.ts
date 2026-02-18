@@ -16,6 +16,7 @@ export interface Job {
   id: string;
   organizationId: string;
   name: string;
+  customerId: string | null;
   customerName: string | null;
   customerAddress: string | null;
   customerLat: number | null;

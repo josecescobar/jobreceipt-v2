@@ -21,7 +21,11 @@ import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-
 import { JobTemplatesModule } from './modules/job-templates/job-templates.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { SubcontractorsModule } from './modules/subcontractors/subcontractors.module';
+import { CustomersModule } from './modules/customers/customers.module';
 import { PublicModule } from './modules/public/public.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { DailyLogsModule } from './modules/daily-logs/daily-logs.module';
+import { CrewSchedulingModule } from './modules/crew-scheduling/crew-scheduling.module';
 
 @Module({
   controllers: [AppController],
@@ -47,7 +51,11 @@ import { PublicModule } from './modules/public/public.module';
     JobTemplatesModule,
     VendorsModule,
     SubcontractorsModule,
+    CustomersModule,
     PublicModule,
+    DocumentsModule,
+    DailyLogsModule,
+    CrewSchedulingModule,
   ],
 })
 export class AppModule {}

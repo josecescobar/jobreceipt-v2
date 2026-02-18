@@ -36,9 +36,18 @@ import { useChangeOrders } from '../../src/hooks/useChangeOrders';
 import { useRecurringInvoices } from '../../src/hooks/useRecurringInvoices';
 import { useCreateTemplateFromJob } from '../../src/hooks/useJobTemplates';
 import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
+import { useDailyLogs } from '../../src/hooks/useDailyLogs';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
+
+const WEATHER_ICONS: Record<string, keyof typeof Ionicons.glyphMap> = {
+  SUNNY: 'sunny-outline',
+  CLOUDY: 'cloud-outline',
+  RAINY: 'rainy-outline',
+  SNOWY: 'snow-outline',
+  WINDY: 'flag-outline',
+};
 
 const getStatusColors = (colors: ThemeColors): Record<string, { bg: string; text: string }> => ({
   ACTIVE: { bg: colors.success + '20', text: colors.success },
@@ -129,6 +138,12 @@ export default function JobDetailScreen() {
     [timeData],
   );
   const { data: timeSummary } = useTimeEntrySummary({ jobId: id });
+
+  const { data: dailyLogsData } = useDailyLogs({ jobId: id! });
+  const dailyLogs = useMemo(
+    () => dailyLogsData?.pages?.flatMap((p) => p.data) ?? [],
+    [dailyLogsData],
+  );
 
   const activityItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -532,6 +547,60 @@ export default function JobDetailScreen() {
         ) : (
           <Text style={styles.emptyPhotos}>
             No photos yet — tap + to add progress photos
+          </Text>
+        )}
+
+        {/* Daily Logs */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Daily Logs ({dailyLogs.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push(`/daily-log/create?jobId=${id}`)}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {dailyLogs.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {dailyLogs.slice(0, 3).map((log) => (
+              <TouchableOpacity
+                key={log.id}
+                style={styles.invoiceRow}
+                onPress={() => router.push(`/daily-log/${log.id}`)}
+              >
+                <View style={styles.invoiceInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    {log.weather && (
+                      <Ionicons
+                        name={WEATHER_ICONS[log.weather] || 'partly-sunny-outline'}
+                        size={14}
+                        color={colors.textSecondary}
+                      />
+                    )}
+                    <Text style={styles.invoiceNumber}>
+                      {formatDate(log.date)}
+                    </Text>
+                  </View>
+                  <Text style={styles.invoiceDate} numberOfLines={1}>
+                    {log.workPerformed}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            {dailyLogs.length > 3 && (
+              <TouchableOpacity
+                onPress={() => router.push(`/daily-log?jobId=${id}`)}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All Daily Logs</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No daily logs yet — tap + to add one
           </Text>
         )}
 

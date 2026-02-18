@@ -201,6 +201,13 @@ export default function SettingsScreen() {
 
         <SettingsSection title="Directory">
           <SettingsRow
+            icon="people-outline"
+            label="Customers"
+            subtitle="Client contacts and history"
+            onPress={() => router.push('/customer')}
+            showChevron
+          />
+          <SettingsRow
             icon="storefront-outline"
             label="Vendors"
             subtitle="Suppliers and material vendors"
@@ -212,6 +219,23 @@ export default function SettingsScreen() {
             label="Subcontractors"
             subtitle="Subs and 1099 readiness"
             onPress={() => router.push('/subcontractor')}
+            showChevron
+          />
+          <SettingsRow
+            icon="folder-outline"
+            label="Documents"
+            subtitle="Contracts, permits, and files"
+            onPress={() => router.push('/document')}
+            showChevron
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Scheduling">
+          <SettingsRow
+            icon="calendar-outline"
+            label="Crew Scheduling"
+            subtitle="Assign crew to jobs"
+            onPress={() => router.push('/crew-scheduling')}
             showChevron
           />
         </SettingsSection>

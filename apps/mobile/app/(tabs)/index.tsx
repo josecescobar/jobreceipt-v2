@@ -29,6 +29,7 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
+import { useTodayAssignments } from '../../src/hooks/useCrewScheduling';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -79,6 +80,7 @@ export default function HomeScreen() {
 
   const { data: mileageData, refetch: refetchMileage } = useMileageTrips({ limit: 5 });
   const { data: analyticsSummary, refetch: refetchAnalytics } = useAnalyticsSummary();
+  const { data: todaySchedule, refetch: refetchTodaySchedule } = useTodayAssignments();
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
@@ -96,11 +98,12 @@ export default function HomeScreen() {
         refetchMileage(),
         refetchAnalytics(),
         refetchPending(),
+        refetchTodaySchedule(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -282,6 +285,31 @@ export default function HomeScreen() {
         {/* Unpaid invoices */}
         <UnpaidInvoicesCard />
 
+        {/* Today's Schedule */}
+        {todaySchedule && todaySchedule.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Today's Schedule</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/crew-scheduling')}
+            >
+              <Card>
+                {todaySchedule.map((group) => (
+                  <View key={group.job.id} style={styles.scheduleRow}>
+                    <Ionicons name="briefcase-outline" size={16} color={colors.primary} />
+                    <Text style={styles.scheduleJobName} numberOfLines={1}>
+                      {group.job.name}
+                    </Text>
+                    <Text style={styles.scheduleCrewCount}>
+                      {group.assignments.length} crew
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            </TouchableOpacity>
+          </>
+        )}
+
         {/* Spending chart */}
         {analyticsSummary && analyticsSummary.monthlySpending.length > 0 && (
           <View style={styles.chartContainer}>
@@ -453,6 +481,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  scheduleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  scheduleJobName: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  scheduleCrewCount: {
+    fontSize: 13,
+    color: colors.textMuted,
+    fontWeight: '500',
   },
   chartContainer: {
     marginHorizontal: -spacing.lg,

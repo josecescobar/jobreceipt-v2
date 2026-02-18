@@ -17,3 +17,7 @@ export * from './pnl';
 export * from './job-template';
 export * from './vendor';
 export * from './subcontractor';
+export * from './customer';
+export * from './document';
+export * from './daily-log';
+export * from './crew-assignment';

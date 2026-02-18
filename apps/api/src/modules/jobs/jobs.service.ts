@@ -17,6 +17,7 @@ interface CreateJobData {
   startDate?: string | null;
   endDate?: string | null;
   notes?: string | null;
+  customerId?: string | null;
 }
 
 interface JobQuery {
@@ -49,6 +50,7 @@ export class JobsService {
         startDate: data.startDate ? new Date(data.startDate) : null,
         endDate: data.endDate ? new Date(data.endDate) : null,
         notes: data.notes,
+        customerId: data.customerId,
       },
     });
   }
@@ -85,6 +87,7 @@ export class JobsService {
       where: { id, organizationId: orgId },
       include: {
         _count: { select: { expenses: true, lineItems: true } },
+        customer: { select: { id: true, name: true } },
       },
     });
     if (!job) throw new NotFoundException('Job not found');

@@ -86,6 +86,29 @@ enum RecurringExpenseFrequency {
   ANNUALLY
 }
 
+enum DocumentType {
+  CONTRACT
+  PERMIT
+  INSURANCE
+  LIEN_WAIVER
+  W9
+  OTHER
+}
+
+enum WeatherCondition {
+  SUNNY
+  CLOUDY
+  RAINY
+  SNOWY
+  WINDY
+}
+
+enum CrewAssignmentStatus {
+  SCHEDULED
+  COMPLETED
+  NO_SHOW
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -118,6 +141,12 @@ model User {
   createdJobTemplates      JobTemplate[]    @relation("JobTemplateCreator")
   createdVendors           Vendor[]         @relation("VendorCreator")
   createdSubcontractors    Subcontractor[]  @relation("SubcontractorCreator")
+  createdCustomers         Customer[]       @relation("CustomerCreator")
+  uploadedDocuments        Document[]       @relation("DocumentUploader")
+  dailyLogs                DailyLog[]       @relation("DailyLogCreator")
+  dailyLogPhotos           DailyLogPhoto[]  @relation("DailyLogPhotoUploader")
+  crewAssignments          CrewAssignment[] @relation("CrewAssignmentUser")
+  createdCrewAssignments   CrewAssignment[] @relation("CrewAssignmentCreator")
 
   @@index([email])
 }
@@ -151,6 +180,10 @@ model Organization {
   jobTemplates       JobTemplate[]
   vendors            Vendor[]
   subcontractors     Subcontractor[]
+  customers          Customer[]
+  documents          Document[]
+  dailyLogs          DailyLog[]
+  crewAssignments    CrewAssignment[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -174,6 +207,7 @@ model Job {
   id               String    @id @default(uuid())
   organizationId   String
   name             String
+  customerId       String?
   customerName     String?
   customerAddress  String?
   customerLat      Float?
@@ -190,6 +224,7 @@ model Job {
   updatedAt        DateTime  @updatedAt
 
   organization      Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer          Customer?         @relation(fields: [customerId], references: [id])
   expenses          Expense[]
   lineItems         ReceiptLineItem[]
   mileageTrips      MileageTrip[]
@@ -201,9 +236,13 @@ model Job {
   estimates         Estimate[]
   changeOrders      ChangeOrder[]
   recurringInvoices RecurringInvoice[]
+  documents         Document[]
+  dailyLogs         DailyLog[]
+  crewAssignments   CrewAssignment[]
 
   @@index([organizationId])
   @@index([organizationId, status])
+  @@index([customerId])
 }
 
 model CostCode {
@@ -788,6 +827,7 @@ model Vendor {
   defaultCostCode CostCode?    @relation("VendorDefaultCostCode", fields: [defaultCostCodeId], references: [id])
   createdBy       User         @relation("VendorCreator", fields: [createdById], references: [id])
   receipts        Receipt[]
+  documents       Document[]
 
   @@index([organizationId])
 }
@@ -814,6 +854,136 @@ model Subcontractor {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy    User          @relation("SubcontractorCreator", fields: [createdById], references: [id])
   expenses     Expense[]
+  documents    Document[]
 
   @@index([organizationId])
+}
+
+// ─── Customers ──────────────────────────────────────────
+
+model Customer {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  companyName    String?
+  email          String?
+  phone          String?
+  address        String?
+  city           String?
+  state          String?
+  zip            String?
+  notes          String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User          @relation("CustomerCreator", fields: [createdById], references: [id])
+  jobs         Job[]
+
+  @@index([organizationId])
+  @@index([organizationId, name])
+}
+
+// ─── Documents ──────────────────────────────────────────
+
+model Document {
+  id                String       @id @default(uuid())
+  organizationId    String
+  name              String
+  type              DocumentType @default(OTHER)
+  fileKey           String
+  fileType          String
+  fileSize          Int
+  jobId             String?
+  vendorId          String?
+  subcontractorId   String?
+  expiresAt         DateTime?
+  notes             String?
+  uploadedById      String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedBy    User           @relation("DocumentUploader", fields: [uploadedById], references: [id])
+  job           Job?           @relation(fields: [jobId], references: [id])
+  vendor        Vendor?        @relation(fields: [vendorId], references: [id])
+  subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id])
+
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([vendorId])
+  @@index([subcontractorId])
+}
+
+// ─── Daily Logs ─────────────────────────────────────────
+
+model DailyLog {
+  id             String            @id @default(uuid())
+  organizationId String
+  jobId          String
+  userId         String
+  date           DateTime
+  weather        WeatherCondition?
+  temperature    Int?
+  crewCount      Int?
+  workPerformed  String
+  materialsUsed  String?
+  safetyNotes    String?
+  hoursWorked    Float?
+  notes          String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job             @relation(fields: [jobId], references: [id])
+  user         User            @relation("DailyLogCreator", fields: [userId], references: [id])
+  photos       DailyLogPhoto[]
+
+  @@unique([jobId, userId, date])
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([organizationId, date])
+}
+
+model DailyLogPhoto {
+  id           String   @id @default(uuid())
+  dailyLogId   String
+  imageKey     String
+  caption      String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  dailyLog   DailyLog @relation(fields: [dailyLogId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("DailyLogPhotoUploader", fields: [uploadedById], references: [id])
+
+  @@index([dailyLogId])
+}
+
+// ─── Crew Scheduling ────────────────────────────────────
+
+model CrewAssignment {
+  id             String               @id @default(uuid())
+  organizationId String
+  jobId          String
+  userId         String
+  date           DateTime
+  startTime      String?              // "09:00" format
+  endTime        String?              // "17:00" format
+  notes          String?
+  status         CrewAssignmentStatus @default(SCHEDULED)
+  createdById    String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id])
+  user         User         @relation("CrewAssignmentUser", fields: [userId], references: [id])
+  createdBy    User         @relation("CrewAssignmentCreator", fields: [createdById], references: [id])
+
+  @@unique([jobId, userId, date])
+  @@index([organizationId])
+  @@index([organizationId, date])
+  @@index([userId, date])
+  @@index([jobId])
 }
