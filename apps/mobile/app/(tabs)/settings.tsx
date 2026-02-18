@@ -220,6 +220,16 @@ export default function SettingsScreen() {
           />
         </SettingsSection>
 
+        <SettingsSection title="Reports">
+          <SettingsRow
+            icon="calculator-outline"
+            label="Tax Summary"
+            subtitle="Annual deductions & estimated savings"
+            onPress={() => router.push('/tax-summary')}
+            showChevron
+          />
+        </SettingsSection>
+
         <SettingsSection title="Data & Export">
           <SettingsRow
             icon="download-outline"

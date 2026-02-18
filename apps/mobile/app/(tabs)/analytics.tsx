@@ -1,5 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { ScrollView, RefreshControl, Text, View, StyleSheet } from 'react-native';
+import { ScrollView, RefreshControl, Text, View, TouchableOpacity, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { Screen } from '../../src/components/layout';
 import { LoadingScreen, EmptyState } from '../../src/components/ui';
 import {
@@ -15,6 +17,7 @@ import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
 import { colors, spacing, typography } from '../../src/theme';
 
 export default function AnalyticsScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<Period>('month');
   const dateRange = useMemo(() => getDateRange(period), [period]);
 
@@ -60,6 +63,17 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
+        {/* Tax summary link */}
+        <TouchableOpacity
+          style={styles.taxLink}
+          onPress={() => router.push('/tax-summary')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="calculator-outline" size={20} color={colors.primary} />
+          <Text style={styles.taxLinkText}>View Tax Summary</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
         <View style={styles.bottomSpacer} />
       </ScrollView>
     </Screen>
@@ -75,6 +89,25 @@ const styles = StyleSheet.create({
   emptyContainer: {
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.xxl,
+  },
+  taxLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.lg,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: spacing.sm,
+  },
+  taxLinkText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.primary,
   },
   bottomSpacer: {
     height: spacing.xxxl,

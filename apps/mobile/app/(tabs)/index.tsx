@@ -163,8 +163,19 @@ export default function HomeScreen() {
         }
       >
         {/* Greeting */}
-        <Text style={styles.greeting}>Hi, {firstName}</Text>
-        <Text style={styles.subGreeting}>Here's your business overview</Text>
+        <View style={styles.greetingRow}>
+          <View style={styles.greetingText}>
+            <Text style={styles.greeting}>Hi, {firstName}</Text>
+            <Text style={styles.subGreeting}>Here's your business overview</Text>
+          </View>
+          <TouchableOpacity
+            onPress={() => router.push('/search')}
+            style={styles.searchBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="search" size={22} color={colors.text} />
+          </TouchableOpacity>
+        </View>
 
         {/* Quick Actions */}
         <QuickActionGrid actions={QUICK_ACTIONS} />
@@ -273,6 +284,15 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  greetingRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: spacing.xl,
+  },
+  greetingText: {
+    flex: 1,
+  },
   greeting: {
     fontSize: 28,
     fontWeight: '700',
@@ -282,7 +302,16 @@ const styles = StyleSheet.create({
   subGreeting: {
     fontSize: 15,
     color: colors.textMuted,
-    marginBottom: spacing.xl,
+  },
+  searchBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   reviewBanner: {
     flexDirection: 'row',
