@@ -12,3 +12,11 @@ export function useAnalyticsSummary(params?: AnalyticsQueryParams) {
     staleTime: QUERY_STALE_TIME,
   });
 }
+
+export function useTaxSummary(year: number) {
+  return useQuery({
+    queryKey: analyticsKeys.taxSummary(year),
+    queryFn: () => analyticsApi.getTaxSummary(year),
+    staleTime: QUERY_STALE_TIME,
+  });
+}

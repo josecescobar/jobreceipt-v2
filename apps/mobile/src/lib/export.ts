@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import { receiptsApi } from '../api/receipts';
 import { expensesApi } from '../api/expenses';
 import { mileageApi } from '../api/mileage';
+import { analyticsApi } from '../api/analytics';
 import { getAuthHeaders } from '../api/client';
 import { API_BASE_URL } from './constants';
 import { generateCsv } from './csv';
@@ -188,4 +189,45 @@ export async function exportMileage(): Promise<void> {
   ]);
 
   await shareFile(`mileage_${today()}.csv`, csv);
+}
+
+export async function exportTaxSummary(year: number): Promise<void> {
+  const summary = await analyticsApi.getTaxSummary(year);
+
+  const lines: string[] = [];
+
+  lines.push(`Tax Summary — ${year}`);
+  lines.push(`Generated: ${today()}`);
+  lines.push('');
+
+  // Schedule C breakdown
+  lines.push('SCHEDULE C DEDUCTIONS');
+  if (summary.taxCategoryBreakdown.length > 0) {
+    const catCsv = generateCsv(summary.taxCategoryBreakdown, [
+      { header: 'Schedule C Line', accessor: (r) => r.scheduleLine },
+      { header: 'Category', accessor: (r) => r.name },
+      { header: 'Amount', accessor: (r) => centsToDollars(r.total) },
+      { header: 'Count', accessor: (r) => r.count },
+    ]);
+    lines.push(catCsv);
+  } else {
+    lines.push('No categorized expenses');
+  }
+  lines.push('');
+
+  // Mileage
+  lines.push('MILEAGE DEDUCTION');
+  lines.push(`Total Miles,${summary.mileage.totalMiles}`);
+  lines.push(`IRS Rate ($/mi),${summary.mileage.ratePerMile}`);
+  lines.push(`Total Deduction,$${centsToDollars(summary.mileage.totalDeduction)}`);
+  lines.push('');
+
+  // Totals
+  lines.push('TOTALS');
+  lines.push(`Total Expense Deductions,$${centsToDollars(summary.totals.totalExpenseDeductions)}`);
+  lines.push(`Total Mileage Deductions,$${centsToDollars(summary.totals.totalMileageDeductions)}`);
+  lines.push(`Grand Total,$${centsToDollars(summary.totals.grandTotal)}`);
+  lines.push(`Estimated SE Tax Savings,$${centsToDollars(summary.totals.estimatedSETaxSavings)}`);
+
+  await shareFile(`tax_summary_${year}.csv`, lines.join('\n'));
 }

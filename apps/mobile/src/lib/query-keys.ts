@@ -22,4 +22,7 @@ export const analyticsKeys = {
   summaries: () => [...analyticsKeys.all, 'summary'] as const,
   summary: (params: { startDate?: string; endDate?: string }) =>
     [...analyticsKeys.summaries(), params] as const,
+  taxSummaries: () => [...analyticsKeys.all, 'tax-summary'] as const,
+  taxSummary: (year: number) =>
+    [...analyticsKeys.taxSummaries(), year] as const,
 };

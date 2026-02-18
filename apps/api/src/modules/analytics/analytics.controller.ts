@@ -21,4 +21,14 @@ export class AnalyticsController {
   ) {
     return this.analyticsService.getSummary(orgId, query);
   }
+
+  @Get('tax-summary')
+  @ApiOperation({ summary: 'Get tax summary grouped by Schedule C categories' })
+  async getTaxSummary(
+    @CurrentOrg() orgId: string,
+    @Query('year') yearStr?: string,
+  ) {
+    const year = yearStr ? parseInt(yearStr, 10) : new Date().getFullYear();
+    return this.analyticsService.getTaxSummary(orgId, year);
+  }
 }

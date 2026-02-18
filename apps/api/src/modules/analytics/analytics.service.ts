@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import {
+  SCHEDULE_C_CATEGORIES,
+  IRS_MILEAGE_RATE_DOLLARS,
+  SELF_EMPLOYMENT_TAX_RATE,
+} from '@jobreceipt/shared';
 
 interface AnalyticsQuery {
   startDate?: string;
@@ -317,6 +322,68 @@ export class AnalyticsService {
       warningCount,
       overBudgetCount,
       jobs: budgetJobs,
+    };
+  }
+
+  async getTaxSummary(orgId: string, year: number) {
+    const yearStart = new Date(`${year}-01-01`);
+    const yearEnd = new Date(`${year}-12-31T23:59:59.999Z`);
+
+    const [taxGroups, mileageAgg] = await Promise.all([
+      this.prisma.expense.groupBy({
+        by: ['taxCategory'],
+        where: {
+          organizationId: orgId,
+          date: { gte: yearStart, lte: yearEnd },
+        },
+        _sum: { amount: true },
+        _count: true,
+        orderBy: { _sum: { amount: 'desc' } },
+      }),
+      this.prisma.mileageTrip.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: yearStart, lte: yearEnd },
+        },
+        _sum: { totalDeduction: true, distanceMiles: true },
+      }),
+    ]);
+
+    const taxCategoryBreakdown = taxGroups.map((g) => {
+      const key = g.taxCategory || 'line_27';
+      const category = SCHEDULE_C_CATEGORIES[key];
+      const lineNum = key.replace('line_', '');
+      return {
+        taxCategory: key,
+        scheduleLine: `Line ${lineNum}`,
+        name: category?.name || 'Other expenses',
+        total: g._sum.amount ?? 0,
+        count: g._count,
+      };
+    });
+
+    const totalExpenseDeductions = taxGroups.reduce(
+      (sum, g) => sum + (g._sum.amount ?? 0),
+      0,
+    );
+    const totalMileageDeductions = mileageAgg._sum.totalDeduction ?? 0;
+    const grandTotal = totalExpenseDeductions + totalMileageDeductions;
+    const estimatedSETaxSavings = Math.round(grandTotal * SELF_EMPLOYMENT_TAX_RATE);
+
+    return {
+      year,
+      taxCategoryBreakdown,
+      mileage: {
+        totalMiles: mileageAgg._sum.distanceMiles ?? 0,
+        ratePerMile: IRS_MILEAGE_RATE_DOLLARS,
+        totalDeduction: totalMileageDeductions,
+      },
+      totals: {
+        totalExpenseDeductions,
+        totalMileageDeductions,
+        grandTotal,
+        estimatedSETaxSavings,
+      },
     };
   }
 

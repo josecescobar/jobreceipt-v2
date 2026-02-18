@@ -1,40 +1,52 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, ScrollView, RefreshControl, StyleSheet } from 'react-native';
-import { Screen, Header } from '../src/components/layout';
-import { FilterChip, LoadingScreen, EmptyState } from '../src/components/ui';
-import { CategoryBreakdownChart } from '../src/components/analytics';
-import { useAnalyticsSummary } from '../src/hooks/useAnalytics';
-import { useSettings } from '../src/hooks/useSettings';
-import { formatMoney } from '../src/lib/format';
-import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../src/theme';
+import React, { useState, useMemo, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  StyleSheet,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Screen, Header } from '../src/components/layout';
+import { Card, Button, LoadingScreen, EmptyState } from '../src/components/ui';
+import { useTaxSummary } from '../src/hooks/useAnalytics';
+import { exportTaxSummary } from '../src/lib/export';
+import { formatMoney } from '../src/lib/format';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../src/theme';
 
-const currentYear = new Date().getFullYear();
-const YEARS = [currentYear - 2, currentYear - 1, currentYear];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEAR_OPTIONS = [CURRENT_YEAR, CURRENT_YEAR - 1, CURRENT_YEAR - 2];
 
 export default function TaxSummaryScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
-  const typography = useMemo(() => createTypography(colors), [colors]);
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const taxRate = useSettings((s) => s.defaultTaxRate);
 
-  const dateRange = useMemo(
-    () => ({
-      startDate: new Date(selectedYear, 0, 1).toISOString(),
-      endDate: new Date(selectedYear, 11, 31, 23, 59, 59).toISOString(),
-    }),
-    [selectedYear],
-  );
+  const [year, setYear] = useState(CURRENT_YEAR);
+  const [exporting, setExporting] = useState(false);
 
-  const { data, isLoading, refetch, isRefetching } = useAnalyticsSummary(dateRange);
+  const { data, isLoading, refetch, isRefetching } = useTaxSummary(year);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await exportTaxSummary(year);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err: any) {
+      Alert.alert('Export Failed', err.message || 'Could not export tax summary.');
+    } finally {
+      setExporting(false);
+    }
+  }, [year]);
 
   if (isLoading) return <LoadingScreen />;
 
-  const totals = data?.totals;
-  const totalDeductible = (totals?.totalExpenses ?? 0) + (totals?.totalMileageDeductions ?? 0);
-  const estimatedSavings = taxRate > 0 ? Math.round(totalDeductible * (taxRate / 100)) : 0;
-  const hasData = totals && (totals.expenseCount > 0 || totals.tripCount > 0);
+  const hasData = data && (
+    data.taxCategoryBreakdown.length > 0 ||
+    data.mileage.totalMiles > 0
+  );
 
   return (
     <Screen padded={false} edges={['top', 'bottom']}>
@@ -53,91 +65,118 @@ export default function TaxSummaryScreen() {
       >
         {/* Year selector */}
         <View style={styles.yearRow}>
-          {YEARS.map((year) => (
-            <FilterChip
-              key={year}
-              label={year.toString()}
-              active={selectedYear === year}
-              onPress={() => setSelectedYear(year)}
-            />
+          {YEAR_OPTIONS.map((y) => (
+            <TouchableOpacity
+              key={y}
+              style={[styles.yearChip, year === y && styles.yearChipActive]}
+              onPress={() => setYear(y)}
+            >
+              <Text style={[styles.yearChipText, year === y && styles.yearChipTextActive]}>
+                {y}
+              </Text>
+            </TouchableOpacity>
           ))}
         </View>
 
-        {hasData ? (
+        {hasData && data ? (
           <>
-            {/* Tax savings card */}
-            <View style={styles.savingsCard}>
+            {/* Grand totals card */}
+            <View style={styles.totalsCard}>
               <Ionicons name="calculator-outline" size={28} color={colors.primary} />
-              <Text style={styles.savingsLabel}>Total Deductible</Text>
-              <Text style={styles.savingsAmount}>{formatMoney(totalDeductible)}</Text>
-              {taxRate > 0 ? (
-                <View style={styles.estimateRow}>
-                  <Text style={styles.estimateLabel}>
-                    Estimated Tax Savings ({taxRate}%)
-                  </Text>
-                  <Text style={styles.estimateAmount}>
-                    {formatMoney(estimatedSavings)}
+              <Text style={styles.totalsLabel}>Total Deductions</Text>
+              <Text style={styles.totalsValue}>
+                {formatMoney(data.totals.grandTotal)}
+              </Text>
+              <View style={styles.totalsBreakdown}>
+                <View style={styles.totalsItem}>
+                  <Text style={styles.totalsItemLabel}>Expenses</Text>
+                  <Text style={styles.totalsItemValue}>
+                    {formatMoney(data.totals.totalExpenseDeductions)}
                   </Text>
                 </View>
-              ) : (
-                <Text style={styles.noRateHint}>
-                  Set your tax rate in Settings → Preferences
-                </Text>
-              )}
-            </View>
-
-            {/* Totals row */}
-            <View style={styles.statsRow}>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{formatMoney(totals.totalExpenses)}</Text>
-                <Text style={styles.statLabel}>Expenses</Text>
-                <Text style={styles.statCount}>{totals.expenseCount} total</Text>
+                <View style={styles.totalsDivider} />
+                <View style={styles.totalsItem}>
+                  <Text style={styles.totalsItemLabel}>Mileage</Text>
+                  <Text style={styles.totalsItemValue}>
+                    {formatMoney(data.totals.totalMileageDeductions)}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.statCard}>
-                <Text style={[styles.statValue, { color: colors.success }]}>
-                  {formatMoney(totals.totalMileageDeductions)}
+              <View style={styles.savingsRow}>
+                <Ionicons name="trending-down-outline" size={16} color={colors.success} />
+                <Text style={styles.savingsText}>
+                  Est. SE tax savings: {formatMoney(data.totals.estimatedSETaxSavings)}
                 </Text>
-                <Text style={styles.statLabel}>Mileage</Text>
-                <Text style={styles.statCount}>{totals.tripCount} trips</Text>
-              </View>
-              <View style={styles.statCard}>
-                <Text style={styles.statValue}>{totals.receiptCount}</Text>
-                <Text style={styles.statLabel}>Receipts</Text>
               </View>
             </View>
 
-            {/* Category breakdown */}
-            {data.categoryBreakdown.length > 0 && (
-              <CategoryBreakdownChart data={data.categoryBreakdown} />
+            {/* Schedule C breakdown */}
+            {data.taxCategoryBreakdown.length > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Schedule C Breakdown</Text>
+                {data.taxCategoryBreakdown.map((cat) => (
+                  <View key={cat.taxCategory} style={styles.categoryCard}>
+                    <Card style={styles.categoryCardInner}>
+                      <View style={styles.categoryLeft}>
+                        <Text style={styles.categoryLine}>{cat.scheduleLine}</Text>
+                        <Text style={styles.categoryName}>{cat.name}</Text>
+                        <Text style={styles.categoryCount}>
+                          {cat.count} expense{cat.count !== 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                      <Text style={styles.categoryTotal}>{formatMoney(cat.total)}</Text>
+                    </Card>
+                  </View>
+                ))}
+              </>
             )}
 
-            {/* Mileage summary */}
-            {totals.tripCount > 0 && (
-              <View style={styles.mileageCard}>
-                <View style={styles.mileageHeader}>
-                  <Ionicons name="car" size={20} color={colors.warning} />
-                  <Text style={styles.mileageTitle}>Mileage Deductions</Text>
+            {/* Mileage section */}
+            {data.mileage.totalMiles > 0 && (
+              <>
+                <Text style={styles.sectionTitle}>Mileage Deduction</Text>
+                <View style={styles.mileageCardWrapper}>
+                  <Card style={styles.mileageCard}>
+                    <View style={styles.mileageRow}>
+                      <View style={styles.mileageItem}>
+                        <Text style={styles.mileageLabel}>Total Miles</Text>
+                        <Text style={styles.mileageValue}>
+                          {data.mileage.totalMiles.toLocaleString()}
+                        </Text>
+                      </View>
+                      <View style={styles.mileageItem}>
+                        <Text style={styles.mileageLabel}>IRS Rate</Text>
+                        <Text style={styles.mileageValue}>
+                          ${data.mileage.ratePerMile}/mi
+                        </Text>
+                      </View>
+                      <View style={styles.mileageItem}>
+                        <Text style={styles.mileageLabel}>Deduction</Text>
+                        <Text style={[styles.mileageValue, { color: colors.success }]}>
+                          {formatMoney(data.mileage.totalDeduction)}
+                        </Text>
+                      </View>
+                    </View>
+                  </Card>
                 </View>
-                <View style={styles.mileageRow}>
-                  <View style={styles.mileageStat}>
-                    <Text style={styles.mileageStatValue}>{totals.tripCount}</Text>
-                    <Text style={styles.mileageStatLabel}>Trips</Text>
-                  </View>
-                  <View style={styles.mileageStat}>
-                    <Text style={[styles.mileageStatValue, { color: colors.success }]}>
-                      {formatMoney(totals.totalMileageDeductions)}
-                    </Text>
-                    <Text style={styles.mileageStatLabel}>Deduction</Text>
-                  </View>
-                </View>
-              </View>
+              </>
             )}
+
+            {/* Export button */}
+            <View style={styles.exportContainer}>
+              <Button
+                title={`Export ${year} Tax Summary`}
+                onPress={handleExport}
+                loading={exporting}
+                variant="secondary"
+              />
+            </View>
           </>
         ) : (
           <View style={styles.emptyContainer}>
             <EmptyState
-              title="No Data"
-              message={`No expenses or mileage recorded for ${selectedYear}.`}
+              title="No Tax Data"
+              message={`No expenses or mileage recorded for ${year}. Start tracking to see your tax summary.`}
             />
           </View>
         )}
@@ -158,7 +197,27 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
-  savingsCard: {
+  yearChip: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: 20,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  yearChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  yearChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  yearChipTextActive: {
+    color: colors.white,
+  },
+  totalsCard: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,
     backgroundColor: colors.surface,
@@ -168,115 +227,134 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.primary,
   },
-  savingsLabel: {
+  totalsLabel: {
     fontSize: 12,
     color: colors.textMuted,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: spacing.sm,
   },
-  savingsAmount: {
+  totalsValue: {
     fontSize: 32,
     fontWeight: '700',
     color: colors.text,
     fontVariant: ['tabular-nums'],
     marginTop: spacing.xs,
-  },
-  estimateRow: {
-    marginTop: spacing.md,
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    alignItems: 'center',
-    width: '100%',
-  },
-  estimateLabel: {
-    fontSize: 13,
-    color: colors.textMuted,
-    marginBottom: spacing.xs,
-  },
-  estimateAmount: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: colors.success,
-    fontVariant: ['tabular-nums'],
-  },
-  noRateHint: {
-    fontSize: 13,
-    color: colors.textMuted,
-    fontStyle: 'italic',
-    marginTop: spacing.md,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  statValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: colors.text,
-    fontVariant: ['tabular-nums'],
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
-  statCount: {
-    fontSize: 10,
-    color: colors.textMuted,
-    marginTop: 2,
-  },
-  mileageCard: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  mileageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
     marginBottom: spacing.md,
   },
-  mileageTitle: {
+  totalsBreakdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  totalsItem: {
+    alignItems: 'center',
+  },
+  totalsItemLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: 2,
+  },
+  totalsItemValue: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.text,
-  },
-  mileageRow: {
-    flexDirection: 'row',
-    gap: spacing.lg,
-  },
-  mileageStat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  mileageStatValue: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.text,
     fontVariant: ['tabular-nums'],
   },
-  mileageStatLabel: {
+  totalsDivider: {
+    width: 1,
+    height: 28,
+    backgroundColor: colors.border,
+  },
+  savingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.success + '15',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: borderRadius.md,
+  },
+  savingsText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.success,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  categoryCard: {
+    paddingHorizontal: spacing.lg,
+  },
+  categoryCardInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+  },
+  categoryLeft: {
+    flex: 1,
+    marginRight: spacing.md,
+  },
+  categoryLine: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
+    marginBottom: 2,
+  },
+  categoryName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.text,
+  },
+  categoryCount: {
     fontSize: 12,
     color: colors.textMuted,
     marginTop: 2,
+  },
+  categoryTotal: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  mileageCardWrapper: {
+    paddingHorizontal: spacing.lg,
+  },
+  mileageCard: {
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  mileageRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  mileageItem: {
+    alignItems: 'center',
+  },
+  mileageLabel: {
+    fontSize: 11,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  mileageValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  exportContainer: {
+    paddingHorizontal: spacing.lg,
+    marginTop: spacing.lg,
   },
   emptyContainer: {
     paddingHorizontal: spacing.lg,

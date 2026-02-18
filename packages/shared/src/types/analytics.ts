@@ -92,3 +92,35 @@ export interface AnalyticsSummary {
   periodComparison?: PeriodComparison;
   budgetHealth?: BudgetHealthOverview;
 }
+
+export interface TaxCategoryTotal {
+  taxCategory: string;
+  /** e.g., "Line 22" */
+  scheduleLine: string;
+  /** e.g., "Supplies" */
+  name: string;
+  /** In cents */
+  total: number;
+  count: number;
+}
+
+export interface TaxSummary {
+  year: number;
+  taxCategoryBreakdown: TaxCategoryTotal[];
+  mileage: {
+    totalMiles: number;
+    ratePerMile: number;
+    /** In cents */
+    totalDeduction: number;
+  };
+  totals: {
+    /** In cents */
+    totalExpenseDeductions: number;
+    /** In cents */
+    totalMileageDeductions: number;
+    /** In cents */
+    grandTotal: number;
+    /** In cents — estimated savings from SE tax deduction */
+    estimatedSETaxSavings: number;
+  };
+}
