@@ -200,6 +200,32 @@ export async function exportInvoicePdf(invoiceId: string, invoiceNumber: string)
   });
 }
 
+export async function exportEstimatePdf(estimateId: string, estimateNumber: string): Promise<void> {
+  const headers = await getAuthHeaders();
+  const filename = `${estimateNumber}_${today()}.pdf`;
+  const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+
+  const result = await FileSystem.downloadAsync(
+    `${API_BASE_URL}/api/estimates/${estimateId}/pdf`,
+    fileUri,
+    { headers },
+  );
+
+  if (result.status !== 200) {
+    throw new Error('Failed to download estimate PDF.');
+  }
+
+  const canShare = await Sharing.isAvailableAsync();
+  if (!canShare) {
+    throw new Error('Sharing is not available on this device.');
+  }
+  await Sharing.shareAsync(fileUri, {
+    mimeType: 'application/pdf',
+    dialogTitle: `Estimate ${estimateNumber}`,
+    UTI: 'com.adobe.pdf',
+  });
+}
+
 export async function exportMileage(): Promise<void> {
   const res = await mileageApi.list({ limit: EXPORT_LIMIT });
   if (res.data.length === 0) throw new Error('No mileage trips to export.');

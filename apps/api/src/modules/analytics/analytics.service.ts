@@ -590,6 +590,136 @@ export class AnalyticsService {
     };
   }
 
+  async getCalendarData(
+    orgId: string,
+    query: { startDate: string; endDate: string; jobId?: string },
+  ) {
+    const start = new Date(query.startDate);
+    const end = new Date(query.endDate);
+
+    const jobFilter = query.jobId ? { jobId: query.jobId } : {};
+
+    const [expenses, timeEntries, mileageTrips, invoices, recurringExpenses] =
+      await Promise.all([
+        this.prisma.expense.findMany({
+          where: {
+            organizationId: orgId,
+            date: { gte: start, lte: end },
+            ...jobFilter,
+          },
+          select: { id: true, date: true, description: true, amount: true },
+          orderBy: { date: 'asc' },
+        }),
+        this.prisma.timeEntry.findMany({
+          where: {
+            organizationId: orgId,
+            date: { gte: start, lte: end },
+            ...jobFilter,
+          },
+          select: { id: true, date: true, durationMinutes: true, totalCost: true },
+          orderBy: { date: 'asc' },
+        }),
+        this.prisma.mileageTrip.findMany({
+          where: {
+            organizationId: orgId,
+            date: { gte: start, lte: end },
+            ...jobFilter,
+          },
+          select: { id: true, date: true, distanceMiles: true, totalDeduction: true, purpose: true },
+          orderBy: { date: 'asc' },
+        }),
+        this.prisma.invoice.findMany({
+          where: {
+            organizationId: orgId,
+            dueDate: { gte: start, lte: end },
+            status: { in: ['SENT', 'PARTIALLY_PAID'] },
+            ...jobFilter,
+          },
+          select: { id: true, dueDate: true, invoiceNumber: true, total: true },
+          orderBy: { dueDate: 'asc' },
+        }),
+        this.prisma.recurringExpense.findMany({
+          where: {
+            organizationId: orgId,
+            isActive: true,
+            nextOccurrence: { gte: start, lte: end },
+            ...jobFilter,
+          },
+          select: { id: true, nextOccurrence: true, description: true, amount: true },
+          orderBy: { nextOccurrence: 'asc' },
+        }),
+      ]);
+
+    const days: Record<string, Array<{ id: string; type: string; title: string; amount?: number }>> = {};
+
+    const toDateKey = (d: Date | string) => new Date(d).toISOString().split('T')[0];
+    const addEvent = (dateKey: string, event: { id: string; type: string; title: string; amount?: number }) => {
+      if (!days[dateKey]) days[dateKey] = [];
+      days[dateKey].push(event);
+    };
+
+    for (const e of expenses) {
+      addEvent(toDateKey(e.date), {
+        id: e.id,
+        type: 'expense',
+        title: e.description,
+        amount: e.amount,
+      });
+    }
+
+    for (const t of timeEntries) {
+      const hours = Math.floor(t.durationMinutes / 60);
+      const mins = t.durationMinutes % 60;
+      addEvent(toDateKey(t.date), {
+        id: t.id,
+        type: 'time_entry',
+        title: `${hours}h ${mins}m logged`,
+        amount: t.totalCost,
+      });
+    }
+
+    for (const m of mileageTrips) {
+      addEvent(toDateKey(m.date), {
+        id: m.id,
+        type: 'mileage',
+        title: m.purpose ?? `${m.distanceMiles} mi`,
+        amount: m.totalDeduction,
+      });
+    }
+
+    for (const inv of invoices) {
+      if (inv.dueDate) {
+        addEvent(toDateKey(inv.dueDate), {
+          id: inv.id,
+          type: 'invoice_due',
+          title: `${inv.invoiceNumber} due`,
+          amount: inv.total,
+        });
+      }
+    }
+
+    for (const re of recurringExpenses) {
+      if (re.nextOccurrence) {
+        addEvent(toDateKey(re.nextOccurrence), {
+          id: re.id,
+          type: 'recurring_expense',
+          title: re.description,
+          amount: re.amount,
+        });
+      }
+    }
+
+    const summary = {
+      expenses: expenses.length,
+      timeEntries: timeEntries.length,
+      mileageTrips: mileageTrips.length,
+      invoicesDue: invoices.length,
+      recurringExpenses: recurringExpenses.length,
+    };
+
+    return { days, summary };
+  }
+
   private async getTopJobs(orgId: string, startDate?: Date, endDate?: Date) {
     const where: Prisma.ExpenseWhereInput = { organizationId: orgId };
     if (startDate || endDate) {

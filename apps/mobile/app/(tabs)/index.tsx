@@ -185,13 +185,22 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Hi, {firstName}</Text>
             <Text style={styles.subGreeting}>Here's your business overview</Text>
           </View>
-          <TouchableOpacity
-            onPress={() => router.push('/search')}
-            style={styles.searchBtn}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="search" size={22} color={colors.text} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/calendar')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="calendar-outline" size={22} color={colors.text} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/search')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="search" size={22} color={colors.text} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Quick Actions */}
@@ -338,6 +347,10 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   },
   greetingText: {
     flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
   },
   greeting: {
     fontSize: 28,

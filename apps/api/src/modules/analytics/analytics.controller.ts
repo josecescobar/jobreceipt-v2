@@ -5,6 +5,7 @@ import { OrgMemberGuard } from '../../common/guards/org-member.guard';
 import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { AnalyticsService } from './analytics.service';
 import { QueryAnalyticsDto } from './dto/query-analytics.dto';
+import { QueryCalendarDto } from './dto/query-calendar.dto';
 
 @ApiTags('Analytics')
 @Controller('analytics')
@@ -45,5 +46,14 @@ export class AnalyticsController {
     @Query() query: QueryAnalyticsDto,
   ) {
     return this.analyticsService.getJobProfitability(orgId, query);
+  }
+
+  @Get('calendar')
+  @ApiOperation({ summary: 'Get calendar data with events by day' })
+  async getCalendarData(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryCalendarDto,
+  ) {
+    return this.analyticsService.getCalendarData(orgId, query);
   }
 }

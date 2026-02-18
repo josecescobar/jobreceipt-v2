@@ -109,6 +109,9 @@ model User {
   createdExpenseTemplates  ExpenseTemplate[]    @relation("ExpenseTemplateCreator")
   createdInvoices          Invoice[]            @relation("InvoiceCreator")
   timeEntries              TimeEntry[]
+  createdEstimates         Estimate[]       @relation("EstimateCreator")
+  createdChangeOrders      ChangeOrder[]    @relation("ChangeOrderCreator")
+  approvedChangeOrders     ChangeOrder[]    @relation("ChangeOrderApprover")
 
   @@index([email])
 }
@@ -136,6 +139,8 @@ model Organization {
   expenseTemplates   ExpenseTemplate[]
   invoices           Invoice[]
   timeEntries        TimeEntry[]
+  estimates          Estimate[]
+  changeOrders       ChangeOrder[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -183,6 +188,8 @@ model Job {
   photos            JobPhoto[]
   invoices          Invoice[]
   timeEntries       TimeEntry[]
+  estimates         Estimate[]
+  changeOrders      ChangeOrder[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -202,6 +209,7 @@ model CostCode {
   expenses          Expense[]
   recurringExpenses RecurringExpense[]
   expenseTemplates  ExpenseTemplate[]
+  changeOrderLineItems ChangeOrderLineItem[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -478,6 +486,7 @@ model Invoice {
   createdBy    User            @relation("InvoiceCreator", fields: [createdById], references: [id])
   lineItems    InvoiceLineItem[]
   payments     InvoicePayment[]
+  convertedFromEstimate Estimate? @relation("EstimateInvoice")
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId])
@@ -539,4 +548,118 @@ model TimeEntry {
   @@index([organizationId])
   @@index([organizationId, jobId])
   @@index([organizationId, date])
+}
+
+// ─── Estimates ────────────────────────────────────────────
+
+enum EstimateStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+model Estimate {
+  id                 String         @id @default(uuid())
+  organizationId     String
+  jobId              String
+  estimateNumber     String
+  status             EstimateStatus @default(DRAFT)
+  issueDate          DateTime       @default(now())
+  expiresAt          DateTime?
+  notes              String?
+  subtotal           Int            @default(0) // cents
+  taxRate            Float          @default(0)
+  taxAmount          Int            @default(0) // cents
+  total              Int            @default(0) // cents
+  convertedInvoiceId String?        @unique
+  createdById        String
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job              Job                @relation(fields: [jobId], references: [id])
+  createdBy        User               @relation("EstimateCreator", fields: [createdById], references: [id])
+  convertedInvoice Invoice?           @relation("EstimateInvoice", fields: [convertedInvoiceId], references: [id])
+  lineItems        EstimateLineItem[]
+
+  @@unique([organizationId, estimateNumber])
+  @@index([organizationId])
+  @@index([organizationId, jobId])
+  @@index([organizationId, status])
+}
+
+model EstimateLineItem {
+  id          String   @id @default(uuid())
+  estimateId  String
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Int      // cents
+  total       Int      // cents
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  estimate Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  @@index([estimateId])
+}
+
+// ─── Change Orders ────────────────────────────────────────
+
+enum ChangeOrderStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+model ChangeOrder {
+  id                String            @id @default(uuid())
+  organizationId    String
+  jobId             String
+  changeOrderNumber String
+  status            ChangeOrderStatus @default(DRAFT)
+  title             String
+  description       String?
+  reason            String?
+  subtotal          Int               @default(0) // cents
+  taxRate           Float             @default(0)
+  taxAmount         Int               @default(0) // cents
+  total             Int               @default(0) // cents
+  approvedById      String?
+  approvedAt        DateTime?
+  createdById       String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                    @relation(fields: [jobId], references: [id])
+  createdBy    User                   @relation("ChangeOrderCreator", fields: [createdById], references: [id])
+  approvedBy   User?                  @relation("ChangeOrderApprover", fields: [approvedById], references: [id])
+  lineItems    ChangeOrderLineItem[]
+
+  @@unique([organizationId, changeOrderNumber])
+  @@index([organizationId])
+  @@index([organizationId, jobId])
+}
+
+model ChangeOrderLineItem {
+  id            String   @id @default(uuid())
+  changeOrderId String
+  description   String
+  quantity      Float    @default(1)
+  unitPrice     Int      // cents
+  total         Int      // cents
+  costCodeId    String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  changeOrder ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  costCode    CostCode?   @relation(fields: [costCodeId], references: [id])
+
+  @@index([changeOrderId])
 }

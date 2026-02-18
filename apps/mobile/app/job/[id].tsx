@@ -31,6 +31,8 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
 import { useInvoices } from '../../src/hooks/useInvoices';
+import { useEstimates } from '../../src/hooks/useEstimates';
+import { useChangeOrders } from '../../src/hooks/useChangeOrders';
 import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
@@ -90,6 +92,26 @@ export default function JobDetailScreen() {
   const invoices = useMemo(
     () => invoicesData?.data ?? [],
     [invoicesData],
+  );
+
+  const { data: estimatesData } = useEstimates({ jobId: id });
+  const estimates = useMemo(
+    () => estimatesData?.data ?? [],
+    [estimatesData],
+  );
+
+  const { data: changeOrdersData } = useChangeOrders({ jobId: id! });
+  const changeOrders = useMemo(
+    () => changeOrdersData?.data ?? [],
+    [changeOrdersData],
+  );
+  const approvedCOTotal = useMemo(
+    () => changeOrders.filter((co) => co.status === 'APPROVED').reduce((sum, co) => sum + co.total, 0),
+    [changeOrders],
+  );
+  const approvedCOCount = useMemo(
+    () => changeOrders.filter((co) => co.status === 'APPROVED').length,
+    [changeOrders],
   );
 
   const { data: timeData } = useTimeEntries({ jobId: id });
@@ -520,6 +542,119 @@ export default function JobDetailScreen() {
         ) : (
           <Text style={styles.emptyPhotos}>
             No invoices yet — tap + to create one
+          </Text>
+        )}
+
+        {/* Estimates */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Estimates ({estimates.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/estimate/create', params: { jobId: id } })}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {estimates.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {estimates.map((est) => {
+              const estStatus = est.status === 'ACCEPTED'
+                ? { bg: colors.success + '20', text: colors.success }
+                : est.status === 'SENT'
+                ? { bg: colors.primary + '20', text: colors.primary }
+                : est.status === 'REJECTED'
+                ? { bg: colors.error + '20', text: colors.error }
+                : est.status === 'EXPIRED'
+                ? { bg: colors.warning + '20', text: colors.warning }
+                : est.status === 'CONVERTED'
+                ? { bg: colors.success + '20', text: colors.success }
+                : { bg: colors.textMuted + '20', text: colors.textMuted };
+              return (
+                <TouchableOpacity
+                  key={est.id}
+                  style={styles.invoiceRow}
+                  onPress={() => router.push(`/estimate/${est.id}`)}
+                >
+                  <View style={styles.invoiceInfo}>
+                    <Text style={styles.invoiceNumber}>{est.estimateNumber}</Text>
+                    <Text style={styles.invoiceDate}>
+                      {new Date(est.issueDate).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.invoiceRight}>
+                    <Text style={styles.invoiceTotal}>{formatMoney(est.total)}</Text>
+                    <View style={[styles.invoiceStatusBadge, { backgroundColor: estStatus.bg }]}>
+                      <Text style={[styles.invoiceStatusText, { color: estStatus.text }]}>
+                        {est.status}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No estimates yet — tap + to create one
+          </Text>
+        )}
+
+        {/* Change Orders */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Change Orders ({changeOrders.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/change-order/create', params: { jobId: id } })}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {approvedCOCount > 0 && (
+          <View style={styles.timeSummaryRow}>
+            <Text style={styles.timeSummaryLabel}>
+              {approvedCOCount > 0 ? `+${formatMoney(approvedCOTotal)} from ${approvedCOCount} change order${approvedCOCount !== 1 ? 's' : ''}` : ''}
+            </Text>
+          </View>
+        )}
+        {changeOrders.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {changeOrders.map((co) => {
+              const coStatus = co.status === 'APPROVED'
+                ? { bg: colors.success + '20', text: colors.success }
+                : co.status === 'SUBMITTED'
+                ? { bg: colors.warning + '20', text: colors.warning }
+                : co.status === 'REJECTED'
+                ? { bg: colors.error + '20', text: colors.error }
+                : { bg: colors.textMuted + '20', text: colors.textMuted };
+              return (
+                <TouchableOpacity
+                  key={co.id}
+                  style={styles.invoiceRow}
+                  onPress={() => router.push(`/change-order/${co.id}`)}
+                >
+                  <View style={styles.invoiceInfo}>
+                    <Text style={styles.invoiceNumber}>{co.title}</Text>
+                    <Text style={styles.invoiceDate}>{co.changeOrderNumber}</Text>
+                  </View>
+                  <View style={styles.invoiceRight}>
+                    <Text style={styles.invoiceTotal}>{formatMoney(co.total)}</Text>
+                    <View style={[styles.invoiceStatusBadge, { backgroundColor: coStatus.bg }]}>
+                      <Text style={[styles.invoiceStatusText, { color: coStatus.text }]}>
+                        {co.status}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No change orders yet — tap + to create one
           </Text>
         )}
 
