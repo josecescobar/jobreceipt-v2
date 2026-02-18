@@ -2,26 +2,35 @@ import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
+  TouchableOpacity,
+  ActivityIndicator,
   StyleSheet,
-  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../src/components/ui';
 import { useCreateJob } from '../src/hooks/useJobs';
+import { useReceiptUpload } from '../src/hooks/useReceiptUpload';
+import { organizationsApi } from '../src/api/organizations';
 import { useAuthStore } from '../src/stores/auth.store';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../src/theme';
 
-type Step = 'welcome' | 'features' | 'job';
+type Step = 'welcome' | 'company' | 'features' | 'job' | 'receipt';
+
+const STEPS: Step[] = ['welcome', 'company', 'features', 'job', 'receipt'];
 
 export default function OnboardingScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const createJob = useCreateJob();
+  const { upload, isUploading, status: uploadStatus, error: uploadError, reset: resetUpload } = useReceiptUpload();
   const setOnboarded = useAuthStore((s) => s.setOnboarded);
+  const orgId = useAuthStore((s) => s.organizationId);
+  const orgName = useAuthStore((s) => s.organizationName);
 
   const FEATURES = [
     {
@@ -45,15 +54,49 @@ export default function OnboardingScreen() {
   ];
 
   const [step, setStep] = useState<Step>('welcome');
+  const [companyName, setCompanyName] = useState(orgName || '');
+  const [savingCompany, setSavingCompany] = useState(false);
   const [jobName, setJobName] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [error, setError] = useState('');
+  const [receiptUploaded, setReceiptUploaded] = useState(false);
 
   const handleComplete = () => {
     setOnboarded();
     router.replace('/(tabs)');
   };
 
+  const goBack = () => {
+    const idx = STEPS.indexOf(step);
+    if (idx > 0) setStep(STEPS[idx - 1]);
+  };
+
+  // Company step
+  const handleCompanyNext = async () => {
+    const trimmed = companyName.trim();
+    if (!trimmed) {
+      setError('Company name is required');
+      return;
+    }
+    setError('');
+
+    // Only call API if name actually changed
+    if (trimmed !== orgName && orgId) {
+      setSavingCompany(true);
+      try {
+        await organizationsApi.update(orgId, { name: trimmed });
+        useAuthStore.getState().setOrganization(orgId, trimmed);
+      } catch (err: any) {
+        setError(err.response?.data?.message || 'Failed to update company name');
+        setSavingCompany(false);
+        return;
+      }
+      setSavingCompany(false);
+    }
+    setStep('features');
+  };
+
+  // Job step
   const handleCreateJob = async () => {
     if (!jobName.trim()) {
       setError('Job name is required');
@@ -66,25 +109,73 @@ export default function OnboardingScreen() {
         customerName: customerName.trim() || undefined,
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      handleComplete();
+      setStep('receipt');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create job');
+    }
+  };
+
+  // Receipt step
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      setError('Camera permission is needed to scan receipts.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      handleUpload(result.assets[0].uri);
+    }
+  };
+
+  const handleChooseGallery = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+    });
+    if (!result.canceled && result.assets[0]) {
+      handleUpload(result.assets[0].uri);
+    }
+  };
+
+  const handleUpload = async (uri: string) => {
+    setError('');
+    try {
+      await upload(uri);
+      setReceiptUploaded(true);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch {
+      // Error state handled by hook
     }
   };
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        {/* Step indicators */}
-        <View style={styles.dots}>
-          {(['welcome', 'features', 'job'] as Step[]).map((s) => (
-            <View
-              key={s}
-              style={[styles.dot, step === s && styles.dotActive]}
-            />
-          ))}
+        {/* Header: back button + dots */}
+        <View style={styles.header}>
+          {step !== 'welcome' ? (
+            <TouchableOpacity onPress={goBack} style={styles.backButton}>
+              <Ionicons name="chevron-back" size={24} color={colors.text} />
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.backPlaceholder} />
+          )}
+          <View style={styles.dots}>
+            {STEPS.map((s) => (
+              <View
+                key={s}
+                style={[styles.dot, step === s && styles.dotActive]}
+              />
+            ))}
+          </View>
+          <View style={styles.backPlaceholder} />
         </View>
 
+        {/* Step 1: Welcome */}
         {step === 'welcome' && (
           <View style={styles.content}>
             <View style={styles.iconContainer}>
@@ -95,11 +186,44 @@ export default function OnboardingScreen() {
               Track receipts, expenses, and mileage for your construction business
             </Text>
             <View style={styles.bottomActions}>
-              <Button title="Get Started" onPress={() => setStep('features')} />
+              <Button title="Get Started" onPress={() => setStep('company')} />
             </View>
           </View>
         )}
 
+        {/* Step 2: Company Setup */}
+        {step === 'company' && (
+          <View style={styles.content}>
+            <View style={[styles.iconContainer, { backgroundColor: colors.success }]}>
+              <Ionicons name="business" size={36} color={colors.white} />
+            </View>
+            <Text style={styles.title}>Name your company</Text>
+            <Text style={styles.subtitle}>
+              This is how your organization appears across the app
+            </Text>
+
+            <View style={styles.formSection}>
+              <Input
+                label="Company Name *"
+                value={companyName}
+                onChangeText={setCompanyName}
+                placeholder="Smith Construction LLC"
+              />
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+            </View>
+
+            <View style={styles.bottomActions}>
+              <Button
+                title="Next"
+                onPress={handleCompanyNext}
+                loading={savingCompany}
+                disabled={!companyName.trim()}
+              />
+            </View>
+          </View>
+        )}
+
+        {/* Step 3: Features */}
         {step === 'features' && (
           <View style={styles.content}>
             <Text style={styles.title}>Everything you need</Text>
@@ -122,11 +246,12 @@ export default function OnboardingScreen() {
             </View>
 
             <View style={styles.bottomActions}>
-              <Button title="Next" onPress={() => setStep('job')} />
+              <Button title="Next" onPress={() => { setError(''); setStep('job'); }} />
             </View>
           </View>
         )}
 
+        {/* Step 4: Create Job */}
         {step === 'job' && (
           <View style={styles.content}>
             <Text style={styles.title}>Create your first job</Text>
@@ -152,17 +277,108 @@ export default function OnboardingScreen() {
 
             <View style={styles.bottomActions}>
               <Button
-                title="Create Job & Get Started"
+                title="Create Job"
                 onPress={handleCreateJob}
                 loading={createJob.isPending}
                 disabled={!jobName.trim()}
               />
               <Button
                 title="Skip for now"
-                onPress={handleComplete}
+                onPress={() => { setError(''); setStep('receipt'); }}
                 variant="ghost"
               />
             </View>
+          </View>
+        )}
+
+        {/* Step 5: First Receipt */}
+        {step === 'receipt' && (
+          <View style={styles.content}>
+            {receiptUploaded ? (
+              // Success state
+              <>
+                <View style={styles.successCenter}>
+                  <View style={styles.successCircle}>
+                    <Ionicons name="checkmark" size={48} color={colors.white} />
+                  </View>
+                  <Text style={styles.title}>Receipt uploaded!</Text>
+                  <Text style={styles.subtitle}>
+                    Our AI is processing it now. You'll see the extracted details in a moment.
+                  </Text>
+                </View>
+                <View style={styles.bottomActions}>
+                  <Button title="Go to Dashboard" onPress={handleComplete} />
+                </View>
+              </>
+            ) : isUploading ? (
+              // Upload in progress
+              <>
+                <View style={styles.successCenter}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.title, { marginTop: spacing.xl }]}>
+                    {uploadStatus === 'processing'
+                      ? 'Processing image...'
+                      : uploadStatus === 'uploading'
+                        ? 'Uploading...'
+                        : 'Almost done...'}
+                  </Text>
+                  <Text style={styles.subtitle}>
+                    This should only take a few seconds
+                  </Text>
+                </View>
+                <View style={styles.bottomActions} />
+              </>
+            ) : (
+              // Ready to scan
+              <>
+                <Text style={styles.title}>Scan your first receipt</Text>
+                <Text style={styles.subtitle}>
+                  Try it out! Take a photo of any receipt and our AI will extract the details.
+                </Text>
+
+                {(error || uploadError) ? (
+                  <Text style={styles.error}>{error || uploadError}</Text>
+                ) : null}
+
+                <View style={styles.receiptActions}>
+                  <TouchableOpacity
+                    style={styles.receiptActionCard}
+                    onPress={handleTakePhoto}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.receiptActionIcon, { backgroundColor: colors.primary + '15' }]}>
+                      <Ionicons name="camera" size={32} color={colors.primary} />
+                    </View>
+                    <Text style={styles.receiptActionTitle}>Take Photo</Text>
+                    <Text style={styles.receiptActionDesc}>
+                      Use your camera to scan a receipt
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.receiptActionCard}
+                    onPress={handleChooseGallery}
+                    activeOpacity={0.7}
+                  >
+                    <View style={[styles.receiptActionIcon, { backgroundColor: colors.success + '15' }]}>
+                      <Ionicons name="images" size={32} color={colors.success} />
+                    </View>
+                    <Text style={styles.receiptActionTitle}>From Gallery</Text>
+                    <Text style={styles.receiptActionDesc}>
+                      Choose an existing photo
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.bottomActions}>
+                  <Button
+                    title="Skip for now"
+                    onPress={handleComplete}
+                    variant="ghost"
+                  />
+                </View>
+              </>
+            )}
           </View>
         )}
       </View>
@@ -179,12 +395,26 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     flex: 1,
     paddingHorizontal: spacing.xl,
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backPlaceholder: {
+    width: 40,
+  },
   dots: {
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     gap: spacing.sm,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.xl,
   },
   dot: {
     width: 8,
@@ -208,7 +438,7 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: spacing.xl,
-    marginTop: spacing.xxl,
+    marginTop: spacing.lg,
   },
   logoText: {
     fontSize: 32,
@@ -272,10 +502,57 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   bottomActions: {
     marginTop: 'auto',
     paddingBottom: spacing.xl,
     gap: spacing.sm,
+  },
+  // Receipt step
+  receiptActions: {
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  receiptActionCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  receiptActionIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  receiptActionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  receiptActionDesc: {
+    fontSize: 13,
+    color: colors.textMuted,
+  },
+  // Success state
+  successCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
   },
 });
