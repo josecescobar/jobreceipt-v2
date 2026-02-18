@@ -11,6 +11,8 @@ import {
   MonthlySpendingChart,
   CategoryBreakdownChart,
   TopJobsList,
+  TopMerchantsList,
+  BudgetHealthCard,
 } from '../../src/components/analytics';
 import type { Period } from '../../src/components/analytics';
 import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
@@ -52,10 +54,16 @@ export default function AnalyticsScreen() {
 
         {hasData ? (
           <>
-            <SummaryCards totals={data.totals} />
+            <SummaryCards totals={data.totals} comparison={data.periodComparison} />
             <MonthlySpendingChart data={data.monthlySpending} />
             <CategoryBreakdownChart data={data.categoryBreakdown} />
+            {data.budgetHealth && data.budgetHealth.jobs.length > 0 && (
+              <BudgetHealthCard data={data.budgetHealth} />
+            )}
             <TopJobsList data={data.topJobs} />
+            {data.topMerchants && data.topMerchants.length > 0 && (
+              <TopMerchantsList data={data.topMerchants} />
+            )}
           </>
         ) : (
           <View style={styles.emptyContainer}>

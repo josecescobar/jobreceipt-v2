@@ -1,14 +1,41 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { formatMoney } from '../../lib/format';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
-import type { AnalyticsTotals } from '@jobreceipt/shared';
+import type { AnalyticsTotals, PeriodComparison } from '@jobreceipt/shared';
 
 interface SummaryCardsProps {
   totals: AnalyticsTotals;
+  comparison?: PeriodComparison;
 }
 
-export function SummaryCards({ totals }: SummaryCardsProps) {
+function DeltaIndicator({
+  delta,
+  invertColor,
+  colors,
+}: {
+  delta: number | null | undefined;
+  invertColor?: boolean;
+  colors: ThemeColors;
+}) {
+  if (delta == null) return null;
+  const isUp = delta > 0;
+  const color = invertColor
+    ? isUp ? colors.error : colors.success
+    : isUp ? colors.success : colors.error;
+  const icon = isUp ? 'trending-up' : 'trending-down';
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+      <Ionicons name={icon} size={10} color={color} />
+      <Text style={{ fontSize: 10, color, marginLeft: 2, fontVariant: ['tabular-nums'] }}>
+        {Math.abs(delta).toFixed(1)}%
+      </Text>
+    </View>
+  );
+}
+
+export function SummaryCards({ totals, comparison }: SummaryCardsProps) {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -17,16 +44,19 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
       <View style={styles.card}>
         <Text style={styles.value}>{formatMoney(totals.totalExpenses)}</Text>
         <Text style={styles.label}>Expenses</Text>
+        <DeltaIndicator delta={comparison?.expensesDelta} invertColor colors={colors} />
       </View>
       <View style={styles.card}>
         <Text style={[styles.value, { color: colors.success }]}>
           {formatMoney(totals.totalMileageDeductions)}
         </Text>
         <Text style={styles.label}>Mileage</Text>
+        <DeltaIndicator delta={comparison?.mileageDelta} colors={colors} />
       </View>
       <View style={styles.card}>
         <Text style={styles.value}>{totals.receiptCount}</Text>
         <Text style={styles.label}>Receipts</Text>
+        <DeltaIndicator delta={comparison?.receiptsDelta} colors={colors} />
       </View>
     </View>
   );

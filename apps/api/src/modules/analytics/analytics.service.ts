@@ -26,6 +26,8 @@ export class AnalyticsService {
       monthlySpending,
       categoryBreakdown,
       topJobs,
+      topMerchants,
+      budgetHealth,
     ] = await Promise.all([
       this.prisma.expense.aggregate({
         where: { organizationId: orgId, ...expenseDateFilter },
@@ -43,7 +45,22 @@ export class AnalyticsService {
       this.getMonthlySpending(orgId, startDate, endDate),
       this.getCategoryBreakdown(orgId, startDate, endDate),
       this.getTopJobs(orgId, startDate, endDate),
+      this.getTopMerchants(orgId, startDate, endDate),
+      this.getBudgetHealth(orgId),
     ]);
+
+    const currentTotals = {
+      totalExpenses: expenseAgg._sum.amount ?? 0,
+      totalMileageDeductions: mileageAgg._sum.totalDeduction ?? 0,
+      receiptCount,
+    };
+
+    const periodComparison = await this.getPeriodComparison(
+      orgId,
+      currentTotals,
+      startDate,
+      endDate,
+    );
 
     return {
       period: {
@@ -51,15 +68,16 @@ export class AnalyticsService {
         endDate: endDate?.toISOString() ?? null,
       },
       totals: {
-        totalExpenses: expenseAgg._sum.amount ?? 0,
-        totalMileageDeductions: mileageAgg._sum.totalDeduction ?? 0,
-        receiptCount,
+        ...currentTotals,
         expenseCount: expenseAgg._count,
         tripCount: mileageAgg._count,
       },
       monthlySpending,
       categoryBreakdown,
       topJobs,
+      topMerchants,
+      periodComparison,
+      budgetHealth,
     };
   }
 
@@ -125,6 +143,181 @@ export class AnalyticsService {
           ? Math.round(((g._sum.amount ?? 0) / totalAmount) * 10000) / 100
           : 0,
     }));
+  }
+
+  private async getTopMerchants(orgId: string, startDate?: Date, endDate?: Date) {
+    const conditions = [
+      Prisma.sql`e."organizationId" = ${orgId}`,
+      Prisma.sql`e."receiptId" IS NOT NULL`,
+      Prisma.sql`r."merchantName" IS NOT NULL`,
+      Prisma.sql`r."merchantName" != ''`,
+    ];
+    if (startDate) conditions.push(Prisma.sql`e.date >= ${startDate}`);
+    if (endDate) conditions.push(Prisma.sql`e.date <= ${endDate}`);
+
+    const whereClause = Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`;
+
+    const rows: Array<{ merchant_name: string; total: bigint; receipt_count: bigint }> =
+      await this.prisma.$queryRaw`
+        SELECT r."merchantName" as merchant_name,
+               SUM(e.amount) as total,
+               COUNT(DISTINCT e."receiptId") as receipt_count
+        FROM "Expense" e
+        JOIN "Receipt" r ON r.id = e."receiptId"
+        ${whereClause}
+        GROUP BY r."merchantName"
+        ORDER BY SUM(e.amount) DESC
+        LIMIT 10
+      `;
+
+    const grandTotal = rows.reduce((sum, r) => sum + Number(r.total), 0);
+
+    return rows.map((r) => ({
+      merchantName: r.merchant_name,
+      totalSpent: Number(r.total),
+      receiptCount: Number(r.receipt_count),
+      percentage:
+        grandTotal > 0
+          ? Math.round((Number(r.total) / grandTotal) * 10000) / 100
+          : 0,
+    }));
+  }
+
+  private async getPeriodComparison(
+    orgId: string,
+    currentTotals: { totalExpenses: number; totalMileageDeductions: number; receiptCount: number },
+    startDate?: Date,
+    endDate?: Date,
+  ) {
+    // No meaningful comparison for "All Time"
+    if (!startDate) {
+      return {
+        totalExpensesPrevious: 0,
+        expensesDelta: null,
+        totalMileageDeductionsPrevious: 0,
+        mileageDelta: null,
+        receiptCountPrevious: 0,
+        receiptsDelta: null,
+      };
+    }
+
+    const effectiveEnd = endDate ?? new Date();
+    const durationMs = effectiveEnd.getTime() - startDate.getTime();
+    const prevEnd = new Date(startDate.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - durationMs);
+
+    const prevExpenseFilter = this.buildDateFilter(prevStart, prevEnd, 'date');
+    const prevMileageFilter = this.buildDateFilter(prevStart, prevEnd, 'date');
+    const prevReceiptFilter = this.buildDateFilter(prevStart, prevEnd, 'createdAt');
+
+    const [prevExpense, prevMileage, prevReceipt] = await Promise.all([
+      this.prisma.expense.aggregate({
+        where: { organizationId: orgId, ...prevExpenseFilter },
+        _sum: { amount: true },
+      }),
+      this.prisma.mileageTrip.aggregate({
+        where: { organizationId: orgId, ...prevMileageFilter },
+        _sum: { totalDeduction: true },
+      }),
+      this.prisma.receipt.count({
+        where: { organizationId: orgId, ...prevReceiptFilter },
+      }),
+    ]);
+
+    const calcDelta = (current: number, previous: number): number | null => {
+      if (previous === 0) return current > 0 ? 100 : null;
+      return Math.round(((current - previous) / previous) * 10000) / 100;
+    };
+
+    const prevExpenseTotal = prevExpense._sum.amount ?? 0;
+    const prevMileageTotal = prevMileage._sum.totalDeduction ?? 0;
+
+    return {
+      totalExpensesPrevious: prevExpenseTotal,
+      expensesDelta: calcDelta(currentTotals.totalExpenses, prevExpenseTotal),
+      totalMileageDeductionsPrevious: prevMileageTotal,
+      mileageDelta: calcDelta(currentTotals.totalMileageDeductions, prevMileageTotal),
+      receiptCountPrevious: prevReceipt,
+      receiptsDelta: calcDelta(currentTotals.receiptCount, prevReceipt),
+    };
+  }
+
+  private async getBudgetHealth(orgId: string) {
+    const jobs = await this.prisma.job.findMany({
+      where: {
+        organizationId: orgId,
+        status: 'ACTIVE',
+        budgetTotal: { not: null, gt: 0 },
+      },
+      select: { id: true, name: true, budgetTotal: true },
+    });
+
+    if (jobs.length === 0) {
+      return {
+        totalBudget: 0,
+        totalSpent: 0,
+        healthyCount: 0,
+        warningCount: 0,
+        overBudgetCount: 0,
+        jobs: [],
+      };
+    }
+
+    const jobIds = jobs.map((j) => j.id);
+    const expensesByJob = await this.prisma.expense.groupBy({
+      by: ['jobId'],
+      where: { organizationId: orgId, jobId: { in: jobIds } },
+      _sum: { amount: true },
+    });
+
+    const spentMap = new Map(expensesByJob.map((g) => [g.jobId, g._sum.amount ?? 0]));
+
+    let totalBudget = 0;
+    let totalSpent = 0;
+    let healthyCount = 0;
+    let warningCount = 0;
+    let overBudgetCount = 0;
+
+    const budgetJobs = jobs.map((job) => {
+      const budget = job.budgetTotal!;
+      const spent = spentMap.get(job.id) ?? 0;
+      const ratio = budget > 0 ? spent / budget : 0;
+
+      totalBudget += budget;
+      totalSpent += spent;
+
+      let status: 'good' | 'warning' | 'over';
+      if (ratio >= 1) {
+        status = 'over';
+        overBudgetCount++;
+      } else if (ratio >= 0.75) {
+        status = 'warning';
+        warningCount++;
+      } else {
+        status = 'good';
+        healthyCount++;
+      }
+
+      return {
+        jobId: job.id,
+        jobName: job.name,
+        budgetTotal: budget,
+        totalSpent: spent,
+        utilizationRatio: Math.round(ratio * 100) / 100,
+        status,
+      };
+    });
+
+    budgetJobs.sort((a, b) => b.utilizationRatio - a.utilizationRatio);
+
+    return {
+      totalBudget,
+      totalSpent,
+      healthyCount,
+      warningCount,
+      overBudgetCount,
+      jobs: budgetJobs,
+    };
   }
 
   private async getTopJobs(orgId: string, startDate?: Date, endDate?: Date) {

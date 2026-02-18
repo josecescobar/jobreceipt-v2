@@ -37,10 +37,58 @@ export interface TopJob {
   expenseCount: number;
 }
 
+export interface TopMerchant {
+  merchantName: string;
+  /** In cents */
+  totalSpent: number;
+  receiptCount: number;
+  /** 0-100 */
+  percentage: number;
+}
+
+export interface PeriodComparison {
+  /** In cents */
+  totalExpensesPrevious: number;
+  /** Percentage change, null if no previous data */
+  expensesDelta: number | null;
+  /** In cents */
+  totalMileageDeductionsPrevious: number;
+  mileageDelta: number | null;
+  receiptCountPrevious: number;
+  receiptsDelta: number | null;
+}
+
+export interface BudgetHealthJob {
+  jobId: string;
+  jobName: string;
+  /** In cents */
+  budgetTotal: number;
+  /** In cents */
+  totalSpent: number;
+  /** 0-1+ (can exceed 1 if over budget) */
+  utilizationRatio: number;
+  status: 'good' | 'warning' | 'over';
+}
+
+export interface BudgetHealthOverview {
+  /** In cents */
+  totalBudget: number;
+  /** In cents */
+  totalSpent: number;
+  healthyCount: number;
+  warningCount: number;
+  overBudgetCount: number;
+  /** Sorted by utilization descending */
+  jobs: BudgetHealthJob[];
+}
+
 export interface AnalyticsSummary {
   period: AnalyticsPeriod;
   totals: AnalyticsTotals;
   monthlySpending: MonthlySpending[];
   categoryBreakdown: CategoryBreakdown[];
   topJobs: TopJob[];
+  topMerchants?: TopMerchant[];
+  periodComparison?: PeriodComparison;
+  budgetHealth?: BudgetHealthOverview;
 }
