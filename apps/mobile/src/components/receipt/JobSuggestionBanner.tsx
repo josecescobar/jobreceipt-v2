@@ -1,14 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '../ui';
-import { colors, spacing, borderRadius } from '../../theme';
+import { colors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 
 interface JobSuggestionBannerProps {
   jobName: string;
   confidence?: string;
-  onAssign: () => void;
-  onDismiss: () => void;
+  onDismiss?: () => void;
 }
 
 const CONFIDENCE_LABELS: Record<string, string> = {
@@ -20,14 +18,20 @@ const CONFIDENCE_LABELS: Record<string, string> = {
 export function JobSuggestionBanner({
   jobName,
   confidence,
-  onAssign,
   onDismiss,
 }: JobSuggestionBannerProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Ionicons name="sparkles" size={18} color={colors.primary} />
-        <Text style={styles.label}>AI Suggestion</Text>
+      <View style={styles.topRow}>
+        <View style={styles.header}>
+          <Ionicons name="sparkles" size={18} color={colors.primary} />
+          <Text style={styles.label}>AI Suggestion</Text>
+        </View>
+        {onDismiss && (
+          <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
       </View>
       <Text style={styles.jobName}>{jobName}</Text>
       {confidence && CONFIDENCE_LABELS[confidence] && (
@@ -35,21 +39,6 @@ export function JobSuggestionBanner({
           {CONFIDENCE_LABELS[confidence]}
         </Text>
       )}
-      <View style={styles.actions}>
-        <Button
-          title="Assign"
-          onPress={onAssign}
-          variant="primary"
-          size="sm"
-          style={styles.assignButton}
-        />
-        <Button
-          title="Dismiss"
-          onPress={onDismiss}
-          variant="ghost"
-          size="sm"
-        />
-      </View>
     </View>
   );
 }
@@ -63,10 +52,15 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     marginBottom: spacing.lg,
   },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.sm,
   },
   label: {
     fontSize: 12,
@@ -75,6 +69,12 @@ const styles = StyleSheet.create({
     marginLeft: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  dismissBtn: {
+    minWidth: MIN_TOUCH_TARGET,
+    minHeight: MIN_TOUCH_TARGET,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   jobName: {
     fontSize: 18,
@@ -85,13 +85,5 @@ const styles = StyleSheet.create({
   confidence: {
     fontSize: 12,
     color: colors.textMuted,
-    marginBottom: spacing.md,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  assignButton: {
-    marginRight: spacing.sm,
   },
 });

@@ -229,20 +229,6 @@ export default function ReceiptDetailScreen() {
     }
   };
 
-  const handleAssignSuggested = async () => {
-    if (!suggestedJob) return;
-    setError('');
-    try {
-      await updateReceipt.mutateAsync({
-        id: receipt.id,
-        updates: { suggestedJobId: suggestedJob.id },
-      });
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to assign job');
-    }
-  };
-
   const handleDismissSuggestion = async () => {
     try {
       await updateReceipt.mutateAsync({
@@ -330,7 +316,6 @@ export default function ReceiptDetailScreen() {
             <JobSuggestionBanner
               jobName={suggestedJob.name}
               confidence={receipt.confidenceScore || undefined}
-              onAssign={handleAssignSuggested}
               onDismiss={handleDismissSuggestion}
             />
           </View>
@@ -449,25 +434,8 @@ export default function ReceiptDetailScreen() {
         {/* Error display */}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        {/* Action buttons */}
-        {receipt.status === 'REVIEW' && (
-          <View style={styles.actions}>
-            <Button
-              title="Approve"
-              onPress={handleApprove}
-              variant="primary"
-              style={styles.actionButton}
-              loading={approveReceipt.isPending}
-            />
-            <Button
-              title="Reject"
-              onPress={handleReject}
-              variant="danger"
-              style={styles.actionButton}
-              loading={rejectReceipt.isPending}
-            />
-          </View>
-        )}
+        {/* Spacer for sticky bar */}
+        {receipt.status === 'REVIEW' && <View style={{ height: 80 }} />}
 
         {/* Delete button */}
         <View style={styles.deleteContainer}>
@@ -481,6 +449,46 @@ export default function ReceiptDetailScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Sticky bottom action bar */}
+      {receipt.status === 'REVIEW' && (
+        <View style={styles.stickyBar}>
+          {suggestedJob ? (
+            <View style={styles.stickyBarInner}>
+              <View style={styles.suggestedChip}>
+                <Ionicons name="sparkles" size={14} color={colors.primary} />
+                <Text style={styles.suggestedChipText} numberOfLines={1}>
+                  {suggestedJob.name}
+                </Text>
+              </View>
+              <Button
+                title="Assign & Approve"
+                onPress={handleApprove}
+                variant="primary"
+                style={styles.stickyMainBtn}
+                loading={approveReceipt.isPending}
+              />
+            </View>
+          ) : (
+            <View style={styles.stickyBarInner}>
+              <Button
+                title="Approve"
+                onPress={handleApprove}
+                variant="primary"
+                style={styles.stickyMainBtn}
+                loading={approveReceipt.isPending}
+              />
+            </View>
+          )}
+          <TouchableOpacity
+            onPress={handleReject}
+            style={styles.stickyRejectBtn}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.stickyRejectText}>Reject</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Split assignment sheet */}
       <SplitAssignmentSheet
@@ -630,14 +638,51 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     marginTop: spacing.md,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.md,
+  stickyBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.xl,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.xl,
   },
-  actionButton: {
+  stickyBarInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  suggestedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.primary + '15',
+    borderRadius: borderRadius.full,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.primary + '40',
+    flexShrink: 1,
+  },
+  suggestedChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  stickyMainBtn: {
     flex: 1,
+  },
+  stickyRejectBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  stickyRejectText: {
+    fontSize: 14,
+    color: colors.textMuted,
   },
   linkedSection: {
     paddingHorizontal: spacing.lg,

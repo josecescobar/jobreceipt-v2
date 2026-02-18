@@ -2,19 +2,28 @@ import React, { useCallback, useState } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { CameraViewfinder, RecentReceiptsStrip } from '../src/components/camera';
 import { Button } from '../src/components/ui';
 import { Screen, Header } from '../src/components/layout';
 import { useReceiptUpload } from '../src/hooks/useReceiptUpload';
-import { colors, spacing } from '../src/theme';
+import { colors, spacing, borderRadius } from '../src/theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+
+interface UploadedReceipt {
+  id: string;
+  uri: string;
+}
 
 export default function CaptureScreen() {
   const router = useRouter();
   const { upload, isUploading, status, error, reset } = useReceiptUpload();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [pendingUris, setPendingUris] = useState<string[]>([]);
+  const [uploadedReceipts, setUploadedReceipts] = useState<UploadedReceipt[]>([]);
+  const [showSuccess, setShowSuccess] = useState(false);
 
   const handleCapture = useCallback((uri: string) => {
     setPreviewUri(uri);
@@ -31,6 +40,7 @@ export default function CaptureScreen() {
   const handleRetake = useCallback(() => {
     setPreviewUri(null);
     setPendingUris([]);
+    setShowSuccess(false);
     reset();
   }, [reset]);
 
@@ -42,14 +52,33 @@ export default function CaptureScreen() {
     for (const uri of uris) {
       try {
         const receiptId = await upload(uri);
-        if (receiptId && uri === uris[uris.length - 1]) {
-          router.replace(`/receipt/${receiptId}`);
+        if (receiptId) {
+          setUploadedReceipts((prev) => [...prev, { id: receiptId, uri }]);
+          if (uri === uris[uris.length - 1]) {
+            setShowSuccess(true);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          }
         }
       } catch {
         // Error state handled by hook
       }
     }
-  }, [pendingUris, upload, router]);
+  }, [pendingUris, upload]);
+
+  const handleScanAnother = useCallback(() => {
+    setShowSuccess(false);
+    setPreviewUri(null);
+    setPendingUris([]);
+    reset();
+  }, [reset]);
+
+  const handleDone = useCallback(() => {
+    if (uploadedReceipts.length === 1) {
+      router.replace(`/receipt/${uploadedReceipts[0].id}`);
+    } else {
+      router.replace('/(tabs)/receipts');
+    }
+  }, [uploadedReceipts, router]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -74,7 +103,33 @@ export default function CaptureScreen() {
           </View>
         )}
 
-        {previewUri ? (
+        {showSuccess ? (
+          <View style={styles.successContainer}>
+            <View style={styles.successContent}>
+              <View style={styles.successIconCircle}>
+                <Ionicons name="checkmark" size={48} color={colors.white} />
+              </View>
+              <Text style={styles.successTitle}>Receipt Uploaded!</Text>
+              <Text style={styles.successCount}>
+                {uploadedReceipts.length} receipt{uploadedReceipts.length !== 1 ? 's' : ''} scanned this session
+              </Text>
+            </View>
+            <View style={styles.successActions}>
+              <Button
+                title="Scan Another"
+                onPress={handleScanAnother}
+                variant="primary"
+                style={styles.previewButton}
+              />
+              <Button
+                title="Done"
+                onPress={handleDone}
+                variant="secondary"
+                style={styles.previewButton}
+              />
+            </View>
+          </View>
+        ) : previewUri ? (
           <View style={styles.previewContainer}>
             <Image
               source={{ uri: previewUri }}
@@ -189,5 +244,40 @@ const styles = StyleSheet.create({
   },
   previewButton: {
     flex: 1,
+  },
+  successContainer: {
+    flex: 1,
+    justifyContent: 'space-between',
+    paddingBottom: spacing.xxl,
+  },
+  successContent: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  successIconCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: colors.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xl,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.white,
+    marginBottom: spacing.sm,
+  },
+  successCount: {
+    fontSize: 15,
+    color: colors.textSecondary,
+  },
+  successActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    paddingHorizontal: spacing.xl,
   },
 });
