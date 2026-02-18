@@ -26,6 +26,8 @@ import { PublicModule } from './modules/public/public.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { DailyLogsModule } from './modules/daily-logs/daily-logs.module';
 import { CrewSchedulingModule } from './modules/crew-scheduling/crew-scheduling.module';
+import { PunchListsModule } from './modules/punch-lists/punch-lists.module';
+import { MessagesModule } from './modules/messages/messages.module';
 
 @Module({
   controllers: [AppController],
@@ -56,6 +58,8 @@ import { CrewSchedulingModule } from './modules/crew-scheduling/crew-scheduling.
     DocumentsModule,
     DailyLogsModule,
     CrewSchedulingModule,
+    PunchListsModule,
+    MessagesModule,
   ],
 })
 export class AppModule {}

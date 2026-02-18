@@ -21,6 +21,7 @@ import { InvoiceReportService } from './invoice-report.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
+import { QueryOverdueDto } from './dto/query-overdue.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @ApiTags('Invoices')
@@ -52,6 +53,25 @@ export class InvoicesController {
     return this.service.findAll(orgId, {
       jobId: query.jobId,
       status: query.status,
+      page: query.page ?? 1,
+      limit: query.limit ?? 20,
+    });
+  }
+
+  @Get('aging')
+  @ApiOperation({ summary: 'Get aging summary for overdue invoices' })
+  async getAgingSummary(@CurrentOrg() orgId: string) {
+    return this.service.getAgingSummary(orgId);
+  }
+
+  @Get('overdue')
+  @ApiOperation({ summary: 'Get paginated list of overdue invoices' })
+  async getOverdueInvoices(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryOverdueDto,
+  ) {
+    return this.service.getOverdueInvoices(orgId, {
+      bucket: query.bucket,
       page: query.page ?? 1,
       limit: query.limit ?? 20,
     });
@@ -112,6 +132,16 @@ export class InvoicesController {
     @Param('paymentId') paymentId: string,
   ) {
     return this.service.removePayment(orgId, id, paymentId);
+  }
+
+  @Post(':id/remind')
+  @ApiOperation({ summary: 'Send a payment reminder for an overdue invoice' })
+  async sendReminder(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.service.sendReminder(orgId, id, userId);
   }
 
   @Post(':id/share-link')

@@ -4,4 +4,5 @@ export const QUEUE_NAMES = {
   RECURRING_EXPENSES: 'recurring-expenses',
   RECURRING_INVOICES: 'recurring-invoices',
   NOTIFICATION_CRON: 'notification-cron',
+  INVOICE_REMINDERS: 'invoice-reminders',
 } as const;

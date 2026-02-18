@@ -25,6 +25,8 @@ export function useBootstrap() {
           (o) => o.id === res.defaultOrganizationId,
         ) ?? res.organizations[0];
 
+        useAuthStore.getState().setUserId(res.user.id);
+
         if (defaultOrg) {
           useAuthStore.getState().setOrganization(defaultOrg.id, defaultOrg.name);
           useAuthStore.getState().setUserRole(defaultOrg.role);

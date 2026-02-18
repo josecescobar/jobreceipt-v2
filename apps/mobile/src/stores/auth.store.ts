@@ -4,11 +4,13 @@ import * as SecureStore from 'expo-secure-store';
 const ONBOARDED_KEY = '@jobreceipt:onboarded';
 
 interface AuthState {
+  userId: string | null;
   organizationId: string | null;
   organizationName: string | null;
   userRole: string | null;
   hasOnboarded: boolean;
   onboardingChecked: boolean;
+  setUserId: (userId: string | null) => void;
   setOrganization: (orgId: string | null, orgName?: string | null) => void;
   setUserRole: (role: string | null) => void;
   setOnboarded: () => void;
@@ -17,11 +19,13 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
+  userId: null,
   organizationId: null,
   organizationName: null,
   userRole: null,
   hasOnboarded: false,
   onboardingChecked: false,
+  setUserId: (userId) => set({ userId }),
   setOrganization: (orgId, orgName = null) => set({ organizationId: orgId, organizationName: orgName }),
   setUserRole: (role) => set({ userRole: role }),
   setOnboarded: () => {
@@ -32,5 +36,5 @@ export const useAuthStore = create<AuthState>((set) => ({
     const value = await SecureStore.getItemAsync(ONBOARDED_KEY);
     set({ hasOnboarded: value === 'true', onboardingChecked: true });
   },
-  reset: () => set({ organizationId: null, organizationName: null, userRole: null }),
+  reset: () => set({ userId: null, organizationId: null, organizationName: null, userRole: null }),
 }));

@@ -1,8 +1,10 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
+import { NotificationService } from '../../common/services/notification.service';
 import { CreateInvoiceLineItemDto } from './dto/create-invoice.dto';
 import { CreatePaymentDto } from './dto/create-payment.dto';
+import type { AgingInvoice, AgingBucket, AgingSummary } from '@jobreceipt/shared';
 
 interface CreateInvoiceData {
   jobId: string;
@@ -34,7 +36,10 @@ const invoiceInclude = {
 
 @Injectable()
 export class InvoicesService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
+  ) {}
 
   private async generateInvoiceNumber(orgId: string): Promise<string> {
     const latest = await this.prisma.invoice.findFirst({
@@ -286,5 +291,189 @@ export class InvoicesService {
         include: invoiceInclude,
       });
     });
+  }
+
+  // ─── Aging Report Methods ────────────────────────────────
+
+  async getAgingSummary(orgId: string): Promise<AgingSummary> {
+    const now = new Date();
+
+    const overdueInvoices = await this.prisma.invoice.findMany({
+      where: {
+        organizationId: orgId,
+        status: { in: ['SENT', 'PARTIALLY_PAID'] },
+        dueDate: { not: null, lt: now },
+      },
+      include: {
+        job: { select: { name: true, customerName: true } },
+      },
+      orderBy: { dueDate: 'asc' },
+    });
+
+    const bucketRanges = [
+      { range: '1-30', min: 1, max: 30 },
+      { range: '31-60', min: 31, max: 60 },
+      { range: '61-90', min: 61, max: 90 },
+      { range: '90+', min: 91, max: Infinity },
+    ];
+
+    const buckets: AgingBucket[] = bucketRanges.map((br) => ({
+      range: br.range,
+      count: 0,
+      totalOutstanding: 0,
+      invoices: [],
+    }));
+
+    let totalOverdue = 0;
+    let totalOutstanding = 0;
+
+    for (const inv of overdueInvoices) {
+      const daysOverdue = Math.floor(
+        (now.getTime() - new Date(inv.dueDate!).getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysOverdue < 1) continue;
+
+      const outstanding = inv.total - inv.paidAmount;
+      totalOverdue += outstanding;
+      totalOutstanding += outstanding;
+
+      const agingInvoice: AgingInvoice = {
+        id: inv.id,
+        invoiceNumber: inv.invoiceNumber,
+        jobName: inv.job.name,
+        customerName: inv.job.customerName,
+        total: inv.total,
+        paidAmount: inv.paidAmount,
+        outstanding,
+        dueDate: inv.dueDate!.toISOString(),
+        daysOverdue,
+      };
+
+      const bucket = buckets.find((b) => {
+        const br = bucketRanges.find((r) => r.range === b.range)!;
+        return daysOverdue >= br.min && daysOverdue <= br.max;
+      });
+
+      if (bucket) {
+        bucket.count++;
+        bucket.totalOutstanding += outstanding;
+        bucket.invoices.push(agingInvoice);
+      }
+    }
+
+    return {
+      totalOverdue,
+      totalOutstanding,
+      overdueCount: overdueInvoices.filter((inv) => {
+        const days = Math.floor(
+          (now.getTime() - new Date(inv.dueDate!).getTime()) / (1000 * 60 * 60 * 24),
+        );
+        return days >= 1;
+      }).length,
+      buckets,
+    };
+  }
+
+  async getOverdueInvoices(
+    orgId: string,
+    query: { bucket?: string; page: number; limit: number },
+  ) {
+    const now = new Date();
+
+    // Build date range filter based on bucket
+    let minDate: Date | undefined;
+    let maxDate: Date | undefined;
+
+    if (query.bucket) {
+      if (query.bucket === '90+') {
+        maxDate = new Date(now.getTime() - 91 * 24 * 60 * 60 * 1000);
+      } else {
+        const parts = query.bucket.split('-').map(Number);
+        if (parts.length === 2) {
+          const [min, max] = parts;
+          maxDate = new Date(now.getTime() - min * 24 * 60 * 60 * 1000);
+          minDate = new Date(now.getTime() - max * 24 * 60 * 60 * 1000);
+        }
+      }
+    }
+
+    const where: any = {
+      organizationId: orgId,
+      status: { in: ['SENT', 'PARTIALLY_PAID'] },
+      dueDate: { not: null, lt: now },
+    };
+
+    if (maxDate || minDate) {
+      where.dueDate = { not: null };
+      if (maxDate && minDate) {
+        where.dueDate.gte = minDate;
+        where.dueDate.lte = maxDate;
+      } else if (maxDate) {
+        where.dueDate.lte = maxDate;
+      }
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.invoice.findMany({
+        where,
+        include: {
+          job: { select: { name: true, customerName: true } },
+        },
+        orderBy: { dueDate: 'asc' },
+        skip: (query.page - 1) * query.limit,
+        take: query.limit,
+      }),
+      this.prisma.invoice.count({ where }),
+    ]);
+
+    return { data, total, page: query.page, limit: query.limit };
+  }
+
+  async sendReminder(orgId: string, invoiceId: string, userId: string) {
+    const invoice = await this.prisma.invoice.findFirst({
+      where: { id: invoiceId, organizationId: orgId },
+      include: {
+        job: { select: { name: true, customerName: true } },
+      },
+    });
+    if (!invoice) throw new NotFoundException('Invoice not found');
+
+    if (!['SENT', 'PARTIALLY_PAID'].includes(invoice.status)) {
+      throw new BadRequestException('Invoice is not in a remindable status');
+    }
+
+    if (!invoice.dueDate || invoice.dueDate >= new Date()) {
+      throw new BadRequestException('Invoice is not overdue');
+    }
+
+    const outstanding = invoice.total - invoice.paidAmount;
+
+    // Create the reminder record
+    const reminder = await this.prisma.invoiceReminder.create({
+      data: {
+        invoiceId,
+        type: 'manual',
+        sentById: userId,
+      },
+    });
+
+    // Send push notification to org owner
+    const org = await this.prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { ownerId: true },
+    });
+
+    if (org) {
+      const formattedAmount = `$${(outstanding / 100).toFixed(2)}`;
+      await this.notificationService.sendPushNotification(
+        org.ownerId,
+        'Payment Reminder Sent',
+        `Reminder sent for ${invoice.invoiceNumber} — ${formattedAmount} outstanding`,
+        { screen: 'invoice', invoiceId },
+        'invoice_reminder',
+      );
+    }
+
+    return reminder;
   }
 }

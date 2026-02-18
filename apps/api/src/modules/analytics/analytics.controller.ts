@@ -15,6 +15,16 @@ import { QueryPnlDto } from './dto/query-pnl.dto';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Get('cash-flow')
+  @ApiOperation({ summary: 'Get cash flow forecast for upcoming months' })
+  async getCashFlowForecast(
+    @CurrentOrg() orgId: string,
+    @Query('months') monthsStr?: string,
+  ) {
+    const months = monthsStr ? parseInt(monthsStr, 10) : 6;
+    return this.analyticsService.getCashFlowForecast(orgId, months);
+  }
+
   @Get('weekly-comparison')
   @ApiOperation({ summary: 'Get this week vs last week spending comparison' })
   async getWeeklyComparison(@CurrentOrg() orgId: string) {

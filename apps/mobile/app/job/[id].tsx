@@ -37,6 +37,7 @@ import { useRecurringInvoices } from '../../src/hooks/useRecurringInvoices';
 import { useCreateTemplateFromJob } from '../../src/hooks/useJobTemplates';
 import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
 import { useDailyLogs } from '../../src/hooks/useDailyLogs';
+import { useJobPunchListSummary, usePunchListItems } from '../../src/hooks/usePunchLists';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
@@ -144,6 +145,18 @@ export default function JobDetailScreen() {
     () => dailyLogsData?.pages?.flatMap((p) => p.data) ?? [],
     [dailyLogsData],
   );
+
+  const { data: punchListSummary } = useJobPunchListSummary(id!);
+  const { data: punchListData } = usePunchListItems(id!, { limit: 3 });
+  const punchListItems = useMemo(
+    () => (punchListData?.data ?? []).filter(
+      (item) => item.status === 'OPEN' || item.status === 'IN_PROGRESS',
+    ).slice(0, 3),
+    [punchListData],
+  );
+  const punchListTotal = punchListSummary?.total ?? 0;
+  const punchListCompleted = punchListSummary?.completed ?? 0;
+  const punchListPercent = punchListSummary?.completionPercent ?? 0;
 
   const activityItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -417,6 +430,24 @@ export default function JobDetailScreen() {
           )}
         </View>
 
+        {/* Messages */}
+        <TouchableOpacity
+          style={styles.messagesRow}
+          activeOpacity={0.7}
+          onPress={() =>
+            router.push({
+              pathname: '/messages/threads/[jobId]',
+              params: { jobId: id!, jobName: job.name },
+            })
+          }
+        >
+          <View style={styles.messagesRowLeft}>
+            <Ionicons name="chatbubble-outline" size={20} color={colors.primary} />
+            <Text style={styles.messagesRowLabel}>Messages</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
         {/* Status actions */}
         {job.status === 'ACTIVE' && (
           <View style={styles.statusActions}>
@@ -602,6 +633,94 @@ export default function JobDetailScreen() {
           <Text style={styles.emptyPhotos}>
             No daily logs yet — tap + to add one
           </Text>
+        )}
+
+        {/* Punch List */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Punch List {punchListTotal > 0 ? `(${punchListTotal})` : ''}
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push(`/punch-list/create?jobId=${id}`)}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {punchListTotal > 0 ? (
+          <>
+            <View style={styles.punchListProgress}>
+              <View style={styles.punchListProgressHeader}>
+                <Text style={styles.punchListProgressText}>
+                  {punchListCompleted} of {punchListTotal} items complete
+                </Text>
+                <Text style={styles.punchListPercentText}>{punchListPercent}%</Text>
+              </View>
+              <View style={styles.punchListBarBg}>
+                <View
+                  style={[
+                    styles.punchListBarFill,
+                    { width: `${punchListPercent}%` },
+                  ]}
+                />
+              </View>
+            </View>
+            {punchListItems.length > 0 && (
+              <View style={styles.invoiceList}>
+                {punchListItems.map((plItem) => {
+                  const pColor =
+                    plItem.priority === 'URGENT'
+                      ? '#EF4444'
+                      : plItem.priority === 'HIGH'
+                      ? '#F97316'
+                      : plItem.priority === 'MEDIUM'
+                      ? '#EAB308'
+                      : '#9CA3AF';
+                  return (
+                    <TouchableOpacity
+                      key={plItem.id}
+                      style={styles.invoiceRow}
+                      onPress={() => router.push(`/punch-list/${plItem.id}`)}
+                    >
+                      <View style={styles.invoiceInfo}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <View
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 4,
+                              backgroundColor: pColor,
+                            }}
+                          />
+                          <Text style={styles.invoiceNumber}>{plItem.title}</Text>
+                        </View>
+                        {plItem.assignedTo?.name && (
+                          <Text style={styles.invoiceDate}>
+                            {plItem.assignedTo.name}
+                          </Text>
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+                <TouchableOpacity
+                  onPress={() => router.push(`/punch-list?jobId=${id}`)}
+                  style={styles.viewAllBtn}
+                >
+                  <Text style={styles.viewAllText}>View All Punch List Items</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push(`/punch-list/create?jobId=${id}`)}
+            style={styles.punchListEmptyBtn}
+          >
+            <Text style={styles.emptyPhotos}>
+              Add first punch list item
+            </Text>
+          </TouchableOpacity>
         )}
 
         {/* Invoices */}
@@ -933,6 +1052,27 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
     color: colors.textSecondary,
     fontStyle: 'italic',
   },
+  messagesRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.lg,
+  },
+  messagesRowLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  messagesRowLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
   statusActions: {
     gap: spacing.sm,
     marginBottom: spacing.lg,
@@ -1094,6 +1234,44 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
     fontSize: 14,
     fontWeight: '600',
     color: colors.primary,
+  },
+  punchListProgress: {
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  punchListProgressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  punchListProgressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  punchListPercentText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primary,
+  },
+  punchListBarBg: {
+    height: 6,
+    backgroundColor: colors.border,
+    borderRadius: 9999,
+    overflow: 'hidden',
+  },
+  punchListBarFill: {
+    height: '100%',
+    backgroundColor: colors.success,
+    borderRadius: 9999,
+  },
+  punchListEmptyBtn: {
+    paddingVertical: spacing.sm,
   },
   exportSection: {
     marginTop: spacing.xl,

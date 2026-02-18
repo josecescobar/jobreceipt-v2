@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import type { AnalyticsSummary, TaxSummary, ProfitabilityOverview, WeeklyComparison, CalendarData, PnlReport } from '@jobreceipt/shared';
+import type { AnalyticsSummary, TaxSummary, ProfitabilityOverview, WeeklyComparison, CalendarData, PnlReport, CashFlowForecast } from '@jobreceipt/shared';
 
 export interface AnalyticsQueryParams {
   startDate?: string;
@@ -44,6 +44,13 @@ export const analyticsApi = {
     jobId?: string;
   }): Promise<CalendarData> => {
     const { data } = await apiClient.get('/analytics/calendar', { params });
+    return data;
+  },
+
+  getCashFlowForecast: async (months?: number): Promise<CashFlowForecast> => {
+    const { data } = await apiClient.get('/analytics/cash-flow', {
+      params: months ? { months } : undefined,
+    });
     return data;
   },
 };

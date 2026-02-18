@@ -30,6 +30,9 @@ import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
 import { useTodayAssignments } from '../../src/hooks/useCrewScheduling';
+import { useAgingSummary } from '../../src/hooks/useInvoiceAging';
+import { useCashFlowForecast } from '../../src/hooks/useCashFlow';
+import { useUnreadCount } from '../../src/hooks/useMessages';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -81,6 +84,10 @@ export default function HomeScreen() {
   const { data: mileageData, refetch: refetchMileage } = useMileageTrips({ limit: 5 });
   const { data: analyticsSummary, refetch: refetchAnalytics } = useAnalyticsSummary();
   const { data: todaySchedule, refetch: refetchTodaySchedule } = useTodayAssignments();
+  const { data: agingSummary, refetch: refetchAging } = useAgingSummary();
+  const { data: cashFlowData, refetch: refetchCashFlow } = useCashFlowForecast();
+  const { data: unreadData, refetch: refetchUnread } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
@@ -99,11 +106,14 @@ export default function HomeScreen() {
         refetchAnalytics(),
         refetchPending(),
         refetchTodaySchedule(),
+        refetchAging(),
+        refetchCashFlow(),
+        refetchUnread(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -189,6 +199,20 @@ export default function HomeScreen() {
             <Text style={styles.subGreeting}>Here's your business overview</Text>
           </View>
           <View style={styles.headerActions}>
+            <TouchableOpacity
+              onPress={() => router.push('/messages')}
+              style={styles.searchBtn}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chatbubble-outline" size={22} color={colors.text} />
+              {unreadCount > 0 && (
+                <View style={styles.msgBadge}>
+                  <Text style={styles.msgBadgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push('/calendar')}
               style={styles.searchBtn}
@@ -284,6 +308,66 @@ export default function HomeScreen() {
 
         {/* Unpaid invoices */}
         <UnpaidInvoicesCard />
+
+        {/* Overdue invoices banner */}
+        {agingSummary && agingSummary.overdueCount > 0 && (
+          <TouchableOpacity
+            style={styles.overdueBanner}
+            onPress={() => router.push('/invoice/aging')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="alert-circle" size={20} color={colors.error} />
+              <Text style={styles.overdueBannerText}>
+                {agingSummary.overdueCount} overdue invoice{agingSummary.overdueCount !== 1 ? 's' : ''} — {formatMoney(agingSummary.totalOutstanding)} outstanding
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {/* Cash Flow Forecast */}
+        {cashFlowData && cashFlowData.periods.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Cash Flow Forecast</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/analytics/cash-flow')}
+            >
+              <Card>
+                <View style={styles.cashFlowHeader}>
+                  <Ionicons name="wallet-outline" size={20} color={colors.primary} />
+                  <Text style={styles.cashFlowBalance}>
+                    {formatMoney(cashFlowData.currentBalance)}
+                  </Text>
+                </View>
+                <Text style={styles.cashFlowBalanceLabel}>Current Balance</Text>
+                {cashFlowData.periods[0] && (
+                  <View style={styles.cashFlowNextMonth}>
+                    <View style={styles.cashFlowNextMonthLeft}>
+                      <Ionicons
+                        name={cashFlowData.periods[0].netFlow >= 0 ? 'trending-up-outline' : 'trending-down-outline'}
+                        size={18}
+                        color={cashFlowData.periods[0].netFlow >= 0 ? colors.success : colors.error}
+                      />
+                      <Text style={styles.cashFlowNextLabel}>
+                        {cashFlowData.periods[0].month}
+                      </Text>
+                    </View>
+                    <Text
+                      style={[
+                        styles.cashFlowNextValue,
+                        { color: cashFlowData.periods[0].netFlow >= 0 ? colors.success : colors.error },
+                      ]}
+                    >
+                      {cashFlowData.periods[0].netFlow >= 0 ? '+' : ''}{formatMoney(cashFlowData.periods[0].netFlow)}
+                    </Text>
+                  </View>
+                )}
+              </Card>
+            </TouchableOpacity>
+          </>
+        )}
 
         {/* Today's Schedule */}
         {todaySchedule && todaySchedule.length > 0 && (
@@ -400,6 +484,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  msgBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: colors.error,
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  msgBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   reviewBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -420,6 +521,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: colors.review,
+  },
+  overdueBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: colors.error + '15',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.error + '40',
+  },
+  overdueBannerText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.error,
+    flex: 1,
   },
   statsRow: {
     flexDirection: 'row',
@@ -498,6 +616,46 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     fontWeight: '500',
+  },
+  cashFlowHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cashFlowBalance: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+  },
+  cashFlowBalanceLabel: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+    marginBottom: spacing.md,
+  },
+  cashFlowNextMonth: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  cashFlowNextMonthLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  cashFlowNextLabel: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    fontWeight: '500',
+  },
+  cashFlowNextValue: {
+    fontSize: 15,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   chartContainer: {
     marginHorizontal: -spacing.lg,

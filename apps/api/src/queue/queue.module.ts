@@ -8,6 +8,8 @@ import { RecurringInvoicesProcessor } from './recurring-invoices.processor';
 import { RecurringInvoicesScheduler } from './recurring-invoices.scheduler';
 import { NotificationCronProcessor } from './notification-cron.processor';
 import { NotificationCronScheduler } from './notification-cron.scheduler';
+import { InvoiceRemindersProcessor } from './invoice-reminders.processor';
+import { InvoiceRemindersScheduler } from './invoice-reminders.scheduler';
 import { S3Service } from '../common/services/s3.service';
 import { NotificationService } from '../common/services/notification.service';
 import { ReceiptsModule } from '../modules/receipts/receipts.module';
@@ -31,6 +33,7 @@ import { QUEUE_NAMES } from './constants';
       { name: QUEUE_NAMES.RECURRING_EXPENSES },
       { name: QUEUE_NAMES.RECURRING_INVOICES },
       { name: QUEUE_NAMES.NOTIFICATION_CRON },
+      { name: QUEUE_NAMES.INVOICE_REMINDERS },
     ),
     forwardRef(() => ReceiptsModule),
     RecurringExpensesModule,
@@ -44,6 +47,8 @@ import { QUEUE_NAMES } from './constants';
     RecurringInvoicesScheduler,
     NotificationCronProcessor,
     NotificationCronScheduler,
+    InvoiceRemindersProcessor,
+    InvoiceRemindersScheduler,
     S3Service,
     NotificationService,
   ],

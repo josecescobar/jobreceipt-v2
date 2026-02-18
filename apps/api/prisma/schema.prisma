@@ -109,6 +109,19 @@ enum CrewAssignmentStatus {
   NO_SHOW
 }
 
+enum PunchListItemStatus {
+  OPEN
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum PunchListItemPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -147,6 +160,12 @@ model User {
   dailyLogPhotos           DailyLogPhoto[]  @relation("DailyLogPhotoUploader")
   crewAssignments          CrewAssignment[] @relation("CrewAssignmentUser")
   createdCrewAssignments   CrewAssignment[] @relation("CrewAssignmentCreator")
+  createdPunchListItems    PunchListItem[]  @relation("PunchListCreator")
+  punchListAssignments     PunchListItem[]  @relation("PunchListAssignee")
+  punchListCompletions     PunchListItem[]  @relation("PunchListCompleter")
+  punchListPhotos          PunchListPhoto[] @relation("PunchListPhotoUploader")
+  sentMessages             Message[]        @relation("MessageSender")
+  sentInvoiceReminders     InvoiceReminder[] @relation("ReminderSender")
 
   @@index([email])
 }
@@ -184,6 +203,8 @@ model Organization {
   documents          Document[]
   dailyLogs          DailyLog[]
   crewAssignments    CrewAssignment[]
+  punchListItems     PunchListItem[]
+  messages           Message[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -239,6 +260,8 @@ model Job {
   documents         Document[]
   dailyLogs         DailyLog[]
   crewAssignments   CrewAssignment[]
+  punchListItems    PunchListItem[]
+  messages          Message[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -543,6 +566,7 @@ model Invoice {
   createdBy    User            @relation("InvoiceCreator", fields: [createdById], references: [id])
   lineItems    InvoiceLineItem[]
   payments     InvoicePayment[]
+  reminders    InvoiceReminder[]
   convertedFromEstimate Estimate? @relation("EstimateInvoice")
 
   @@unique([organizationId, invoiceNumber])
@@ -986,4 +1010,85 @@ model CrewAssignment {
   @@index([organizationId, date])
   @@index([userId, date])
   @@index([jobId])
+}
+
+// ─── Punch Lists ──────────────────────────────────────
+
+model PunchListItem {
+  id             String                @id @default(uuid())
+  organizationId String
+  jobId          String
+  title          String
+  description    String?
+  priority       PunchListItemPriority @default(MEDIUM)
+  status         PunchListItemStatus   @default(OPEN)
+  assignedToId   String?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  completedById  String?
+  createdById    String
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job              @relation(fields: [jobId], references: [id])
+  assignedTo   User?            @relation("PunchListAssignee", fields: [assignedToId], references: [id])
+  completedBy  User?            @relation("PunchListCompleter", fields: [completedById], references: [id])
+  createdBy    User             @relation("PunchListCreator", fields: [createdById], references: [id])
+  photos       PunchListPhoto[]
+
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([jobId, status])
+  @@index([assignedToId])
+}
+
+model PunchListPhoto {
+  id              String   @id @default(uuid())
+  punchListItemId String
+  imageKey        String
+  caption         String?
+  uploadedById    String
+  createdAt       DateTime @default(now())
+
+  punchListItem PunchListItem @relation(fields: [punchListItemId], references: [id], onDelete: Cascade)
+  uploadedBy    User          @relation("PunchListPhotoUploader", fields: [uploadedById], references: [id])
+
+  @@index([punchListItemId])
+}
+
+// ─── Messages ─────────────────────────────────────────
+
+model Message {
+  id             String   @id @default(uuid())
+  organizationId String
+  jobId          String
+  senderId       String
+  body           String
+  readBy         Json     @default("[]")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job          @relation(fields: [jobId], references: [id])
+  sender       User         @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([organizationId])
+  @@index([jobId])
+  @@index([jobId, createdAt])
+}
+
+// ─── Invoice Reminders ────────────────────────────────
+
+model InvoiceReminder {
+  id        String   @id @default(uuid())
+  invoiceId String
+  sentAt    DateTime @default(now())
+  type      String   // "7_day", "14_day", "30_day", "manual"
+  sentById  String?
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  sentBy  User?   @relation("ReminderSender", fields: [sentById], references: [id])
+
+  @@index([invoiceId])
 }

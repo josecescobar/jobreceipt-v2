@@ -6,6 +6,7 @@ import {
   IRS_MILEAGE_RATE_DOLLARS,
   SELF_EMPLOYMENT_TAX_RATE,
 } from '@jobreceipt/shared';
+import type { CashFlowForecast, CashFlowPeriod } from '@jobreceipt/shared';
 
 interface AnalyticsQuery {
   startDate?: string;
@@ -908,5 +909,153 @@ export class AnalyticsService {
       totalSpent: g._sum.amount ?? 0,
       expenseCount: g._count,
     }));
+  }
+
+  async getCashFlowForecast(orgId: string, months: number = 6): Promise<CashFlowForecast> {
+    // 1. Current balance: total income received minus total expenses
+    const [incomeAgg, expenseAgg] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COALESCE(SUM(ip.amount), 0) as total
+        FROM "InvoicePayment" ip
+        JOIN "Invoice" i ON i.id = ip."invoiceId"
+        WHERE i."organizationId" = ${orgId}
+      `,
+      this.prisma.expense.aggregate({
+        where: { organizationId: orgId },
+        _sum: { amount: true },
+      }),
+    ]);
+
+    const totalIncome = Number(incomeAgg[0]?.total ?? 0);
+    const totalExpenses = expenseAgg._sum.amount ?? 0;
+    const currentBalance = totalIncome - totalExpenses;
+
+    // 2. Expected inflows: outstanding invoice amounts grouped by due date month
+    const now = new Date();
+    const forecastStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const forecastEnd = new Date(now.getFullYear(), now.getMonth() + months, 0, 23, 59, 59, 999);
+
+    const outstandingInvoices = await this.prisma.invoice.findMany({
+      where: {
+        organizationId: orgId,
+        status: { in: ['SENT', 'PARTIALLY_PAID'] },
+        dueDate: { not: null },
+      },
+      select: {
+        total: true,
+        paidAmount: true,
+        dueDate: true,
+      },
+    });
+
+    // Build month -> inflow map
+    const inflowByMonth = new Map<string, number>();
+    for (const inv of outstandingInvoices) {
+      if (!inv.dueDate) continue;
+      const outstanding = inv.total - inv.paidAmount;
+      if (outstanding <= 0) continue;
+      const monthKey = `${inv.dueDate.getFullYear()}-${String(inv.dueDate.getMonth() + 1).padStart(2, '0')}`;
+      inflowByMonth.set(monthKey, (inflowByMonth.get(monthKey) ?? 0) + outstanding);
+    }
+
+    // 3. Expected outflows: project recurring expenses forward
+    const recurringExpenses = await this.prisma.recurringExpense.findMany({
+      where: {
+        organizationId: orgId,
+        isActive: true,
+      },
+      select: {
+        amount: true,
+        frequency: true,
+        nextOccurrence: true,
+        endDate: true,
+      },
+    });
+
+    const outflowByMonth = new Map<string, number>();
+    for (const re of recurringExpenses) {
+      const occurrences = this.projectRecurringOccurrences(
+        re.nextOccurrence,
+        re.frequency,
+        re.endDate,
+        forecastEnd,
+      );
+      for (const date of occurrences) {
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        outflowByMonth.set(monthKey, (outflowByMonth.get(monthKey) ?? 0) + re.amount);
+      }
+    }
+
+    // 4. Build periods
+    const periods: CashFlowPeriod[] = [];
+    let runningBalance = currentBalance;
+    let totalExpectedIn = 0;
+    let totalExpectedOut = 0;
+
+    for (let i = 0; i < months; i++) {
+      const periodDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const monthKey = `${periodDate.getFullYear()}-${String(periodDate.getMonth() + 1).padStart(2, '0')}`;
+
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthLabel = `${monthNames[periodDate.getMonth()]} ${periodDate.getFullYear()}`;
+
+      const expectedInflows = inflowByMonth.get(monthKey) ?? 0;
+      const expectedOutflows = outflowByMonth.get(monthKey) ?? 0;
+      const netFlow = expectedInflows - expectedOutflows;
+      runningBalance += netFlow;
+
+      totalExpectedIn += expectedInflows;
+      totalExpectedOut += expectedOutflows;
+
+      periods.push({
+        month: monthLabel,
+        expectedInflows,
+        expectedOutflows,
+        netFlow,
+        runningBalance,
+      });
+    }
+
+    return {
+      periods,
+      currentBalance,
+      summary: {
+        totalExpectedIn,
+        totalExpectedOut,
+      },
+    };
+  }
+
+  private projectRecurringOccurrences(
+    nextOccurrence: Date,
+    frequency: string,
+    endDate: Date | null,
+    forecastEnd: Date,
+  ): Date[] {
+    const dates: Date[] = [];
+    let current = new Date(nextOccurrence);
+    const limit = endDate && endDate < forecastEnd ? endDate : forecastEnd;
+
+    while (current <= limit) {
+      dates.push(new Date(current));
+      switch (frequency) {
+        case 'WEEKLY':
+          current.setDate(current.getDate() + 7);
+          break;
+        case 'BIWEEKLY':
+          current.setDate(current.getDate() + 14);
+          break;
+        case 'MONTHLY':
+          current.setMonth(current.getMonth() + 1);
+          break;
+        case 'QUARTERLY':
+          current.setMonth(current.getMonth() + 3);
+          break;
+        case 'ANNUALLY':
+          current.setFullYear(current.getFullYear() + 1);
+          break;
+      }
+    }
+    return dates;
   }
 }

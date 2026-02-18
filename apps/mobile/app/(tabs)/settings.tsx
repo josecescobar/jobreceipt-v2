@@ -268,6 +268,20 @@ export default function SettingsScreen() {
             onPress={() => router.push('/tax-summary')}
             showChevron
           />
+          <SettingsRow
+            icon="alert-circle-outline"
+            label="Invoice Aging"
+            subtitle="Overdue invoices & payment reminders"
+            onPress={() => router.push('/invoice/aging')}
+            showChevron
+          />
+          <SettingsRow
+            icon="trending-up-outline"
+            label="Cash Flow"
+            subtitle="Forecast income & expenses"
+            onPress={() => router.push('/analytics/cash-flow')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Data & Export">

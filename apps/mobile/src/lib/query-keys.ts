@@ -29,4 +29,6 @@ export const analyticsKeys = {
   profitability: (params: { startDate?: string; endDate?: string }) =>
     [...analyticsKeys.profitabilities(), params] as const,
   weeklyComparison: () => [...analyticsKeys.all, 'weekly-comparison'] as const,
+  cashFlow: () => [...analyticsKeys.all, 'cash-flow'] as const,
+  cashFlowForecast: (months: number) => [...analyticsKeys.cashFlow(), months] as const,
 };
