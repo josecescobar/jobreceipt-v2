@@ -12,12 +12,14 @@ import { useUser } from '@clerk/clerk-expo';
 import { Screen } from '../../src/components/layout';
 import { Card, ProgressBar } from '../../src/components/ui';
 import { QuickActionGrid, ActivityFeed } from '../../src/components/dashboard';
+import { MonthlySpendingChart } from '../../src/components/analytics';
 import type { QuickAction, ActivityItem } from '../../src/components/dashboard';
 import { useRecentReceipts, useReceipts } from '../../src/hooks/useReceipts';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
 import { useBudget } from '../../src/hooks/useBudget';
+import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
 import { formatMoney } from '../../src/lib/format';
 import { colors, spacing, typography, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -60,6 +62,7 @@ export default function HomeScreen() {
   );
 
   const { data: mileageData, refetch: refetchMileage } = useMileageTrips({ limit: 5 });
+  const { data: analyticsSummary, refetch: refetchAnalytics } = useAnalyticsSummary();
   const recentMileage = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
@@ -75,11 +78,12 @@ export default function HomeScreen() {
         refetchMileageSummary(),
         refetchExpenses(),
         refetchMileage(),
+        refetchAnalytics(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -212,6 +216,13 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+        {/* Spending chart */}
+        {analyticsSummary && analyticsSummary.monthlySpending.length > 0 && (
+          <View style={styles.chartContainer}>
+            <MonthlySpendingChart data={analyticsSummary.monthlySpending} />
+          </View>
+        )}
+
         {/* Top job budget */}
         {topJob && topJobBudget.budget > 0 && (
           <>
@@ -343,6 +354,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     fontVariant: ['tabular-nums'],
+  },
+  chartContainer: {
+    marginHorizontal: -spacing.lg,
+    marginBottom: spacing.sm,
   },
   bottomSpacer: {
     height: spacing.xxxl,
