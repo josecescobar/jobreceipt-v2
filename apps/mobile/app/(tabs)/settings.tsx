@@ -197,6 +197,13 @@ export default function SettingsScreen() {
               showChevron
             />
           )}
+          <SettingsRow
+            icon="copy-outline"
+            label="Job Templates"
+            subtitle="Reusable job configurations"
+            onPress={() => router.push('/job-template')}
+            showChevron
+          />
         </SettingsSection>
 
         <SettingsSection title="Directory">
@@ -291,6 +298,23 @@ export default function SettingsScreen() {
             label="Recurring Expenses"
             subtitle="Manage auto-created expenses"
             onPress={() => router.push('/settings/recurring-expenses')}
+            showChevron
+          />
+        </SettingsSection>
+
+        <SettingsSection title="Billing">
+          <SettingsRow
+            icon="receipt-outline"
+            label="Invoices"
+            subtitle="Create and manage invoices"
+            onPress={() => router.push('/invoice')}
+            showChevron
+          />
+          <SettingsRow
+            icon="repeat-outline"
+            label="Recurring Invoices"
+            subtitle="Automated billing schedules"
+            onPress={() => router.push('/recurring-invoice')}
             showChevron
           />
         </SettingsSection>

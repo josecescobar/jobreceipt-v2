@@ -48,6 +48,15 @@ export default function CaptureScreen() {
 
   const handleUsePhoto = useCallback(async () => {
     const uris = [...pendingUris];
+
+    // Multi-receipt: route to batch upload screen for progress tracking
+    if (uris.length > 1) {
+      setPreviewUri(null);
+      setPendingUris([]);
+      router.push(`/batch-upload?uris=${encodeURIComponent(JSON.stringify(uris))}`);
+      return;
+    }
+
     setPreviewUri(null);
     setPendingUris([]);
 
@@ -65,7 +74,7 @@ export default function CaptureScreen() {
         // Error state handled by hook
       }
     }
-  }, [pendingUris, upload]);
+  }, [pendingUris, upload, router]);
 
   const handleScanAnother = useCallback(() => {
     setShowSuccess(false);

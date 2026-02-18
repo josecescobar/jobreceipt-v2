@@ -37,6 +37,7 @@ import { useUpcomingMaintenance } from '../../src/hooks/useEquipment';
 import { useAllChangeOrders } from '../../src/hooks/useChangeOrders';
 import { useEstimates } from '../../src/hooks/useEstimates';
 import { useActiveTimer, useClockOut } from '../../src/hooks/useTimeTracking';
+import { useRecurringInvoices } from '../../src/hooks/useRecurringInvoices';
 import { useSettings } from '../../src/hooks/useSettings';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
@@ -99,6 +100,7 @@ export default function HomeScreen() {
   const { data: estimatesData, refetch: refetchEstimates } = useEstimates();
   const { data: activeTimer, refetch: refetchActiveTimer } = useActiveTimer();
   const clockOutMutation = useClockOut();
+  const { data: recurringInvoicesData, refetch: refetchRecurringInvoices } = useRecurringInvoices({ isActive: 'true' });
   const maintenanceDueCount = useMemo(() => {
     if (!upcomingMaintenanceData) return 0;
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -113,6 +115,10 @@ export default function HomeScreen() {
   const recentEstimates = useMemo(
     () => (estimatesData?.data ?? []).slice(0, 3),
     [estimatesData],
+  );
+  const activeRecurringInvoices = useMemo(
+    () => recurringInvoicesData?.pages?.flatMap((p) => p.data) ?? [],
+    [recurringInvoicesData],
   );
 
   const handleRefresh = useCallback(async () => {
@@ -135,11 +141,12 @@ export default function HomeScreen() {
         refetchPendingCOs(),
         refetchEstimates(),
         refetchActiveTimer(),
+        refetchRecurringInvoices(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance, refetchPendingCOs, refetchEstimates, refetchActiveTimer]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance, refetchPendingCOs, refetchEstimates, refetchActiveTimer, refetchRecurringInvoices]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -454,6 +461,43 @@ export default function HomeScreen() {
           </React.Fragment>
         );
       },
+      recurringInvoices: () => {
+        if (activeRecurringInvoices.length === 0) return null;
+        const nextUp = activeRecurringInvoices
+          .filter((ri: any) => ri.nextOccurrence)
+          .sort((a: any, b: any) => new Date(a.nextOccurrence).getTime() - new Date(b.nextOccurrence).getTime())[0];
+        return (
+          <React.Fragment key="recurringInvoices">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recurring Invoices</Text>
+              <TouchableOpacity onPress={() => router.push('/recurring-invoice')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/recurring-invoice')}
+            >
+              <Card>
+                <View style={styles.recurringInvoiceCard}>
+                  <Ionicons name="repeat-outline" size={24} color={colors.primary} />
+                  <View style={styles.recurringInvoiceInfo}>
+                    <Text style={styles.recurringInvoiceLabel}>
+                      {activeRecurringInvoices.length} active schedule{activeRecurringInvoices.length !== 1 ? 's' : ''}
+                    </Text>
+                    {nextUp && (
+                      <Text style={styles.recurringInvoiceDesc}>
+                        Next: {new Date(nextUp.nextOccurrence).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </React.Fragment>
+        );
+      },
       recentActivity: () => (
         <React.Fragment key="recentActivity">
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -464,7 +508,7 @@ export default function HomeScreen() {
     [
       QUICK_ACTIONS, styles, router, colors, activeJobs, monthTotal,
       monthLabel, mileageSummary, cashFlowData, todaySchedule,
-      analyticsSummary, topJob, topJobBudget, activityItems, recentEstimates,
+      analyticsSummary, topJob, topJobBudget, activityItems, recentEstimates, activeRecurringInvoices,
       activeTimer, clockOutMutation,
     ],
   );
@@ -989,6 +1033,24 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.text,
   },
   timeTrackingDesc: {
+    fontSize: 13,
+    color: colors.textMuted,
+    marginTop: 1,
+  },
+  recurringInvoiceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  recurringInvoiceInfo: {
+    flex: 1,
+  },
+  recurringInvoiceLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  recurringInvoiceDesc: {
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 1,

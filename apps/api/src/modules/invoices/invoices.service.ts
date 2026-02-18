@@ -240,7 +240,7 @@ export class InvoicesService {
       );
     }
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       await tx.invoicePayment.create({
         data: {
           invoiceId,
@@ -264,6 +264,22 @@ export class InvoicesService {
         include: invoiceInclude,
       });
     });
+
+    // Send payment confirmation notification to invoice creator
+    if (result && invoice.createdById) {
+      const dollars = (dto.amount / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      this.notificationService
+        .sendPushNotification(
+          invoice.createdById,
+          'Payment Received',
+          `$${dollars} payment on ${invoice.invoiceNumber}`,
+          { invoiceId },
+          'review_reminder',
+        )
+        .catch(() => {});
+    }
+
+    return result;
   }
 
   async getPayments(orgId: string, invoiceId: string) {

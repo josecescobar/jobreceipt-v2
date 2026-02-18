@@ -168,7 +168,7 @@ export class RecurringInvoicesService {
     for (const item of dueItems) {
       try {
         // Create the invoice via InvoicesService
-        await this.invoicesService.create(item.organizationId, item.createdById, {
+        const invoice = await this.invoicesService.create(item.organizationId, item.createdById, {
           jobId: item.jobId,
           notes: item.notes || undefined,
           taxRate: item.taxRate,
@@ -178,6 +178,15 @@ export class RecurringInvoicesService {
             unitPrice: li.unitPrice,
           })),
         });
+
+        // Auto-send: mark as SENT with a share token so it's immediately shareable
+        if (invoice) {
+          const { randomUUID } = await import('crypto');
+          await this.prisma.invoice.update({
+            where: { id: invoice.id },
+            data: { status: 'SENT', shareToken: randomUUID() },
+          });
+        }
 
         // Compute next occurrence
         const nextDate = this.computeNextOccurrence(item.nextOccurrence, item.frequency);

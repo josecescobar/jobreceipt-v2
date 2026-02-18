@@ -46,6 +46,7 @@ const DEFAULT_DASHBOARD_LAYOUT: DashboardSection[] = [
   { id: 'recentActivity', visible: true },
   { id: 'timeTracking', visible: true },
   { id: 'estimates', visible: true },
+  { id: 'recurringInvoices', visible: true },
 ];
 
 interface SettingsState {
@@ -147,9 +148,18 @@ export const useSettings = create<SettingsState>()(
             }
           }
         }
+        // v3 → v4: add recurringInvoices dashboard section
+        if (version < 4) {
+          if (persisted.dashboardLayout) {
+            const ids = persisted.dashboardLayout.map((s: any) => s.id);
+            if (!ids.includes('recurringInvoices')) {
+              persisted.dashboardLayout.push({ id: 'recurringInvoices', visible: true });
+            }
+          }
+        }
         return persisted as SettingsState;
       },
-      version: 3,
+      version: 4,
     },
   ),
 );
