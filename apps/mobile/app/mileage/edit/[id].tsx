@@ -22,9 +22,11 @@ import {
 import { useJobs } from '../../../src/hooks/useJobs';
 import { IRS_MILEAGE_RATE_CENTS } from '@jobreceipt/shared';
 import { formatMoney } from '../../../src/lib/format';
-import { colors, spacing, borderRadius } from '../../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../../src/theme';
 
 export default function EditMileageScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: trip, isLoading } = useMileageTrip(id ?? '');
@@ -202,7 +204,7 @@ export default function EditMileageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: {
     flex: 1,
   },

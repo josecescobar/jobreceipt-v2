@@ -21,7 +21,7 @@ import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { expensesApi } from '../../src/api/expenses';
 import { dollarsToCents, formatMoney } from '../../src/lib/format';
-import { colors, spacing, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
 
 const CATEGORIES = [
   { key: 'MATERIALS', label: 'Materials', icon: '🧱' },
@@ -33,6 +33,8 @@ const CATEGORIES = [
 
 export default function CreateExpenseScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const createExpense = useCreateExpense();
   const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 100 });
   const jobs = useMemo(
@@ -270,7 +272,7 @@ export default function CreateExpenseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: {
     flex: 1,
   },

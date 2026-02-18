@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, Text, Alert, StyleSheet } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Input, Button } from '../../src/components/ui';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing } from '../../src/theme';
 
 export default function ProfileScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { user } = useUser();
 
   const [firstName, setFirstName] = useState(user?.firstName || '');
@@ -92,7 +94,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: {
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,

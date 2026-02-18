@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LineItemRow } from './LineItemRow';
 import { Input } from '../ui';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../theme';
 import { dollarsToCents } from '../../lib/format';
 import type { ReceiptLineItem } from '@jobreceipt/shared';
 
@@ -17,6 +17,10 @@ interface LineItemListProps {
 }
 
 export function LineItemList({ items, jobNames, editing, onUpdateItem, onDeleteItem, onAddItem }: LineItemListProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [newDesc, setNewDesc] = useState('');
   const [newQty, setNewQty] = useState('1');
@@ -43,6 +47,8 @@ export function LineItemList({ items, jobNames, editing, onUpdateItem, onDeleteI
         </View>
         {editing && onAddItem && (
           <AddItemSection
+            colors={colors}
+            styles={styles}
             showForm={showAddForm}
             onToggleForm={() => setShowAddForm(!showAddForm)}
             desc={newDesc}
@@ -73,6 +79,8 @@ export function LineItemList({ items, jobNames, editing, onUpdateItem, onDeleteI
       ))}
       {editing && onAddItem && (
         <AddItemSection
+          colors={colors}
+          styles={styles}
           showForm={showAddForm}
           onToggleForm={() => setShowAddForm(!showAddForm)}
           desc={newDesc}
@@ -89,6 +97,8 @@ export function LineItemList({ items, jobNames, editing, onUpdateItem, onDeleteI
 }
 
 function AddItemSection({
+  colors,
+  styles,
   showForm,
   onToggleForm,
   desc,
@@ -99,6 +109,8 @@ function AddItemSection({
   onChangePrice,
   onAdd,
 }: {
+  colors: ThemeColors;
+  styles: ReturnType<typeof createStyles>;
   showForm: boolean;
   onToggleForm: () => void;
   desc: string;
@@ -158,13 +170,13 @@ function AddItemSection({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingHorizontal: spacing.lg,
     marginTop: spacing.lg,
   },
   header: {
-    ...typography.label,
+    ...createTypography(colors).label,
     marginBottom: spacing.sm,
   },
   empty: {

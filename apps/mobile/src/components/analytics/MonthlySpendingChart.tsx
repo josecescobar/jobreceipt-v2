@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Card } from '../ui';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { MonthlySpending } from '@jobreceipt/shared';
 
 const MONTH_LABELS = [
@@ -17,8 +17,9 @@ const MONTH_LABELS = [
 
 const BAR_HEIGHT = 120;
 
-function AnimatedBar({ value, maxValue, index }: { value: number; maxValue: number; index: number }) {
+function AnimatedBar({ value, maxValue, index, colors }: { value: number; maxValue: number; index: number; colors: ThemeColors }) {
   const ratio = maxValue > 0 ? Math.min(value / maxValue, 1) : 0;
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: withDelay(index * 80, withTiming(ratio * BAR_HEIGHT, { duration: 600 })),
@@ -38,6 +39,9 @@ interface MonthlySpendingChartProps {
 }
 
 export function MonthlySpendingChart({ data }: MonthlySpendingChartProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (data.length === 0) return null;
 
   const maxTotal = Math.max(...data.map((d) => d.total), 1);
@@ -52,7 +56,7 @@ export function MonthlySpendingChart({ data }: MonthlySpendingChartProps) {
 
           return (
             <View key={item.month} style={styles.barContainer}>
-              <AnimatedBar value={item.total} maxValue={maxTotal} index={index} />
+              <AnimatedBar value={item.total} maxValue={maxTotal} index={index} colors={colors} />
               <Text style={styles.barLabel}>{label}</Text>
               <Text style={styles.barAmount}>
                 {formatMoney(item.total)}
@@ -65,7 +69,7 @@ export function MonthlySpendingChart({ data }: MonthlySpendingChartProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,

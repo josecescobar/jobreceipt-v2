@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { OfflineBanner } from '../ui/OfflineBanner';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -17,6 +17,9 @@ export function Screen({
   style,
   edges = ['top'],
 }: ScreenProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <SafeAreaView style={styles.safe} edges={edges}>
       <OfflineBanner />
@@ -27,16 +30,17 @@ export function Screen({
   );
 }
 
-const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  padded: {
-    paddingHorizontal: spacing.lg,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    safe: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    padded: {
+      paddingHorizontal: spacing.lg,
+    },
+  });

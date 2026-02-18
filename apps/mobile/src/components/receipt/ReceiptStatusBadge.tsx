@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '../ui';
-import { getReceiptStatusColor } from '../../theme/colors';
+import { useTheme, getReceiptStatusColor } from '../../theme';
 
 interface ReceiptStatusBadgeProps {
   status: string;
@@ -14,11 +14,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function ReceiptStatusBadge({ status }: ReceiptStatusBadgeProps) {
+  const { colors } = useTheme();
+
   return (
     <Badge
       label={STATUS_LABELS[status] || status}
       color="#FFFFFF"
-      backgroundColor={getReceiptStatusColor(status)}
+      backgroundColor={getReceiptStatusColor(status, colors)}
     />
   );
 }

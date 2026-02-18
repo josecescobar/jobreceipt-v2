@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Platform, StyleSheet } from 'react-native';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { formatDate } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 
 interface DatePickerFieldProps {
   label?: string;
@@ -25,6 +25,9 @@ function toDateStr(date: Date): string {
 }
 
 export function DatePickerField({ label, value, onChange, placeholder }: DatePickerFieldProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [show, setShow] = useState(false);
 
   const handleChange = (_event: DateTimePickerEvent, selectedDate?: Date) => {
@@ -65,39 +68,40 @@ export function DatePickerField({ label, value, onChange, placeholder }: DatePic
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textSecondary,
-    marginBottom: spacing.sm,
-  },
-  field: {
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-  },
-  fieldText: {
-    fontSize: 16,
-    color: colors.text,
-  },
-  placeholder: {
-    color: colors.textMuted,
-  },
-  doneButton: {
-    alignItems: 'flex-end',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-  },
-  doneText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.primary,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      marginBottom: spacing.lg,
+    },
+    label: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    field: {
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+    },
+    fieldText: {
+      fontSize: 16,
+      color: colors.text,
+    },
+    placeholder: {
+      color: colors.textMuted,
+    },
+    doneButton: {
+      alignItems: 'flex-end',
+      paddingVertical: spacing.sm,
+      paddingHorizontal: spacing.md,
+    },
+    doneText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+  });

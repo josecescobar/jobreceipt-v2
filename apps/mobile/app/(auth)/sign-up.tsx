@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { useSignUp } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
 import { Screen } from '../../src/components/layout';
 import { Button, Input } from '../../src/components/ui';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 
 export default function SignUpScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const { signUp, setActive, isLoaded } = useSignUp();
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -49,8 +52,8 @@ export default function SignUpScreen() {
         style={styles.container}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Start tracking your job costs</Text>
+          <Text style={[styles.title, typography.h1]}>Create Account</Text>
+          <Text style={[styles.subtitle, typography.bodySmall]}>Start tracking your job costs</Text>
         </View>
 
         <View style={styles.form}>
@@ -96,7 +99,7 @@ export default function SignUpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -107,12 +110,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxxl,
   },
   title: {
-    ...typography.h1,
     marginBottom: spacing.sm,
   },
-  subtitle: {
-    ...typography.bodySmall,
-  },
+  subtitle: {},
   form: {
     marginBottom: spacing.xl,
   },

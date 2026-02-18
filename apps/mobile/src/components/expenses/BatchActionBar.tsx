@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore } from '../../stores/ui.store';
 import { useBatchDeleteExpenses, useBatchUpdateExpenses } from '../../hooks/useExpenses';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { Job } from '@jobreceipt/shared';
 
 const CATEGORIES = ['MATERIALS', 'LABOR', 'EQUIPMENT', 'SUBCONTRACTOR', 'OVERHEAD'];
@@ -30,6 +30,9 @@ export function BatchActionBar({ jobs }: BatchActionBarProps) {
     clearExpenseSelection,
     addToast,
   } = useUIStore();
+
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const batchDelete = useBatchDeleteExpenses();
   const batchUpdate = useBatchUpdateExpenses();
@@ -216,7 +219,7 @@ export function BatchActionBar({ jobs }: BatchActionBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     position: 'absolute',
     bottom: 0,

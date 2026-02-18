@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui';
 import { formatMoney, centsToDollars, dollarsToCents } from '../../lib/format';
-import { colors, spacing, borderRadius, typography, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 import type { Receipt, Job } from '@jobreceipt/shared';
 
 const CATEGORIES = [
@@ -34,7 +34,6 @@ interface CreateExpenseFromReceiptSheetProps {
     date: string;
     receiptId: string;
   }) => void;
-  onJustApprove: () => void;
   loading?: boolean;
 }
 
@@ -44,9 +43,12 @@ export function CreateExpenseFromReceiptSheet({
   receipt,
   jobs,
   onCreateAndApprove,
-  onJustApprove,
   loading,
 }: CreateExpenseFromReceiptSheetProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   const [jobId, setJobId] = useState(receipt.suggestedJobId ?? '');
   const [category, setCategory] = useState('MATERIALS');
   const [description, setDescription] = useState(
@@ -152,19 +154,13 @@ export function CreateExpenseFromReceiptSheet({
             loading={loading}
             disabled={!jobId}
           />
-          <Button
-            title="Just Approve"
-            onPress={onJustApprove}
-            variant="ghost"
-            loading={loading}
-          />
         </View>
       </View>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

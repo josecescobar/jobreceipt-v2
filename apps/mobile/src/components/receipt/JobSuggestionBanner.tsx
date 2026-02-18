@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 
 interface JobSuggestionBannerProps {
   jobName: string;
@@ -20,6 +20,9 @@ export function JobSuggestionBanner({
   confidence,
   onDismiss,
 }: JobSuggestionBannerProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.topRow}>
@@ -43,7 +46,7 @@ export function JobSuggestionBanner({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     backgroundColor: colors.surface,
     borderRadius: borderRadius.lg,

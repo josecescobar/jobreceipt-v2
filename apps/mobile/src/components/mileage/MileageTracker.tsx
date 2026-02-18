@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, Alert, Linking, StyleSheet } from 'react-native';
 import { Button } from '../ui';
 import { useLocationTracking } from '../../hooks/useLocationTracking';
 import { formatMiles, formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, createTypography } from '../../theme';
 
 interface TripCompleteData {
   distanceMiles: number;
@@ -26,6 +26,10 @@ export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
     stopTracking,
     startTime,
   } = useLocationTracking();
+
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const handleStop = () => {
     stopTracking();
@@ -95,59 +99,62 @@ export function MileageTracker({ onTripComplete }: MileageTrackerProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  idleContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xxl,
-  },
-  startButton: {
-    minWidth: 200,
-    backgroundColor: colors.success,
-  },
-  trackingContainer: {
-    alignItems: 'center',
-    paddingVertical: spacing.xl,
-    backgroundColor: colors.surface,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.error,
-  },
-  liveIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  liveDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.error,
-    marginRight: spacing.sm,
-  },
-  liveText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.error,
-    letterSpacing: 1,
-  },
-  distance: {
-    ...typography.moneyLarge,
-    fontSize: 48,
-    marginBottom: spacing.xs,
-  },
-  deduction: {
-    fontSize: 18,
-    color: colors.success,
-    fontWeight: '600',
-    marginBottom: spacing.sm,
-  },
-  duration: {
-    fontSize: 14,
-    color: colors.textMuted,
-    marginBottom: spacing.xl,
-  },
-  stopButton: {
-    minWidth: 200,
-  },
-});
+const createStyles = (colors: ThemeColors) => {
+  const typography = createTypography(colors);
+  return StyleSheet.create({
+    idleContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.xxl,
+    },
+    startButton: {
+      minWidth: 200,
+      backgroundColor: colors.success,
+    },
+    trackingContainer: {
+      alignItems: 'center',
+      paddingVertical: spacing.xl,
+      backgroundColor: colors.surface,
+      borderRadius: borderRadius.lg,
+      padding: spacing.xl,
+      borderWidth: 1,
+      borderColor: colors.error,
+    },
+    liveIndicator: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    liveDot: {
+      width: 10,
+      height: 10,
+      borderRadius: 5,
+      backgroundColor: colors.error,
+      marginRight: spacing.sm,
+    },
+    liveText: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: colors.error,
+      letterSpacing: 1,
+    },
+    distance: {
+      ...typography.moneyLarge,
+      fontSize: 48,
+      marginBottom: spacing.xs,
+    },
+    deduction: {
+      fontSize: 18,
+      color: colors.success,
+      fontWeight: '600',
+      marginBottom: spacing.sm,
+    },
+    duration: {
+      fontSize: 14,
+      color: colors.textMuted,
+      marginBottom: spacing.xl,
+    },
+    stopButton: {
+      minWidth: 200,
+    },
+  });
+};

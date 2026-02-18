@@ -1,10 +1,11 @@
 import React from 'react';
 import { Redirect, Stack } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
-import { colors } from '../../src/theme';
+import { useTheme } from '../../src/theme';
 import { LoadingScreen } from '../../src/components/ui';
 
 export default function AuthLayout() {
+  const { colors } = useTheme();
   const { isSignedIn, isLoaded } = useAuth();
 
   if (!isLoaded) return <LoadingScreen />;

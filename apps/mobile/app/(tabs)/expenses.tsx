@@ -7,10 +7,12 @@ import { ExpenseCard, ExpenseFilterBar, BatchActionBar } from '../../src/compone
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useUIStore } from '../../src/stores/ui.store';
-import { colors, spacing } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing } from '../../src/theme';
 
 export default function ExpensesScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const {
     expenseJobFilter,
     expenseCategoryFilter,
@@ -139,7 +141,7 @@ export default function ExpensesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   list: {
     paddingBottom: 100,
   },

@@ -38,13 +38,16 @@ import {
 import { useCreateExpense } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { centsToDollars, dollarsToCents, formatDate, formatMoney } from '../../src/lib/format';
-import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 
 const IMAGE_HEIGHT = Dimensions.get('window').height * 0.4;
 
 export default function ReceiptDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
   const { data: receipt, isLoading } = useReceipt(id ?? '', {
     refetchInterval: (query) =>
       query.state.data?.status === 'PROCESSING' ? 3000 : false,
@@ -147,15 +150,29 @@ export default function ReceiptDetailScreen() {
     }
   };
 
-  const handleJustApprove = async () => {
+  const canQuickApprove = !!(
+    receipt.suggestedJobId &&
+    receipt.totalAmount != null &&
+    receipt.transactionDate
+  );
+
+  const handleQuickApprove = async () => {
+    if (!canQuickApprove) return;
     setError('');
     try {
+      await createExpense.mutateAsync({
+        jobId: receipt.suggestedJobId!,
+        amount: receipt.totalAmount!,
+        description: `Receipt from ${receipt.merchantName || 'Unknown'}`,
+        category: 'MATERIALS',
+        date: receipt.transactionDate!.toString().split('T')[0],
+        receiptId: receipt.id,
+      });
       await approveReceipt.mutateAsync(receipt.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowExpenseSheet(false);
       router.back();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to approve receipt');
+      setError(err.response?.data?.message || 'Failed to quick approve');
     }
   };
 
@@ -453,22 +470,31 @@ export default function ReceiptDetailScreen() {
       {/* Sticky bottom action bar */}
       {receipt.status === 'REVIEW' && (
         <View style={styles.stickyBar}>
-          {suggestedJob ? (
-            <View style={styles.stickyBarInner}>
-              <View style={styles.suggestedChip}>
-                <Ionicons name="sparkles" size={14} color={colors.primary} />
-                <Text style={styles.suggestedChipText} numberOfLines={1}>
-                  {suggestedJob.name}
-                </Text>
+          {suggestedJob && canQuickApprove ? (
+            <>
+              <View style={styles.stickyBarInner}>
+                <View style={styles.suggestedChip}>
+                  <Ionicons name="sparkles" size={14} color={colors.primary} />
+                  <Text style={styles.suggestedChipText} numberOfLines={1}>
+                    {suggestedJob.name}
+                  </Text>
+                </View>
+                <Button
+                  title="Quick Approve"
+                  onPress={handleQuickApprove}
+                  variant="primary"
+                  style={styles.stickyMainBtn}
+                  loading={createExpense.isPending || approveReceipt.isPending}
+                />
               </View>
-              <Button
-                title="Assign & Approve"
+              <TouchableOpacity
                 onPress={handleApprove}
-                variant="primary"
-                style={styles.stickyMainBtn}
-                loading={approveReceipt.isPending}
-              />
-            </View>
+                style={styles.customizeBtn}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.customizeText}>Customize...</Text>
+              </TouchableOpacity>
+            </>
           ) : (
             <View style={styles.stickyBarInner}>
               <Button
@@ -523,7 +549,6 @@ export default function ReceiptDetailScreen() {
         receipt={receipt}
         jobs={jobs}
         onCreateAndApprove={handleCreateExpenseAndApprove}
-        onJustApprove={handleJustApprove}
         loading={createExpense.isPending || approveReceipt.isPending}
       />
 
@@ -538,7 +563,7 @@ export default function ReceiptDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createTypography>) => StyleSheet.create({
   scroll: {
     flex: 1,
   },
@@ -674,6 +699,16 @@ const styles = StyleSheet.create({
   },
   stickyMainBtn: {
     flex: 1,
+  },
+  customizeBtn: {
+    alignSelf: 'center',
+    paddingVertical: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  customizeText: {
+    fontSize: 13,
+    color: colors.primary,
+    fontWeight: '500',
   },
   stickyRejectBtn: {
     alignSelf: 'center',

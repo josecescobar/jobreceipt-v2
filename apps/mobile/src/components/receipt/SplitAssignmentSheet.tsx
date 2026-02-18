@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button } from '../ui';
-import { colors, spacing, borderRadius, typography, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 import { formatMoney } from '../../lib/format';
 import type { ReceiptLineItem, Job } from '@jobreceipt/shared';
 
@@ -26,6 +26,10 @@ export function SplitAssignmentSheet({
   jobs,
   onSave,
 }: SplitAssignmentSheetProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   const [assignments, setAssignments] = useState<Record<number, string>>({});
 
   const handleAssign = (lineItemIndex: number, jobId: string) => {
@@ -99,7 +103,7 @@ export function SplitAssignmentSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

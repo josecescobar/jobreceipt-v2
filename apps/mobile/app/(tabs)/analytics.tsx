@@ -14,10 +14,13 @@ import {
 } from '../../src/components/analytics';
 import type { Period } from '../../src/components/analytics';
 import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 
 export default function AnalyticsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const [period, setPeriod] = useState<Period>('month');
   const dateRange = useMemo(() => getDateRange(period), [period]);
 
@@ -80,9 +83,12 @@ export default function AnalyticsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   heading: {
-    ...typography.h1,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.5,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.lg,
   },

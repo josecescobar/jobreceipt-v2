@@ -1,12 +1,15 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 
 const BANNER_HEIGHT = 36;
 
 export function OfflineBanner() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const { isConnected, pendingActions } = useNetworkStatus();
   const height = useRef(new Animated.Value(0)).current;
 
@@ -29,7 +32,7 @@ export function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   banner: {
     backgroundColor: colors.warning,
     flexDirection: 'row',

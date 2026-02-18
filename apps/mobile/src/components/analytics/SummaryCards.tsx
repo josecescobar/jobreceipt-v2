@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { AnalyticsTotals } from '@jobreceipt/shared';
 
 interface SummaryCardsProps {
@@ -9,6 +9,9 @@ interface SummaryCardsProps {
 }
 
 export function SummaryCards({ totals }: SummaryCardsProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.row}>
       <View style={styles.card}>
@@ -29,7 +32,7 @@ export function SummaryCards({ totals }: SummaryCardsProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: spacing.sm,

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,15 +13,18 @@ import { Screen, Header } from '../../src/components/layout';
 import { Button, Badge } from '../../src/components/ui';
 import { organizationsApi, OrgMember } from '../../src/api/organizations';
 import { useAuthStore } from '../../src/stores/auth.store';
-import { colors, spacing, typography } from '../../src/theme';
-
-const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  OWNER: { bg: colors.primary + '20', text: colors.primary },
-  BOOKKEEPER: { bg: colors.success + '20', text: colors.success },
-  CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
-};
+import { useTheme, type ThemeColors, spacing } from '../../src/theme';
 
 export default function MembersScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
+    OWNER: { bg: colors.primary + '20', text: colors.primary },
+    BOOKKEEPER: { bg: colors.success + '20', text: colors.success },
+    CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
+  };
+
   const orgId = useAuthStore((s) => s.organizationId);
   const [members, setMembers] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
@@ -154,7 +157,7 @@ export default function MembersScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   loading: {
     flex: 1,
     justifyContent: 'center',

@@ -1,21 +1,21 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 import { LoadingScreen, Button } from '../../src/components/ui';
 import { useBootstrap } from '../../src/hooks/useBootstrap';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { useOverBudgetCount } from '../../src/hooks/useOverBudgetCount';
 
-function BadgedIcon({ name, size, color, badge }: { name: React.ComponentProps<typeof Ionicons>['name']; size: number; color: string; badge: number }) {
+function BadgedIcon({ name, size, color, badge, badgeStyles }: { name: React.ComponentProps<typeof Ionicons>['name']; size: number; color: string; badge: number; badgeStyles: ReturnType<typeof createStyles> }) {
   return (
     <View style={{ width: size + 8, height: size + 4, alignItems: 'center', justifyContent: 'center' }}>
       <Ionicons name={name} size={size} color={color} />
       {badge > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+        <View style={badgeStyles.badge}>
+          <Text style={badgeStyles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
         </View>
       )}
     </View>
@@ -27,6 +27,9 @@ export default function TabsLayout() {
   const { isBootstrapped, isLoading, error, retry } = useBootstrap();
   const { hasOnboarded, onboardingChecked, checkOnboarded } = useAuthStore();
   const overBudgetCount = useOverBudgetCount();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
 
   useEffect(() => {
     checkOnboarded();
@@ -90,7 +93,7 @@ export default function TabsLayout() {
         options={{
           title: 'Jobs',
           tabBarIcon: ({ color, size }) => (
-            <BadgedIcon name="briefcase" size={size} color={color} badge={overBudgetCount} />
+            <BadgedIcon name="briefcase" size={size} color={color} badge={overBudgetCount} badgeStyles={styles} />
           ),
         }}
       />
@@ -134,7 +137,7 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -144,11 +147,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   errorTitle: {
-    ...typography.h2,
+    fontSize: 22,
+    fontWeight: '600',
+    color: colors.text,
+    letterSpacing: -0.3,
     marginTop: spacing.md,
   },
   errorMessage: {
-    ...typography.bodySmall,
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.textSecondary,
+    lineHeight: 20,
     textAlign: 'center',
     marginBottom: spacing.md,
   },

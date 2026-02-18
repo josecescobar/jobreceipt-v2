@@ -6,13 +6,16 @@ import { CategoryBreakdownChart } from '../src/components/analytics';
 import { useAnalyticsSummary } from '../src/hooks/useAnalytics';
 import { useSettings } from '../src/hooks/useSettings';
 import { formatMoney } from '../src/lib/format';
-import { colors, spacing, typography, borderRadius } from '../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../src/theme';
 import { Ionicons } from '@expo/vector-icons';
 
 const currentYear = new Date().getFullYear();
 const YEARS = [currentYear - 2, currentYear - 1, currentYear];
 
 export default function TaxSummaryScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const [selectedYear, setSelectedYear] = useState(currentYear);
   const taxRate = useSettings((s) => s.defaultTaxRate);
 
@@ -145,7 +148,7 @@ export default function TaxSummaryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   scroll: {
     paddingBottom: spacing.xxxl,
   },

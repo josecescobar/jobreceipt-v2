@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, createTypography } from '../../theme';
 
 interface SettingsSectionProps {
   title: string;
@@ -8,20 +8,23 @@ interface SettingsSectionProps {
 }
 
 export function SettingsSection({ title, children }: SettingsSectionProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
+      <Text style={[typography.label, styles.title]}>{title}</Text>
       <View style={styles.content}>{children}</View>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginBottom: spacing.xl,
   },
   title: {
-    ...typography.label,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },

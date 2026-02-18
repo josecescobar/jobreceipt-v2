@@ -1,17 +1,20 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUIStore, Toast } from '../../stores/ui.store';
-import { colors, spacing, borderRadius } from '../../theme';
-
-const TOAST_COLORS: Record<string, string> = {
-  success: colors.success,
-  error: colors.error,
-  info: colors.info,
-  warning: colors.warning,
-};
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 
 function ToastItem({ toast }: { toast: Toast }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const TOAST_COLORS: Record<string, string> = {
+    success: colors.success,
+    error: colors.error,
+    info: colors.info,
+    warning: colors.warning,
+  };
+
   const removeToast = useUIStore((s) => s.removeToast);
   const opacity = React.useRef(new Animated.Value(0)).current;
 
@@ -36,6 +39,8 @@ function ToastItem({ toast }: { toast: Toast }) {
 }
 
 export function ToastContainer() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const toasts = useUIStore((s) => s.toasts);
   const insets = useSafeAreaInsets();
 
@@ -50,7 +55,7 @@ export function ToastContainer() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     position: 'absolute',
     left: spacing.lg,

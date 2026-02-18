@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,35 +12,37 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Input } from '../src/components/ui';
 import { useCreateJob } from '../src/hooks/useJobs';
 import { useAuthStore } from '../src/stores/auth.store';
-import { colors, spacing, borderRadius } from '../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../src/theme';
 
 type Step = 'welcome' | 'features' | 'job';
 
-const FEATURES = [
-  {
-    icon: 'camera' as const,
-    color: colors.primary,
-    title: 'Scan Receipts',
-    desc: 'AI-powered OCR extracts merchant, items, and totals automatically',
-  },
-  {
-    icon: 'wallet' as const,
-    color: colors.success,
-    title: 'Track Expenses',
-    desc: 'Organize costs by job and category with budget tracking',
-  },
-  {
-    icon: 'car' as const,
-    color: colors.warning,
-    title: 'Log Mileage',
-    desc: 'GPS tracking calculates IRS deductions for every trip',
-  },
-];
-
 export default function OnboardingScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const createJob = useCreateJob();
   const setOnboarded = useAuthStore((s) => s.setOnboarded);
+
+  const FEATURES = [
+    {
+      icon: 'camera' as const,
+      color: colors.primary,
+      title: 'Scan Receipts',
+      desc: 'AI-powered OCR extracts merchant, items, and totals automatically',
+    },
+    {
+      icon: 'wallet' as const,
+      color: colors.success,
+      title: 'Track Expenses',
+      desc: 'Organize costs by job and category with budget tracking',
+    },
+    {
+      icon: 'car' as const,
+      color: colors.warning,
+      title: 'Log Mileage',
+      desc: 'GPS tracking calculates IRS deductions for every trip',
+    },
+  ];
 
   const [step, setStep] = useState<Step>('welcome');
   const [jobName, setJobName] = useState('');
@@ -168,7 +170,7 @@ export default function OnboardingScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,

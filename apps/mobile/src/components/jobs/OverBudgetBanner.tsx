@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import { formatMoney } from '../../lib/format';
 
 interface BudgetWarningBannerProps {
@@ -10,6 +10,8 @@ interface BudgetWarningBannerProps {
 }
 
 export function BudgetWarningBanner({ ratio, remaining }: BudgetWarningBannerProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isOver = ratio >= 1.0;
   const bgColor = isOver ? colors.error : colors.warning;
   const icon = isOver ? 'warning' : 'alert-circle';
@@ -30,7 +32,7 @@ export function OverBudgetBanner({ overBy }: { overBy: number }) {
   return <BudgetWarningBanner ratio={1.0} remaining={-overBy} />;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',

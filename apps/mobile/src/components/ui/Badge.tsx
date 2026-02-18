@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 
 interface BadgeProps {
   label: string;
@@ -10,24 +10,31 @@ interface BadgeProps {
 
 export function Badge({
   label,
-  color = colors.text,
-  backgroundColor = colors.surfaceLight,
+  color: colorProp,
+  backgroundColor: bgProp,
 }: BadgeProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
+  const textColor = colorProp ?? colors.text;
+  const bgColor = bgProp ?? colors.surfaceLight;
+
   return (
-    <View style={[styles.badge, { backgroundColor }]}>
-      <Text style={[styles.text, { color }]}>{label}</Text>
+    <View style={[styles.badge, { backgroundColor: bgColor }]}>
+      <Text style={[styles.text, { color: textColor }]}>{label}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  badge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-  },
-  text: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    badge: {
+      paddingHorizontal: spacing.sm,
+      paddingVertical: spacing.xs,
+      borderRadius: borderRadius.sm,
+    },
+    text: {
+      fontSize: 12,
+      fontWeight: '600',
+    },
+  });

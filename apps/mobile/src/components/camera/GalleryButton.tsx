@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, MIN_TOUCH_TARGET } from '../../theme';
 
 interface GalleryButtonProps {
   onPress: () => void;
 }
 
 export function GalleryButton({ onPress }: GalleryButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
@@ -25,7 +28,7 @@ export function GalleryButton({ onPress }: GalleryButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: {
     width: MIN_TOUCH_TARGET,
     height: MIN_TOUCH_TARGET,

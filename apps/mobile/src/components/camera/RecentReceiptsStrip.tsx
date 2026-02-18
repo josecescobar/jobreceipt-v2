@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   FlatList,
@@ -10,7 +10,7 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useRecentReceipts } from '../../hooks/useReceipts';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import { getReceiptStatusColor } from '../../theme/colors';
 import { formatMoney } from '../../lib/format';
 import type { Receipt } from '@jobreceipt/shared';
@@ -18,6 +18,8 @@ import type { Receipt } from '@jobreceipt/shared';
 const THUMB_SIZE = 64;
 
 function ReceiptThumb({ receipt }: { receipt: Receipt }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
 
   const handlePress = () => {
@@ -25,7 +27,7 @@ function ReceiptThumb({ receipt }: { receipt: Receipt }) {
     router.push(`/receipt/${receipt.id}`);
   };
 
-  const statusColor = getReceiptStatusColor(receipt.status);
+  const statusColor = getReceiptStatusColor(receipt.status, colors);
 
   return (
     <TouchableOpacity style={styles.thumb} onPress={handlePress} activeOpacity={0.7}>
@@ -53,6 +55,8 @@ function ReceiptThumb({ receipt }: { receipt: Receipt }) {
 }
 
 export function RecentReceiptsStrip() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data } = useRecentReceipts();
   const receipts = data?.data ?? [];
 
@@ -73,7 +77,7 @@ export function RecentReceiptsStrip() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     paddingVertical: spacing.sm,
   },

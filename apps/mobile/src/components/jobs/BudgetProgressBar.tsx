@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ProgressBar, MoneyText } from '../ui';
 import { getBudgetColor } from '../../theme/colors';
 import { formatPercent } from '../../lib/format';
-import { colors, spacing, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 
 interface BudgetProgressBarProps {
   label: string;
@@ -12,15 +12,17 @@ interface BudgetProgressBarProps {
 }
 
 export function BudgetProgressBar({ label, spent, budget }: BudgetProgressBarProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const ratio = budget > 0 ? spent / budget : 0;
-  const color = getBudgetColor(spent, budget);
+  const color = getBudgetColor(spent, budget, colors);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
         <Text style={[styles.percent, { color }]}>
-          {budget > 0 ? formatPercent(ratio) : '—'}
+          {budget > 0 ? formatPercent(ratio) : '\u2014'}
         </Text>
       </View>
       <ProgressBar spent={spent} budget={budget} height={6} />
@@ -33,7 +35,7 @@ export function BudgetProgressBar({ label, spent, budget }: BudgetProgressBarPro
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginBottom: spacing.lg,
   },

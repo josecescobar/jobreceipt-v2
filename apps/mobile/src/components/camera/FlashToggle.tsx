@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { colors, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, MIN_TOUCH_TARGET } from '../../theme';
 
 interface FlashToggleProps {
   enabled: boolean;
@@ -10,6 +10,9 @@ interface FlashToggleProps {
 }
 
 export function FlashToggle({ enabled, onToggle }: FlashToggleProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.selectionAsync();
     onToggle();
@@ -30,7 +33,7 @@ export function FlashToggle({ enabled, onToggle }: FlashToggleProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   button: {
     width: MIN_TOUCH_TARGET,
     height: MIN_TOUCH_TARGET,

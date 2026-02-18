@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card, ProgressBar, MoneyText } from '../ui';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 
 interface CategoryBreakdownCardProps {
   label: string;
@@ -10,6 +10,9 @@ interface CategoryBreakdownCardProps {
 }
 
 export function CategoryBreakdownCard({ label, spent, budget }: CategoryBreakdownCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   if (budget <= 0 && spent <= 0) return null;
 
   return (
@@ -30,7 +33,7 @@ export function CategoryBreakdownCard({ label, spent, budget }: CategoryBreakdow
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: spacing.md,

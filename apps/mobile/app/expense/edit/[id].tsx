@@ -22,7 +22,7 @@ import { useExpense, useUpdateExpense, useDeleteExpense } from '../../../src/hoo
 import { useJobs } from '../../../src/hooks/useJobs';
 import { expensesApi } from '../../../src/api/expenses';
 import { dollarsToCents, centsToDollars, formatMoney } from '../../../src/lib/format';
-import { colors, spacing, borderRadius } from '../../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../../src/theme';
 
 const CATEGORIES = [
   { key: 'MATERIALS', label: 'Materials', icon: '🧱' },
@@ -35,6 +35,8 @@ const CATEGORIES = [
 export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { data: expense, isLoading } = useExpense(id ?? '');
   const updateExpense = useUpdateExpense();
   const deleteExpense = useDeleteExpense();
@@ -351,7 +353,7 @@ export default function EditExpenseScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: {
     flex: 1,
   },

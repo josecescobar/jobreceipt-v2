@@ -14,7 +14,7 @@ import { Button, Input } from '../ui';
 import { useCreateExpense } from '../../hooks/useExpenses';
 import { useJobs } from '../../hooks/useJobs';
 import { dollarsToCents } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 
 const CATEGORIES = [
   'MATERIALS',
@@ -32,6 +32,9 @@ export function ManualExpenseForm() {
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
     [jobsData],
   );
+
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [jobId, setJobId] = useState('');
   const [amount, setAmount] = useState('');
@@ -161,7 +164,7 @@ export function ManualExpenseForm() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
   },

@@ -16,7 +16,7 @@ import { useCreateExpense } from '../../hooks/useExpenses';
 import { useJobs } from '../../hooks/useJobs';
 import { IRS_MILEAGE_RATE_CENTS } from '@jobreceipt/shared';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius, typography, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, createTypography, MIN_TOUCH_TARGET } from '../../theme';
 
 interface ManualMileageFormProps {
   visible: boolean;
@@ -30,6 +30,10 @@ export function ManualMileageForm({ visible, onClose }: ManualMileageFormProps) 
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
     [jobsData],
   );
+
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [startLocation, setStartLocation] = useState('');
   const [endLocation, setEndLocation] = useState('');
@@ -167,7 +171,7 @@ export function ManualMileageForm({ visible, onClose }: ManualMileageFormProps) 
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,

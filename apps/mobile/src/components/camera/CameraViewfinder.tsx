@@ -1,11 +1,11 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useMemo } from 'react';
 import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { CaptureButton } from './CaptureButton';
 import { GalleryButton } from './GalleryButton';
 import { FlashToggle } from './FlashToggle';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 import { Button } from '../ui';
 
 interface CameraViewfinderProps {
@@ -19,6 +19,9 @@ export function CameraViewfinder({
   onGallerySelect,
   disabled,
 }: CameraViewfinderProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const cameraRef = useRef<CameraView>(null);
   const [flash, setFlash] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
@@ -90,7 +93,7 @@ export function CameraViewfinder({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
   },

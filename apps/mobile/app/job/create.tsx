@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -13,9 +13,11 @@ import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { useCreateJob } from '../../src/hooks/useJobs';
 import { dollarsToCents } from '../../src/lib/format';
-import { colors, spacing, borderRadius, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing } from '../../src/theme';
 
 export default function CreateJobScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
   const createJob = useCreateJob();
 
@@ -175,7 +177,7 @@ export default function CreateJobScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: {
     flex: 1,
   },

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,7 +6,7 @@ import * as Haptics from 'expo-haptics';
 import { Card, ProgressBar } from '../ui';
 import { useBudget } from '../../hooks/useBudget';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, createTypography } from '../../theme';
 import type { Job } from '@jobreceipt/shared';
 
 interface JobCardProps {
@@ -15,6 +15,9 @@ interface JobCardProps {
 
 export function JobCard({ job }: JobCardProps) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const { spent, budget, ratio, color } = useBudget(job.id);
 
   const handlePress = () => {
@@ -27,11 +30,11 @@ export function JobCard({ job }: JobCardProps) {
       <Card style={styles.card}>
         <View style={styles.header}>
           <View style={styles.titleArea}>
-            <Text style={styles.name} numberOfLines={1}>
+            <Text style={[styles.name, typography.h3]} numberOfLines={1}>
               {job.name}
             </Text>
             {job.customerName && (
-              <Text style={styles.customer} numberOfLines={1}>
+              <Text style={[styles.customer, typography.bodySmall]} numberOfLines={1}>
                 {job.customerName}
               </Text>
             )}
@@ -64,7 +67,7 @@ export function JobCard({ job }: JobCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.md,
   },
@@ -77,11 +80,8 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: spacing.md,
   },
-  name: {
-    ...typography.h3,
-  },
+  name: {},
   customer: {
-    ...typography.bodySmall,
     marginTop: 2,
   },
   statusBadge: {

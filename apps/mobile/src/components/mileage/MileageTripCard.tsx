@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Card } from '../ui';
 import { formatMiles, formatMoney, formatDate } from '../../lib/format';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 
 interface MileageTripCardProps {
   date: string;
@@ -25,6 +25,9 @@ export function MileageTripCard({
   endLocation,
   onPress,
 }: MileageTripCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     if (onPress) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -66,7 +69,7 @@ export function MileageTripCard({
   return content;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: spacing.md,

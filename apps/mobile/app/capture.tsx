@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useState, useMemo } from 'react';
 import { View, StyleSheet, Text, ActivityIndicator, Image, Dimensions } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -8,7 +8,7 @@ import { CameraViewfinder, RecentReceiptsStrip } from '../src/components/camera'
 import { Button } from '../src/components/ui';
 import { Screen, Header } from '../src/components/layout';
 import { useReceiptUpload } from '../src/hooks/useReceiptUpload';
-import { colors, spacing, borderRadius } from '../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../src/theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -19,6 +19,8 @@ interface UploadedReceipt {
 
 export default function CaptureScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const { upload, isUploading, status, error, reset } = useReceiptUpload();
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [pendingUris, setPendingUris] = useState<string[]>([]);
@@ -177,7 +179,7 @@ export default function CaptureScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.black,

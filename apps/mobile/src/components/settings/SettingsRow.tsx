@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, MIN_TOUCH_TARGET } from '../../theme';
 
 interface SettingsRowProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -15,6 +15,9 @@ interface SettingsRowProps {
 }
 
 export function SettingsRow({ icon, label, subtitle, value, onPress, danger, showChevron, rightElement }: SettingsRowProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const Container = onPress ? TouchableOpacity : View;
   const chevronVisible = showChevron ?? (onPress && !danger);
 
@@ -43,7 +46,7 @@ export function SettingsRow({ icon, label, subtitle, value, onPress, danger, sho
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',

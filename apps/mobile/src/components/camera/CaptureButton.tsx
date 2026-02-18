@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors } from '../../theme';
+import { useTheme, type ThemeColors } from '../../theme';
 
 interface CaptureButtonProps {
   onPress: () => void;
@@ -9,6 +9,9 @@ interface CaptureButtonProps {
 }
 
 export function CaptureButton({ onPress, disabled }: CaptureButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     onPress();
@@ -26,7 +29,7 @@ export function CaptureButton({ onPress, disabled }: CaptureButtonProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   outer: {
     width: 72,
     height: 72,

@@ -21,15 +21,8 @@ import { useMileageSummary, useMileageTrips } from '../../src/hooks/useMileage';
 import { useBudget } from '../../src/hooks/useBudget';
 import { useAnalyticsSummary } from '../../src/hooks/useAnalytics';
 import { formatMoney } from '../../src/lib/format';
-import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 import { Ionicons } from '@expo/vector-icons';
-
-const QUICK_ACTIONS: QuickAction[] = [
-  { label: 'Scan Receipt', icon: 'camera', route: '/capture', color: colors.primary },
-  { label: 'Add Expense', icon: 'wallet', route: '/expense/create', color: colors.success },
-  { label: 'Log Mileage', icon: 'car', route: '/mileage/create', color: colors.warning },
-  { label: 'New Job', icon: 'briefcase', route: '/job/create', color: colors.textSecondary },
-];
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -37,6 +30,16 @@ export default function HomeScreen() {
   const router = useRouter();
   const { user } = useUser();
   const firstName = user?.firstName || 'there';
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
+  const QUICK_ACTIONS: QuickAction[] = useMemo(() => [
+    { label: 'Scan Receipt', icon: 'camera', route: '/capture', color: colors.primary },
+    { label: 'Add Expense', icon: 'wallet', route: '/expense/create', color: colors.success },
+    { label: 'Log Mileage', icon: 'car', route: '/mileage/create', color: colors.warning },
+    { label: 'New Job', icon: 'briefcase', route: '/job/create', color: colors.textSecondary },
+  ], [colors]);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -283,7 +286,7 @@ export default function HomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   greetingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -361,7 +364,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   sectionTitle: {
-    ...typography.label,
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
     marginTop: spacing.md,
     marginBottom: spacing.md,
   },

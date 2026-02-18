@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, typography, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, createTypography, spacing, MIN_TOUCH_TARGET } from '../../theme';
 
 interface HeaderProps {
   title: string;
@@ -15,6 +15,9 @@ interface HeaderProps {
 
 export function Header({ title, showBack = false, rightAction }: HeaderProps) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
 
   return (
     <View style={styles.container}>
@@ -47,36 +50,37 @@ export function Header({ title, showBack = false, rightAction }: HeaderProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    minHeight: 56,
-  },
-  left: {
-    width: 40,
-  },
-  right: {
-    width: 40,
-    alignItems: 'flex-end',
-  },
-  title: {
-    ...typography.h3,
-    flex: 1,
-    textAlign: 'center',
-  },
-  backButton: {
-    minWidth: MIN_TOUCH_TARGET,
-    minHeight: MIN_TOUCH_TARGET,
-    justifyContent: 'center',
-  },
-  actionButton: {
-    minWidth: MIN_TOUCH_TARGET,
-    minHeight: MIN_TOUCH_TARGET,
-    justifyContent: 'center',
-    alignItems: 'flex-end',
-  },
-});
+const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createTypography>) =>
+  StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+      minHeight: 56,
+    },
+    left: {
+      width: 40,
+    },
+    right: {
+      width: 40,
+      alignItems: 'flex-end',
+    },
+    title: {
+      ...typography.h3,
+      flex: 1,
+      textAlign: 'center',
+    },
+    backButton: {
+      minWidth: MIN_TOUCH_TARGET,
+      minHeight: MIN_TOUCH_TARGET,
+      justifyContent: 'center',
+    },
+    actionButton: {
+      minWidth: MIN_TOUCH_TARGET,
+      minHeight: MIN_TOUCH_TARGET,
+      justifyContent: 'center',
+      alignItems: 'flex-end',
+    },
+  });

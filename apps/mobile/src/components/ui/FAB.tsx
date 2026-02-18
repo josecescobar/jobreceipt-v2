@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, borderRadius } from '../../theme';
 import { Ionicons } from '@expo/vector-icons';
 
 interface FABProps {
@@ -11,6 +11,9 @@ interface FABProps {
 }
 
 export function FAB({ onPress, icon = 'add', label }: FABProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     onPress();
@@ -24,7 +27,7 @@ export function FAB({ onPress, icon = 'add', label }: FABProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   fab: {
     position: 'absolute',
     right: 20,

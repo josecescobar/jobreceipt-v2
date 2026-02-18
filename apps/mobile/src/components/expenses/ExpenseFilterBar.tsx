@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, ScrollView, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { FilterChip, Input, DatePickerField } from '../ui';
 import { useUIStore } from '../../stores/ui.store';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 import type { Job } from '@jobreceipt/shared';
 
 interface ExpenseFilterBarProps {
@@ -23,6 +23,9 @@ export function ExpenseFilterBar({ jobs }: ExpenseFilterBarProps) {
     setExpenseMerchantSearch,
     setExpenseDateRange,
   } = useUIStore();
+
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [showDateRange, setShowDateRange] = useState(
     !!(expenseDateFrom || expenseDateTo),
@@ -148,7 +151,7 @@ export function ExpenseFilterBar({ jobs }: ExpenseFilterBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginBottom: spacing.sm,
   },

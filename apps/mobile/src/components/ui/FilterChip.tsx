@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 
 interface FilterChipProps {
   label: string;
@@ -10,6 +10,9 @@ interface FilterChipProps {
 }
 
 export function FilterChip({ label, active, onPress }: FilterChipProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.selectionAsync();
     onPress();
@@ -26,28 +29,29 @@ export function FilterChip({ label, active, onPress }: FilterChipProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  chip: {
-    paddingHorizontal: spacing.lg,
-    minHeight: MIN_TOUCH_TARGET,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: borderRadius.full,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginRight: spacing.sm,
-  },
-  active: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  text: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: colors.textSecondary,
-  },
-  activeText: {
-    color: colors.white,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    chip: {
+      paddingHorizontal: spacing.lg,
+      minHeight: MIN_TOUCH_TARGET,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: spacing.sm,
+    },
+    active: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    text: {
+      fontSize: 14,
+      fontWeight: '500',
+      color: colors.textSecondary,
+    },
+    activeText: {
+      color: colors.white,
+    },
+  });

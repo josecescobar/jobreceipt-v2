@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, createTypography } from '../../theme';
 import { Button } from './Button';
 
 interface EmptyStateProps {
@@ -12,10 +12,14 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ title, message, actionLabel, onAction }: EmptyStateProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[typography.h3, styles.title]}>{title}</Text>
+      <Text style={[typography.bodySmall, styles.message]}>{message}</Text>
       {actionLabel && onAction && (
         <Button
           title={actionLabel}
@@ -29,7 +33,7 @@ export function EmptyState({ title, message, actionLabel, onAction }: EmptyState
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -37,12 +41,10 @@ const styles = StyleSheet.create({
     padding: spacing.xxl,
   },
   title: {
-    ...typography.h3,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   message: {
-    ...typography.bodySmall,
     textAlign: 'center',
     marginBottom: spacing.lg,
   },

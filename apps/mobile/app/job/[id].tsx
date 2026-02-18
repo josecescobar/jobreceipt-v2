@@ -25,17 +25,21 @@ import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport } from '../../src/lib/export';
-import { colors, spacing, typography } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
 
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+const getStatusColors = (colors: ThemeColors): Record<string, { bg: string; text: string }> => ({
   ACTIVE: { bg: colors.success + '20', text: colors.success },
   COMPLETED: { bg: colors.primary + '20', text: colors.primary },
   ARCHIVED: { bg: colors.textMuted + '20', text: colors.textMuted },
-};
+});
 
 export default function JobDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors, typography), [colors, typography]);
+  const STATUS_COLORS = useMemo(() => getStatusColors(colors), [colors]);
   const { data: job, isLoading: jobLoading } = useJob(id!);
   const {
     spent,
@@ -325,7 +329,7 @@ export default function JobDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createTypography>) => StyleSheet.create({
   scroll: {
     flex: 1,
   },

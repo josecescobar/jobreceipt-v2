@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TouchableOpacity, View, Text, Image, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Card } from '../ui';
 import { ReceiptStatusBadge } from './ReceiptStatusBadge';
 import { formatMoney, formatDate } from '../../lib/format';
-import { colors, spacing, typography, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../theme';
 
 interface ReceiptCardProps {
   receipt: {
@@ -20,6 +20,10 @@ interface ReceiptCardProps {
 }
 
 export function ReceiptCard({ receipt, onPress }: ReceiptCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
@@ -63,7 +67,7 @@ export function ReceiptCard({ receipt, onPress }: ReceiptCardProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.md,
   },
@@ -101,7 +105,9 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   merchant: {
-    ...typography.h3,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
     flex: 1,
     marginRight: spacing.sm,
   },
@@ -111,7 +117,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   date: {
-    ...typography.bodySmall,
+    fontSize: 14,
+    fontWeight: '400',
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   amount: {
     fontSize: 16,

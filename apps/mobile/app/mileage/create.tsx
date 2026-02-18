@@ -17,7 +17,7 @@ import { useCreateMileageTrip } from '../../src/hooks/useMileage';
 import { useJobs } from '../../src/hooks/useJobs';
 import { IRS_MILEAGE_RATE_CENTS } from '@jobreceipt/shared';
 import { formatMoney } from '../../src/lib/format';
-import { colors, spacing, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
 
 type Mode = 'track' | 'manual';
 
@@ -32,6 +32,8 @@ interface TrackedData {
 
 export default function CreateMileageScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const createTrip = useCreateMileageTrip();
   const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 100 });
   const jobs = useMemo(
@@ -210,7 +212,7 @@ export default function CreateMileageScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   flex: {
     flex: 1,
   },

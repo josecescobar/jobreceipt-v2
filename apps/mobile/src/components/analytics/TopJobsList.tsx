@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Card } from '../ui';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { TopJob } from '@jobreceipt/shared';
 
 interface TopJobsListProps {
@@ -12,6 +12,8 @@ interface TopJobsListProps {
 
 export function TopJobsList({ data }: TopJobsListProps) {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   if (data.length === 0) return null;
 
@@ -43,7 +45,7 @@ export function TopJobsList({ data }: TopJobsListProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,

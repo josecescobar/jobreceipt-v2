@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, Text, Alert, Platform, View, TouchableOpacity, StyleSheet } from 'react-native';
 import { useAuth, useUser } from '@clerk/clerk-expo';
 import { useRouter } from 'expo-router';
@@ -10,7 +10,7 @@ import { SettingsSection, SettingsRow } from '../../src/components/settings';
 import { useAuthStore } from '../../src/stores/auth.store';
 import { organizationsApi } from '../../src/api/organizations';
 import { exportReceipts, exportExpenses, exportMileage } from '../../src/lib/export';
-import { spacing, typography, colors, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Owner',
@@ -18,20 +18,23 @@ const ROLE_LABELS: Record<string, string> = {
   CREW: 'Crew',
 };
 
-const ROLE_COLORS: Record<string, { bg: string; text: string }> = {
-  OWNER: { bg: colors.primary + '20', text: colors.primary },
-  BOOKKEEPER: { bg: colors.success + '20', text: colors.success },
-  CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
-};
-
 export default function SettingsScreen() {
   const { signOut } = useAuth();
   const { user } = useUser();
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const orgId = useAuthStore((s) => s.organizationId);
   const orgName = useAuthStore((s) => s.organizationName);
   const userRole = useAuthStore((s) => s.userRole);
   const isOwner = userRole === 'OWNER';
+
+  const ROLE_COLORS: Record<string, { bg: string; text: string }> = useMemo(() => ({
+    OWNER: { bg: colors.primary + '20', text: colors.primary },
+    BOOKKEEPER: { bg: colors.success + '20', text: colors.success },
+    CREW: { bg: colors.textMuted + '20', text: colors.textMuted },
+  }), [colors]);
 
   const [exporting, setExporting] = useState<'receipts' | 'expenses' | 'mileage' | null>(null);
 
@@ -186,7 +189,7 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <Badge
-            label={userRole ? ROLE_LABELS[userRole] ?? userRole : '—'}
+            label={userRole ? ROLE_LABELS[userRole] ?? userRole : '-'}
             color={roleStyle.text}
             backgroundColor={roleStyle.bg}
           />
@@ -280,12 +283,15 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   scroll: {
     paddingBottom: spacing.xxxl,
   },
   title: {
-    ...typography.h1,
+    fontSize: 28,
+    fontWeight: '700',
+    color: colors.text,
+    letterSpacing: -0.5,
     paddingHorizontal: spacing.lg,
     marginBottom: spacing.xl,
   },

@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, View, Text, Linking, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { Screen, Header } from '../../src/components/layout';
 import { SettingsSection, SettingsRow } from '../../src/components/settings';
-import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
 
 export default function AboutScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const version = Constants.expoConfig?.version ?? '1.0.0';
   const buildNumber = Constants.expoConfig?.ios?.buildNumber || Constants.expoConfig?.android?.versionCode || '1';
 
@@ -22,7 +25,7 @@ export default function AboutScreen() {
           <View style={styles.iconContainer}>
             <Ionicons name="receipt" size={48} color={colors.primary} />
           </View>
-          <Text style={styles.appName}>JobReceipt</Text>
+          <Text style={[styles.appName, typography.h2]}>JobReceipt</Text>
           <Text style={styles.appVersion}>Version {version} ({buildNumber})</Text>
         </View>
 
@@ -62,7 +65,7 @@ export default function AboutScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
   },
@@ -81,7 +84,6 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   appName: {
-    ...typography.h2,
     marginBottom: spacing.xs,
   },
   appVersion: {

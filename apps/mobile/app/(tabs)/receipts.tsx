@@ -6,7 +6,7 @@ import { Screen } from '../../src/components/layout';
 import { FilterChip, EmptyState, Input, DatePickerField, LoadingScreen } from '../../src/components/ui';
 import { ReceiptCard } from '../../src/components/receipt';
 import { useReceipts } from '../../src/hooks/useReceipts';
-import { colors, spacing, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
 
 const STATUS_FILTERS = ['ALL', 'PROCESSING', 'REVIEW', 'APPROVED', 'REJECTED'] as const;
 type StatusFilter = (typeof STATUS_FILTERS)[number];
@@ -21,6 +21,8 @@ const FILTER_LABELS: Record<StatusFilter, string> = {
 
 export default function ReceiptsScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -87,7 +89,7 @@ export default function ReceiptsScreen() {
           </Text>
         </TouchableOpacity>
 
-        <Text style={styles.dateDash}>–</Text>
+        <Text style={styles.dateDash}>-</Text>
 
         <TouchableOpacity
           style={[styles.datePill, dateTo ? styles.datePillActive : null]}
@@ -159,7 +161,7 @@ export default function ReceiptsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   searchInput: {
     marginBottom: 0,
   },

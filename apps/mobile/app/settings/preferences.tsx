@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   ScrollView,
   View,
@@ -13,7 +13,13 @@ import { Screen, Header } from '../../src/components/layout';
 import { Input, Button } from '../../src/components/ui';
 import { SettingsSection } from '../../src/components/settings';
 import { useSettings } from '../../src/hooks/useSettings';
-import { colors, spacing, typography, borderRadius } from '../../src/theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
+
+const THEME_OPTIONS = [
+  { value: 'light' as const, label: 'Light' },
+  { value: 'dark' as const, label: 'Dark' },
+  { value: 'system' as const, label: 'System' },
+];
 
 const EXPENSE_CATEGORIES = [
   { value: null, label: 'None' },
@@ -29,15 +35,20 @@ function centsToDollarStr(cents: number): string {
 }
 
 export default function PreferencesScreen() {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const {
     mileageRateCents,
     notificationsEnabled,
     defaultTaxRate,
     defaultExpenseCategory,
+    themeMode,
     setMileageRateCents,
     setNotificationsEnabled,
     setDefaultTaxRate,
     setDefaultExpenseCategory,
+    setThemeMode,
   } = useSettings();
 
   const [mileageInput, setMileageInput] = useState(centsToDollarStr(mileageRateCents));
@@ -88,6 +99,29 @@ export default function PreferencesScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <SettingsSection title="Appearance">
+          <View style={styles.categoryGrid}>
+            {THEME_OPTIONS.map((opt) => {
+              const isSelected = themeMode === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
+                  onPress={() => {
+                    setThemeMode(opt.value);
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.categoryText, isSelected && styles.categoryTextSelected]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </SettingsSection>
+
         <SettingsSection title="Mileage">
           <View style={styles.sectionContent}>
             <Input
@@ -167,7 +201,7 @@ export default function PreferencesScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   content: {
     paddingBottom: spacing.xxxl,
   },

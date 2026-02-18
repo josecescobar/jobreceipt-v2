@@ -9,7 +9,7 @@ import { CLERK_PUBLISHABLE_KEY, QUERY_CACHE_TIME, QUERY_STALE_TIME } from '../sr
 import { setTokenGetter } from '../src/api/client';
 import { offlineQueue } from '../src/lib/offline-queue';
 import { useNotifications } from '../src/hooks/useNotifications';
-import { colors } from '../src/theme';
+import { ThemeProvider, useTheme } from '../src/theme';
 import { ErrorBoundary, ToastContainer } from '../src/components/ui';
 
 const queryClient = new QueryClient({
@@ -48,6 +48,24 @@ function TokenInjector({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ThemedApp() {
+  const { colors, isDark } = useTheme();
+
+  return (
+    <>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'slide_from_right',
+        }}
+      />
+      <ToastContainer />
+    </>
+  );
+}
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -59,15 +77,9 @@ export default function RootLayout() {
           <ClerkLoaded>
             <QueryClientProvider client={queryClient}>
               <TokenInjector>
-                <StatusBar style="light" />
-                <Stack
-                  screenOptions={{
-                    headerShown: false,
-                    contentStyle: { backgroundColor: colors.background },
-                    animation: 'slide_from_right',
-                  }}
-                />
-                <ToastContainer />
+                <ThemeProvider>
+                  <ThemedApp />
+                </ThemeProvider>
               </TokenInjector>
             </QueryClientProvider>
           </ClerkLoaded>

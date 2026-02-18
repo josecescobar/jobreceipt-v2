@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,7 +7,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { getBudgetColor } from '../../theme/colors';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 
 interface BarData {
   label: string;
@@ -22,8 +22,10 @@ interface BudgetBreakdownChartProps {
 const BAR_HEIGHT = 120;
 
 function AnimatedBar({ spent, budget, index }: { spent: number; budget: number; index: number }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const ratio = budget > 0 ? Math.min(spent / budget, 1.2) : 0;
-  const barColor = getBudgetColor(spent, budget);
+  const barColor = getBudgetColor(spent, budget, colors);
 
   const animatedStyle = useAnimatedStyle(() => ({
     height: withDelay(index * 100, withTiming(ratio * BAR_HEIGHT, { duration: 600 })),
@@ -39,6 +41,9 @@ function AnimatedBar({ spent, budget, index }: { spent: number; budget: number; 
 }
 
 export function BudgetBreakdownChart({ data }: BudgetBreakdownChartProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <View style={styles.container}>
       <View style={styles.chart}>
@@ -58,7 +63,7 @@ export function BudgetBreakdownChart({ data }: BudgetBreakdownChartProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginVertical: spacing.md,
   },

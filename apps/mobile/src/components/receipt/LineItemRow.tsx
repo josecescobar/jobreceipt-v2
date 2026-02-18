@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, MIN_TOUCH_TARGET } from '../../theme';
 import { formatMoney, centsToDollars, dollarsToCents } from '../../lib/format';
 import { Input } from '../ui';
 import type { ReceiptLineItem } from '@jobreceipt/shared';
@@ -15,6 +15,9 @@ interface LineItemRowProps {
 }
 
 export function LineItemRow({ item, jobName, editing, onSave, onDelete }: LineItemRowProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const [desc, setDesc] = useState(item.description);
   const [qty, setQty] = useState(item.quantity.toString());
   const [unitPriceStr, setUnitPriceStr] = useState(centsToDollars(item.unitPrice).toFixed(2));
@@ -120,7 +123,7 @@ export function LineItemRow({ item, jobName, editing, onSave, onDelete }: LineIt
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,8 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card, MoneyText } from '../ui';
 import { formatMiles } from '../../lib/format';
-import { colors, spacing, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, createTypography } from '../../theme';
 
 interface MileageSummaryProps {
   totalMiles: number;
@@ -15,6 +15,10 @@ export function MileageSummary({
   totalDeductionCents,
   period,
 }: MileageSummaryProps) {
+  const { colors } = useTheme();
+  const typography = useMemo(() => createTypography(colors), [colors]);
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   return (
     <Card style={styles.card}>
       <Text style={styles.period}>{period}</Text>
@@ -33,35 +37,38 @@ export function MileageSummary({
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    marginBottom: spacing.lg,
-  },
-  period: {
-    ...typography.label,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  stat: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  value: {
-    ...typography.moneyLarge,
-  },
-  label: {
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  divider: {
-    width: 1,
-    height: 40,
-    backgroundColor: colors.border,
-    marginHorizontal: spacing.md,
-  },
-});
+const createStyles = (colors: ThemeColors) => {
+  const typography = createTypography(colors);
+  return StyleSheet.create({
+    card: {
+      marginBottom: spacing.lg,
+    },
+    period: {
+      ...typography.label,
+      marginBottom: spacing.md,
+      textAlign: 'center',
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    stat: {
+      flex: 1,
+      alignItems: 'center',
+    },
+    value: {
+      ...typography.moneyLarge,
+    },
+    label: {
+      fontSize: 12,
+      color: colors.textMuted,
+      marginTop: 4,
+    },
+    divider: {
+      width: 1,
+      height: 40,
+      backgroundColor: colors.border,
+      marginHorizontal: spacing.md,
+    },
+  });
+};

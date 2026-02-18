@@ -1,7 +1,7 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode, useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Button } from './Button';
-import { colors, spacing, typography } from '../../theme';
+import { useTheme, type ThemeColors, spacing, createTypography } from '../../theme';
 
 interface Props {
   children: ReactNode;
@@ -11,6 +11,28 @@ interface Props {
 interface State {
   hasError: boolean;
   error: Error | null;
+}
+
+function ErrorFallback({
+  title,
+  message,
+  onReset,
+}: {
+  title: string;
+  message: string;
+  onReset: () => void;
+}) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
+
+  return (
+    <View style={styles.container}>
+      <Text style={[typography.h3, styles.title]}>{title}</Text>
+      <Text style={[typography.bodySmall, styles.message]}>{message}</Text>
+      <Button title="Try Again" onPress={onReset} variant="primary" />
+    </View>
+  );
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -34,15 +56,11 @@ export class ErrorBoundary extends Component<Props, State> {
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.container}>
-          <Text style={styles.title}>
-            {this.props.fallbackTitle || 'Something went wrong'}
-          </Text>
-          <Text style={styles.message}>
-            {this.state.error?.message || 'An unexpected error occurred'}
-          </Text>
-          <Button title="Try Again" onPress={this.handleReset} variant="primary" />
-        </View>
+        <ErrorFallback
+          title={this.props.fallbackTitle || 'Something went wrong'}
+          message={this.state.error?.message || 'An unexpected error occurred'}
+          onReset={this.handleReset}
+        />
       );
     }
 
@@ -50,7 +68,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
@@ -59,12 +77,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   title: {
-    ...typography.h3,
     marginBottom: spacing.sm,
     textAlign: 'center',
   },
   message: {
-    ...typography.bodySmall,
     textAlign: 'center',
     marginBottom: spacing.xl,
   },

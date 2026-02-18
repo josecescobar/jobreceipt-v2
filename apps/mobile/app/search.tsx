@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,19 +18,22 @@ import { receiptsApi } from '../src/api/receipts';
 import { Badge } from '../src/components/ui';
 import { ReceiptStatusBadge } from '../src/components/receipt';
 import { formatMoney, formatDate } from '../src/lib/format';
-import { colors, spacing, borderRadius, typography, MIN_TOUCH_TARGET } from '../src/theme';
-
-const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  ACTIVE: { bg: colors.success + '20', text: colors.success },
-  COMPLETED: { bg: colors.primary + '20', text: colors.primary },
-  ARCHIVED: { bg: colors.textMuted + '20', text: colors.textMuted },
-};
+import { useTheme, type ThemeColors, createTypography, spacing, borderRadius, MIN_TOUCH_TARGET } from '../src/theme';
 
 export default function SearchScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const typography = useMemo(() => createTypography(colors), [colors]);
   const inputRef = useRef<TextInput>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+
+  const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+    ACTIVE: { bg: colors.success + '20', text: colors.success },
+    COMPLETED: { bg: colors.primary + '20', text: colors.primary },
+    ARCHIVED: { bg: colors.textMuted + '20', text: colors.textMuted },
+  };
 
   // Debounce search input
   useEffect(() => {
@@ -133,7 +136,7 @@ export default function SearchScreen() {
         {/* Jobs */}
         {jobs.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Jobs</Text>
+            <Text style={[styles.sectionTitle, typography.label]}>Jobs</Text>
             {jobs.map((job) => {
               const statusStyle = STATUS_COLORS[job.status] || STATUS_COLORS.ACTIVE;
               return (
@@ -166,7 +169,7 @@ export default function SearchScreen() {
         {/* Expenses */}
         {expenses.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Expenses</Text>
+            <Text style={[styles.sectionTitle, typography.label]}>Expenses</Text>
             {expenses.map((expense) => (
               <TouchableOpacity
                 key={expense.id}
@@ -194,7 +197,7 @@ export default function SearchScreen() {
         {/* Receipts */}
         {receipts.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Receipts</Text>
+            <Text style={[styles.sectionTitle, typography.label]}>Receipts</Text>
             {receipts.map((receipt) => (
               <TouchableOpacity
                 key={receipt.id}
@@ -232,7 +235,7 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.background,
@@ -287,7 +290,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    ...typography.label,
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
   },

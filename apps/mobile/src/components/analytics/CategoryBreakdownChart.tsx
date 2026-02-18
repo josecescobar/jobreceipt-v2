@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useAnimatedStyle,
@@ -7,33 +7,38 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Card } from '../ui';
 import { formatMoney } from '../../lib/format';
-import { colors, spacing, borderRadius } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../theme';
 import type { CategoryBreakdown } from '@jobreceipt/shared';
 
-const CATEGORY_COLORS = [
-  colors.primary,
-  colors.success,
-  colors.warning,
-  '#8B5CF6',
-  colors.error,
-  '#60A5FA',
-  '#EC4899',
-  '#14B8A6',
-];
-
 const MAX_BAR_WIDTH_PERCENT = 55;
+
+function getCategoryColors(colors: ThemeColors) {
+  return [
+    colors.primary,
+    colors.success,
+    colors.warning,
+    '#8B5CF6',
+    colors.error,
+    '#60A5FA',
+    '#EC4899',
+    '#14B8A6',
+  ];
+}
 
 function AnimatedRow({
   item,
   maxPercentage,
   index,
   color,
+  colors,
 }: {
   item: CategoryBreakdown;
   maxPercentage: number;
   index: number;
   color: string;
+  colors: ThemeColors;
 }) {
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const widthPercent =
     maxPercentage > 0
       ? (item.percentage / maxPercentage) * MAX_BAR_WIDTH_PERCENT
@@ -69,6 +74,10 @@ interface CategoryBreakdownChartProps {
 }
 
 export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const categoryColors = useMemo(() => getCategoryColors(colors), [colors]);
+
   if (data.length === 0) return null;
 
   const maxPercentage = Math.max(...data.map((d) => d.percentage), 1);
@@ -82,14 +91,15 @@ export function CategoryBreakdownChart({ data }: CategoryBreakdownChartProps) {
           item={item}
           maxPercentage={maxPercentage}
           index={index}
-          color={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
+          color={categoryColors[index % categoryColors.length]}
+          colors={colors}
         />
       ))}
     </Card>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   container: {
     marginHorizontal: spacing.lg,
     marginBottom: spacing.lg,

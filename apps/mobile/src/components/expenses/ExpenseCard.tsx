@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Card, Badge } from '../ui';
 import { formatMoney, formatDate } from '../../lib/format';
-import { colors, spacing } from '../../theme';
+import { useTheme, type ThemeColors, spacing } from '../../theme';
 import type { Expense } from '@jobreceipt/shared';
 
 interface ExpenseCardProps {
@@ -26,6 +26,9 @@ export function ExpenseCard({
   onLongPress,
   onSelect,
 }: ExpenseCardProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     if (selectionMode && onSelect) {
       Haptics.selectionAsync();
@@ -95,7 +98,7 @@ export function ExpenseCard({
   return content;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ThemeColors) => StyleSheet.create({
   card: {
     marginBottom: spacing.sm,
     padding: spacing.md,

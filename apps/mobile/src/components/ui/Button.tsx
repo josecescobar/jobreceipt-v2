@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -8,7 +8,7 @@ import {
   TextStyle,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { colors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
+import { useTheme, type ThemeColors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 
 interface ButtonProps {
   title: string;
@@ -31,6 +31,9 @@ export function Button({
   style,
   textStyle,
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
@@ -70,66 +73,67 @@ export function Button({
   );
 }
 
-const styles = StyleSheet.create({
-  base: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: MIN_TOUCH_TARGET,
-    borderRadius: borderRadius.md,
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  secondary: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  danger: {
-    backgroundColor: colors.error,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  size_sm: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 36,
-  },
-  size_md: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-  },
-  size_lg: {
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-  },
-  text: {
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  text_primary: {
-    color: colors.white,
-  },
-  text_secondary: {
-    color: colors.text,
-  },
-  text_danger: {
-    color: colors.white,
-  },
-  text_ghost: {
-    color: colors.primary,
-  },
-  text_sm: {
-    fontSize: 14,
-  },
-  text_md: {
-    fontSize: 16,
-  },
-  text_lg: {
-    fontSize: 18,
-  },
-});
+const createStyles = (colors: ThemeColors) =>
+  StyleSheet.create({
+    base: {
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: MIN_TOUCH_TARGET,
+      borderRadius: borderRadius.md,
+    },
+    primary: {
+      backgroundColor: colors.primary,
+    },
+    secondary: {
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
+    danger: {
+      backgroundColor: colors.error,
+    },
+    ghost: {
+      backgroundColor: 'transparent',
+    },
+    disabled: {
+      opacity: 0.5,
+    },
+    size_sm: {
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+      minHeight: 36,
+    },
+    size_md: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.md,
+    },
+    size_lg: {
+      paddingHorizontal: spacing.xl,
+      paddingVertical: spacing.lg,
+    },
+    text: {
+      fontWeight: '600',
+      textAlign: 'center',
+    },
+    text_primary: {
+      color: colors.white,
+    },
+    text_secondary: {
+      color: colors.text,
+    },
+    text_danger: {
+      color: colors.white,
+    },
+    text_ghost: {
+      color: colors.primary,
+    },
+    text_sm: {
+      fontSize: 14,
+    },
+    text_md: {
+      fontSize: 16,
+    },
+    text_lg: {
+      fontSize: 18,
+    },
+  });

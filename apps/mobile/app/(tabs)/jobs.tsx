@@ -6,7 +6,7 @@ import { FilterChip, FAB, EmptyState, Input, LoadingScreen } from '../../src/com
 import { JobCard } from '../../src/components/jobs';
 import { useJobs } from '../../src/hooks/useJobs';
 import { useUIStore } from '../../src/stores/ui.store';
-import { spacing, typography } from '../../src/theme';
+import { spacing } from '../../src/theme';
 import type { Job } from '@jobreceipt/shared';
 
 const FILTERS = ['ACTIVE', 'COMPLETED', 'ARCHIVED', 'ALL'] as const;
