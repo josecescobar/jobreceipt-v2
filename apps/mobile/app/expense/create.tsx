@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   Image,
   ActionSheetIOS,
   Alert,
@@ -17,7 +18,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
-import { useCreateExpense } from '../../src/hooks/useExpenses';
+import { useCreateExpense, useCreateExpenseBatch } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { expensesApi } from '../../src/api/expenses';
 import { dollarsToCents, formatMoney } from '../../src/lib/format';
@@ -31,11 +32,17 @@ const CATEGORIES = [
   { key: 'OVERHEAD', label: 'Overhead', icon: '📋' },
 ];
 
+interface SplitRow {
+  jobId: string;
+  amount: string;
+}
+
 export default function CreateExpenseScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const createExpense = useCreateExpense();
+  const createExpenseBatch = useCreateExpenseBatch();
   const { data: jobsData } = useJobs({ status: 'ACTIVE', limit: 100 });
   const jobs = useMemo(
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
@@ -51,7 +58,52 @@ export default function CreateExpenseScreen() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
+  // Split mode
+  const [splitMode, setSplitMode] = useState(false);
+  const [splits, setSplits] = useState<SplitRow[]>([
+    { jobId: '', amount: '' },
+    { jobId: '', amount: '' },
+  ]);
+
   const amountNum = parseFloat(amount) || 0;
+  const amountCents = dollarsToCents(amountNum);
+
+  // Split calculations
+  const splitTotal = splits.reduce((sum, s) => {
+    const val = parseFloat(s.amount);
+    return sum + (isNaN(val) ? 0 : dollarsToCents(val));
+  }, 0);
+  const splitDiff = amountCents - splitTotal;
+  const splitsValid = splitMode && amountNum > 0 && description.trim().length > 0 &&
+    splits.every((s) => s.jobId && parseFloat(s.amount) > 0) && Math.abs(splitDiff) <= 1;
+
+  const handleToggleSplit = () => {
+    if (!splitMode) {
+      const initialSplits: SplitRow[] = [
+        { jobId: jobId || '', amount: amountNum > 0 ? amount : '' },
+        { jobId: '', amount: '' },
+      ];
+      setSplits(initialSplits);
+    }
+    setSplitMode(!splitMode);
+  };
+
+  const handleUpdateSplit = (index: number, field: keyof SplitRow, value: string) => {
+    setSplits((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleAddSplit = () => {
+    setSplits((prev) => [...prev, { jobId: '', amount: '' }]);
+  };
+
+  const handleRemoveSplit = (index: number) => {
+    if (splits.length <= 2) return;
+    setSplits((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handlePickPhoto = () => {
     const options = ['Take Photo', 'Choose from Library', 'Cancel'];
@@ -100,17 +152,21 @@ export default function CreateExpenseScreen() {
   };
 
   const handleSubmit = async () => {
-    if (!jobId) {
-      setError('Please select a job');
-      return;
-    }
-    if (!amount || amountNum <= 0) {
-      setError('Please enter an amount');
-      return;
-    }
-    if (!description.trim()) {
-      setError('Please enter a description');
-      return;
+    if (splitMode) {
+      if (!splitsValid) return;
+    } else {
+      if (!jobId) {
+        setError('Please select a job');
+        return;
+      }
+      if (!amount || amountNum <= 0) {
+        setError('Please enter an amount');
+        return;
+      }
+      if (!description.trim()) {
+        setError('Please enter a description');
+        return;
+      }
     }
     setError('');
     setUploading(true);
@@ -120,14 +176,27 @@ export default function CreateExpenseScreen() {
       if (imageUri) {
         imageKey = await expensesApi.uploadImage(imageUri);
       }
-      await createExpense.mutateAsync({
-        jobId,
-        amount: dollarsToCents(amountNum),
-        description: description.trim(),
-        category: category || undefined,
-        imageKey: imageKey || undefined,
-        date: date || new Date().toISOString(),
-      });
+
+      if (splitMode) {
+        const items = splits.map((s) => ({
+          jobId: s.jobId,
+          amount: dollarsToCents(parseFloat(s.amount)),
+          description: description.trim(),
+          category: category || undefined,
+          imageKey: imageKey || undefined,
+          date: date || new Date().toISOString(),
+        }));
+        await createExpenseBatch.mutateAsync(items);
+      } else {
+        await createExpense.mutateAsync({
+          jobId,
+          amount: dollarsToCents(amountNum),
+          description: description.trim(),
+          category: category || undefined,
+          imageKey: imageKey || undefined,
+          date: date || new Date().toISOString(),
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } catch (err: any) {
@@ -136,6 +205,10 @@ export default function CreateExpenseScreen() {
       setUploading(false);
     }
   };
+
+  const canSubmit = splitMode
+    ? splitsValid
+    : !!(jobId && amount && amountNum > 0);
 
   return (
     <Screen padded={false}>
@@ -148,32 +221,6 @@ export default function CreateExpenseScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
-          {/* Job picker */}
-          <Text style={styles.label}>Job *</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.chipScroll}
-          >
-            {jobs.map((job) => (
-              <TouchableOpacity
-                key={job.id}
-                style={[styles.chip, jobId === job.id && styles.chipActive]}
-                onPress={() => setJobId(jobId === job.id ? '' : job.id)}
-              >
-                <Text
-                  style={[styles.chipText, jobId === job.id && styles.chipTextActive]}
-                  numberOfLines={1}
-                >
-                  {job.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            {jobs.length === 0 && (
-              <Text style={styles.noJobs}>No active jobs</Text>
-            )}
-          </ScrollView>
-
           {/* Amount */}
           <Input
             label="Amount *"
@@ -198,6 +245,135 @@ export default function CreateExpenseScreen() {
             value={date}
             onChange={setDate}
           />
+
+          {splitMode ? (
+            <>
+              {/* Split rows */}
+              <Text style={styles.label}>Split Across Jobs</Text>
+              {splits.map((split, index) => (
+                <View key={index} style={styles.splitRow}>
+                  <View style={styles.splitJobSection}>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={styles.splitJobScroll}
+                    >
+                      {jobs.map((job) => (
+                        <TouchableOpacity
+                          key={job.id}
+                          style={[styles.chip, split.jobId === job.id && styles.chipActive]}
+                          onPress={() => handleUpdateSplit(index, 'jobId', split.jobId === job.id ? '' : job.id)}
+                        >
+                          <Text
+                            style={[styles.chipText, split.jobId === job.id && styles.chipTextActive]}
+                            numberOfLines={1}
+                          >
+                            {job.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </ScrollView>
+                  </View>
+                  <View style={styles.splitAmountRow}>
+                    <View style={styles.splitAmountInput}>
+                      <Text style={styles.splitAmountPrefix}>$</Text>
+                      <TextInput
+                        style={styles.splitAmountField}
+                        value={split.amount}
+                        onChangeText={(val) => handleUpdateSplit(index, 'amount', val)}
+                        keyboardType="decimal-pad"
+                        placeholder="0.00"
+                        placeholderTextColor={colors.textMuted}
+                      />
+                    </View>
+                    {splits.length > 2 && (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveSplit(index)}
+                        style={styles.splitRemoveBtn}
+                      >
+                        <Ionicons name="close-circle" size={22} color={colors.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              ))}
+
+              {/* Add split button */}
+              <TouchableOpacity onPress={handleAddSplit} style={styles.addSplitBtn}>
+                <Ionicons name="add-circle-outline" size={20} color={colors.primary} />
+                <Text style={styles.addSplitText}>Add another job</Text>
+              </TouchableOpacity>
+
+              {/* Split total indicator */}
+              {amountNum > 0 && (
+                <View style={[
+                  styles.splitTotalCard,
+                  Math.abs(splitDiff) <= 1 && styles.splitTotalMatch,
+                  splitDiff < -1 && styles.splitTotalOver,
+                ]}>
+                  <Text style={styles.splitTotalLabel}>
+                    Split Total: {formatMoney(splitTotal)} / {formatMoney(amountCents)}
+                  </Text>
+                  {Math.abs(splitDiff) <= 1 ? (
+                    <View style={styles.splitStatusRow}>
+                      <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+                      <Text style={[styles.splitStatusText, { color: colors.success }]}>Amounts match</Text>
+                    </View>
+                  ) : splitDiff > 0 ? (
+                    <Text style={[styles.splitStatusText, { color: colors.warning }]}>
+                      {formatMoney(splitDiff)} remaining to allocate
+                    </Text>
+                  ) : (
+                    <Text style={[styles.splitStatusText, { color: colors.error }]}>
+                      {formatMoney(Math.abs(splitDiff))} over total
+                    </Text>
+                  )}
+                </View>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Job picker */}
+              <Text style={styles.label}>Job *</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipScroll}
+              >
+                {jobs.map((job) => (
+                  <TouchableOpacity
+                    key={job.id}
+                    style={[styles.chip, jobId === job.id && styles.chipActive]}
+                    onPress={() => setJobId(jobId === job.id ? '' : job.id)}
+                  >
+                    <Text
+                      style={[styles.chipText, jobId === job.id && styles.chipTextActive]}
+                      numberOfLines={1}
+                    >
+                      {job.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {jobs.length === 0 && (
+                  <Text style={styles.noJobs}>No active jobs</Text>
+                )}
+              </ScrollView>
+            </>
+          )}
+
+          {/* Split toggle */}
+          {jobs.length >= 2 && (
+            <TouchableOpacity onPress={handleToggleSplit} style={styles.splitToggle}>
+              <Ionicons
+                name={splitMode ? 'return-up-back-outline' : 'git-branch-outline'}
+                size={18}
+                color={colors.primary}
+              />
+              <Text style={styles.splitToggleText}>
+                {splitMode ? 'Single job instead' : 'Split across jobs'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Category chips */}
           <Text style={styles.label}>Category</Text>
@@ -243,8 +419,8 @@ export default function CreateExpenseScreen() {
             </TouchableOpacity>
           )}
 
-          {/* Amount preview */}
-          {amountNum > 0 && (
+          {/* Amount preview (single mode only) */}
+          {!splitMode && amountNum > 0 && (
             <View style={styles.previewCard}>
               <Text style={styles.previewLabel}>Expense Total</Text>
               <Text style={styles.previewValue}>
@@ -261,10 +437,10 @@ export default function CreateExpenseScreen() {
           {error ? <Text style={styles.error}>{error}</Text> : null}
 
           <Button
-            title={uploading ? 'Uploading Photo...' : 'Add Expense'}
+            title={uploading ? 'Uploading Photo...' : splitMode ? 'Create Split Expenses' : 'Add Expense'}
             onPress={handleSubmit}
-            loading={createExpense.isPending || uploading}
-            disabled={!jobId || !amount || amountNum <= 0}
+            loading={createExpense.isPending || createExpenseBatch.isPending || uploading}
+            disabled={!canSubmit}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -314,6 +490,109 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.textMuted,
     fontStyle: 'italic',
     paddingVertical: spacing.sm,
+  },
+  // Split mode styles
+  splitToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.sm,
+  },
+  splitToggleText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  splitRow: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  splitJobSection: {
+    marginBottom: spacing.sm,
+  },
+  splitJobScroll: {
+    flexGrow: 0,
+  },
+  splitAmountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  splitAmountInput: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    height: 42,
+  },
+  splitAmountPrefix: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textMuted,
+    marginRight: 4,
+  },
+  splitAmountField: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    padding: 0,
+  },
+  splitRemoveBtn: {
+    padding: spacing.xs,
+  },
+  addSplitBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  addSplitText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  splitTotalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  splitTotalMatch: {
+    borderColor: colors.success,
+  },
+  splitTotalOver: {
+    borderColor: colors.error,
+  },
+  splitTotalLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    marginBottom: 4,
+  },
+  splitStatusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  splitStatusText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   categoryGrid: {
     flexDirection: 'row',

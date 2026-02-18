@@ -39,6 +39,11 @@ export const expensesApi = {
     await apiClient.delete(`/expenses/${id}`);
   },
 
+  createBatch: async (items: CreateExpenseDto[]): Promise<Expense[]> => {
+    const { data } = await apiClient.post('/expenses/batch', { items });
+    return data;
+  },
+
   batchDelete: async (ids: string[]): Promise<{ count: number }> => {
     const { data } = await apiClient.post('/expenses/batch/delete', { ids });
     return data;

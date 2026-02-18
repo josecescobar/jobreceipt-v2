@@ -20,7 +20,7 @@ import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { QueryExpenseDto } from './dto/query-expense.dto';
-import { BatchDeleteExpensesDto, BatchUpdateExpensesDto } from './dto/batch-expense.dto';
+import { BatchCreateExpensesDto, BatchDeleteExpensesDto, BatchUpdateExpensesDto } from './dto/batch-expense.dto';
 
 @ApiTags('Expenses')
 @Controller('expenses')
@@ -56,6 +56,16 @@ export class ExpensesController {
       page: query.page ?? 1,
       limit: query.limit ?? 20,
     });
+  }
+
+  @Post('batch')
+  @ApiOperation({ summary: 'Create multiple expenses at once (e.g. split receipt across jobs)' })
+  async createBatch(
+    @CurrentOrg() orgId: string,
+    @CurrentUser('id') userId: string,
+    @Body() body: BatchCreateExpensesDto,
+  ) {
+    return this.expensesService.createBatch(orgId, userId, body.items);
   }
 
   @Post('upload-url')

@@ -48,6 +48,26 @@ export function useCreateExpense() {
   });
 }
 
+export function useCreateExpenseBatch() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (items: CreateExpenseDto[]) => expensesApi.createBatch(items),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: expenseKeys.lists() });
+      // Invalidate budgets for all affected jobs
+      const jobIds = new Set(data.map((e) => e.jobId));
+      for (const jobId of jobIds) {
+        queryClient.invalidateQueries({ queryKey: jobKeys.budget(jobId) });
+      }
+      // Invalidate receipt detail if linked
+      const receiptIds = new Set(data.map((e) => e.receiptId).filter(Boolean));
+      for (const receiptId of receiptIds) {
+        queryClient.invalidateQueries({ queryKey: receiptKeys.detail(receiptId!) });
+      }
+    },
+  });
+}
+
 export function useUpdateExpense() {
   const queryClient = useQueryClient();
   return useMutation({

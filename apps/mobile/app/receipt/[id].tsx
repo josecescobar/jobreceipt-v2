@@ -36,7 +36,7 @@ import {
   useUpdateLineItem,
   useDeleteLineItem,
 } from '../../src/hooks/useReceipts';
-import { useCreateExpense } from '../../src/hooks/useExpenses';
+import { useCreateExpense, useCreateExpenseBatch } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
 import { centsToDollars, dollarsToCents, formatDate, formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
@@ -68,6 +68,7 @@ export default function ReceiptDetailScreen() {
   );
 
   const createExpense = useCreateExpense();
+  const createExpenseBatch = useCreateExpenseBatch();
 
   const [showSplit, setShowSplit] = useState(false);
   const [showExpenseSheet, setShowExpenseSheet] = useState(false);
@@ -148,6 +149,26 @@ export default function ReceiptDetailScreen() {
       router.back();
     } catch (err: any) {
       setError(err.response?.data?.message || 'Failed to create expense and approve');
+    }
+  };
+
+  const handleCreateSplitAndApprove = async (items: Array<{
+    jobId: string;
+    amount: number;
+    description: string;
+    category?: string;
+    date: string;
+    receiptId: string;
+  }>) => {
+    setError('');
+    try {
+      await createExpenseBatch.mutateAsync(items);
+      await approveReceipt.mutateAsync(receipt.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowExpenseSheet(false);
+      router.back();
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to create split expenses and approve');
     }
   };
 
@@ -572,7 +593,8 @@ export default function ReceiptDetailScreen() {
         receipt={receipt}
         jobs={jobs}
         onCreateAndApprove={handleCreateExpenseAndApprove}
-        loading={createExpense.isPending || approveReceipt.isPending}
+        onCreateSplitAndApprove={handleCreateSplitAndApprove}
+        loading={createExpense.isPending || createExpenseBatch.isPending || approveReceipt.isPending}
       />
 
       {receipt.imageUrl && (

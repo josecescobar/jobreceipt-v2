@@ -1,5 +1,7 @@
-import { IsString, IsArray, ArrayMinSize, ArrayMaxSize, IsOptional } from 'class-validator';
+import { IsString, IsArray, ArrayMinSize, ArrayMaxSize, IsOptional, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CreateExpenseDto } from './create-expense.dto';
 
 export class BatchDeleteExpensesDto {
   @ApiProperty({ description: 'Array of expense IDs to delete' })
@@ -8,6 +10,16 @@ export class BatchDeleteExpensesDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(100)
   ids: string[];
+}
+
+export class BatchCreateExpensesDto {
+  @ApiProperty({ description: 'Array of expenses to create', type: [CreateExpenseDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateExpenseDto)
+  @ArrayMinSize(2)
+  @ArrayMaxSize(10)
+  items: CreateExpenseDto[];
 }
 
 export class BatchUpdateExpensesDto {

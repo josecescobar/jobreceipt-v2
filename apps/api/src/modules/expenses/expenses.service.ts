@@ -64,6 +64,44 @@ export class ExpensesService {
     return expense;
   }
 
+  async createBatch(orgId: string, userId: string, items: CreateExpenseData[]) {
+    const expenses = await this.prisma.$transaction(async (tx: any) => {
+      const created = [];
+      for (const item of items) {
+        const expense = await tx.expense.create({
+          data: {
+            organizationId: orgId,
+            jobId: item.jobId,
+            receiptId: item.receiptId,
+            costCodeId: item.costCodeId,
+            amount: item.amount,
+            description: item.description,
+            category: item.category,
+            taxCategory: item.taxCategory,
+            mileage: item.mileage,
+            imageKey: item.imageKey,
+            date: new Date(item.date),
+            createdById: userId,
+          },
+        });
+        created.push(expense);
+      }
+      return created;
+    });
+
+    // Fire budget checks for each unique job (fire-and-forget)
+    const jobAmounts = new Map<string, number>();
+    for (const item of items) {
+      const current = jobAmounts.get(item.jobId) || 0;
+      jobAmounts.set(item.jobId, current + item.amount);
+    }
+    for (const [jobId, amount] of jobAmounts) {
+      this.checkBudgetAlert(jobId, orgId, amount).catch(() => {});
+    }
+
+    return expenses;
+  }
+
   async findAll(orgId: string, query: ExpenseQuery) {
     const where: Prisma.ExpenseWhereInput = { organizationId: orgId };
 
