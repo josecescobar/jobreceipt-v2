@@ -29,3 +29,7 @@ export * from './material';
 export * from './equipment';
 export * from './close-out';
 export * from './report';
+export * from './permit';
+export * from './warranty';
+export * from './safety';
+export * from './progress-billing';

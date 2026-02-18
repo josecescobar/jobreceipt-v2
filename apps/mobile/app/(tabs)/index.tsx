@@ -38,6 +38,9 @@ import { useAllChangeOrders } from '../../src/hooks/useChangeOrders';
 import { useEstimates } from '../../src/hooks/useEstimates';
 import { useActiveTimer, useClockOut } from '../../src/hooks/useTimeTracking';
 import { useRecurringInvoices } from '../../src/hooks/useRecurringInvoices';
+import { useWarrantySummary, useUpcomingExpirations } from '../../src/hooks/useWarranties';
+import { usePermitSummary } from '../../src/hooks/usePermits';
+import { useSafetySummary } from '../../src/hooks/useSafety';
 import { useSettings } from '../../src/hooks/useSettings';
 import { formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, createTypography, spacing, borderRadius } from '../../src/theme';
@@ -101,6 +104,10 @@ export default function HomeScreen() {
   const { data: activeTimer, refetch: refetchActiveTimer } = useActiveTimer();
   const clockOutMutation = useClockOut();
   const { data: recurringInvoicesData, refetch: refetchRecurringInvoices } = useRecurringInvoices({ isActive: 'true' });
+  const { data: warrantySummary, refetch: refetchWarrantySummary } = useWarrantySummary();
+  const { data: warrantyExpirations, refetch: refetchWarrantyExpirations } = useUpcomingExpirations();
+  const { data: permitSummary, refetch: refetchPermitSummary } = usePermitSummary();
+  const { data: safetySummary, refetch: refetchSafetySummary } = useSafetySummary();
   const maintenanceDueCount = useMemo(() => {
     if (!upcomingMaintenanceData) return 0;
     const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -142,11 +149,15 @@ export default function HomeScreen() {
         refetchEstimates(),
         refetchActiveTimer(),
         refetchRecurringInvoices(),
+        refetchWarrantySummary(),
+        refetchWarrantyExpirations(),
+        refetchPermitSummary(),
+        refetchSafetySummary(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance, refetchPendingCOs, refetchEstimates, refetchActiveTimer, refetchRecurringInvoices]);
+  }, [refetchRecent, refetchReview, refetchJobs, refetchMileageSummary, refetchExpenses, refetchMileage, refetchAnalytics, refetchPending, refetchTodaySchedule, refetchAging, refetchCashFlow, refetchUnread, refetchUpcomingMaintenance, refetchPendingCOs, refetchEstimates, refetchActiveTimer, refetchRecurringInvoices, refetchWarrantySummary, refetchWarrantyExpirations, refetchPermitSummary, refetchSafetySummary]);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -498,6 +509,108 @@ export default function HomeScreen() {
           </React.Fragment>
         );
       },
+      warranties: () => {
+        if (!warrantySummary || (warrantySummary.active === 0 && warrantySummary.expiringSoon === 0)) return null;
+        return (
+          <React.Fragment key="warranties">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Warranties</Text>
+              <TouchableOpacity onPress={() => router.push('/warranty')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/warranty')}
+            >
+              <Card>
+                <View style={styles.recurringInvoiceCard}>
+                  <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
+                  <View style={styles.recurringInvoiceInfo}>
+                    <Text style={styles.recurringInvoiceLabel}>
+                      {warrantySummary.active} active warrant{warrantySummary.active !== 1 ? 'ies' : 'y'}
+                    </Text>
+                    {warrantySummary.expiringSoon > 0 && (
+                      <Text style={[styles.recurringInvoiceDesc, { color: colors.warning }]}>
+                        {warrantySummary.expiringSoon} expiring soon
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </React.Fragment>
+        );
+      },
+      permits: () => {
+        if (!permitSummary || (permitSummary.applied === 0 && permitSummary.issued === 0)) return null;
+        return (
+          <React.Fragment key="permits">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Permits</Text>
+              <TouchableOpacity onPress={() => router.push('/permit')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/permit')}
+            >
+              <Card>
+                <View style={styles.recurringInvoiceCard}>
+                  <Ionicons name="document-lock-outline" size={24} color={colors.primary} />
+                  <View style={styles.recurringInvoiceInfo}>
+                    <Text style={styles.recurringInvoiceLabel}>
+                      {permitSummary.issued} issued, {permitSummary.applied} pending
+                    </Text>
+                    {permitSummary.expired > 0 && (
+                      <Text style={[styles.recurringInvoiceDesc, { color: colors.error }]}>
+                        {permitSummary.expired} expired
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </React.Fragment>
+        );
+      },
+      safety: () => {
+        if (!safetySummary || (safetySummary.openIncidents === 0 && safetySummary.inspectionsThisMonth === 0)) return null;
+        return (
+          <React.Fragment key="safety">
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Safety</Text>
+              <TouchableOpacity onPress={() => router.push('/safety')} activeOpacity={0.7}>
+                <Text style={styles.seeAllLink}>See All</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push('/safety')}
+            >
+              <Card>
+                <View style={styles.recurringInvoiceCard}>
+                  <Ionicons name="warning-outline" size={24} color={safetySummary.openIncidents > 0 ? colors.error : colors.primary} />
+                  <View style={styles.recurringInvoiceInfo}>
+                    <Text style={styles.recurringInvoiceLabel}>
+                      {safetySummary.openIncidents > 0
+                        ? `${safetySummary.openIncidents} open incident${safetySummary.openIncidents !== 1 ? 's' : ''}`
+                        : 'No open incidents'}
+                    </Text>
+                    <Text style={styles.recurringInvoiceDesc}>
+                      {safetySummary.inspectionsThisMonth} inspection{safetySummary.inspectionsThisMonth !== 1 ? 's' : ''} this month
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          </React.Fragment>
+        );
+      },
       recentActivity: () => (
         <React.Fragment key="recentActivity">
           <Text style={styles.sectionTitle}>Recent Activity</Text>
@@ -509,7 +622,7 @@ export default function HomeScreen() {
       QUICK_ACTIONS, styles, router, colors, activeJobs, monthTotal,
       monthLabel, mileageSummary, cashFlowData, todaySchedule,
       analyticsSummary, topJob, topJobBudget, activityItems, recentEstimates, activeRecurringInvoices,
-      activeTimer, clockOutMutation,
+      activeTimer, clockOutMutation, warrantySummary, permitSummary, safetySummary,
     ],
   );
 
@@ -638,6 +751,22 @@ export default function HomeScreen() {
               <Ionicons name="document-text" size={20} color={colors.warning} />
               <Text style={styles.changeOrderBannerText}>
                 {pendingChangeOrderCount} change order{pendingChangeOrderCount !== 1 ? 's' : ''} pending review
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        )}
+
+        {warrantyExpirations && warrantyExpirations.length > 0 && (
+          <TouchableOpacity
+            style={styles.maintenanceBanner}
+            onPress={() => router.push('/warranty')}
+            activeOpacity={0.7}
+          >
+            <View style={styles.reviewBannerLeft}>
+              <Ionicons name="shield-checkmark" size={20} color={colors.warning} />
+              <Text style={styles.maintenanceBannerText}>
+                {warrantyExpirations.length} warrant{warrantyExpirations.length !== 1 ? 'ies' : 'y'} expiring soon
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />

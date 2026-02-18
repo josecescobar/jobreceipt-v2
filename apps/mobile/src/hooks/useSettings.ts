@@ -47,6 +47,9 @@ const DEFAULT_DASHBOARD_LAYOUT: DashboardSection[] = [
   { id: 'timeTracking', visible: true },
   { id: 'estimates', visible: true },
   { id: 'recurringInvoices', visible: true },
+  { id: 'warranties', visible: true },
+  { id: 'permits', visible: true },
+  { id: 'safety', visible: true },
 ];
 
 interface SettingsState {
@@ -157,9 +160,24 @@ export const useSettings = create<SettingsState>()(
             }
           }
         }
+        // v4 → v5: add warranties, permits, safety dashboard sections
+        if (version < 5) {
+          if (persisted.dashboardLayout) {
+            const ids = persisted.dashboardLayout.map((s: any) => s.id);
+            if (!ids.includes('warranties')) {
+              persisted.dashboardLayout.push({ id: 'warranties', visible: true });
+            }
+            if (!ids.includes('permits')) {
+              persisted.dashboardLayout.push({ id: 'permits', visible: true });
+            }
+            if (!ids.includes('safety')) {
+              persisted.dashboardLayout.push({ id: 'safety', visible: true });
+            }
+          }
+        }
         return persisted as SettingsState;
       },
-      version: 4,
+      version: 5,
     },
   ),
 );

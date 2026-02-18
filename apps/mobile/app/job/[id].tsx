@@ -41,6 +41,9 @@ import { useJobPunchListSummary, usePunchListItems } from '../../src/hooks/usePu
 import { useCloseOutProgress, useInitiateCloseOut } from '../../src/hooks/useCloseOut';
 import { useJobMaterialSummary, useMaterialItems } from '../../src/hooks/useMaterials';
 import { useJobEquipment } from '../../src/hooks/useEquipment';
+import { useWarrantyList } from '../../src/hooks/useWarranties';
+import { usePermitList } from '../../src/hooks/usePermits';
+import { useSOVByJob } from '../../src/hooks/useProgressBilling';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
@@ -178,6 +181,21 @@ export default function JobDetailScreen() {
     : 0;
 
   const { data: jobEquipment = [], refetch: refetchJobEquipment } = useJobEquipment(id!);
+
+  const { data: warrantiesData } = useWarrantyList({ jobId: id });
+  const warranties = useMemo(
+    () => warrantiesData?.data ?? [],
+    [warrantiesData],
+  );
+
+  const { data: permitsData } = usePermitList({ jobId: id });
+  const permits = useMemo(
+    () => permitsData?.data ?? [],
+    [permitsData],
+  );
+
+  const { data: sovData } = useSOVByJob(id!);
+  const sov = sovData ?? null;
 
   const activityItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -953,6 +971,138 @@ export default function JobDetailScreen() {
             <Text style={styles.emptyPhotos}>
               Assign first equipment
             </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Warranties */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Warranties ({warranties.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/warranty/create')}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {warranties.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {warranties.slice(0, 3).map((w: any) => {
+              const wColor = w.status === 'ACTIVE' ? colors.success
+                : w.status === 'EXPIRING_SOON' ? colors.warning
+                : w.status === 'EXPIRED' ? colors.error
+                : colors.textMuted;
+              return (
+                <TouchableOpacity
+                  key={w.id}
+                  style={styles.invoiceRow}
+                  onPress={() => router.push(`/warranty/${w.id}`)}
+                >
+                  <View style={styles.invoiceInfo}>
+                    <Text style={styles.invoiceNumber}>{w.title}</Text>
+                    {w.manufacturer && (
+                      <Text style={styles.invoiceDate}>{w.manufacturer}</Text>
+                    )}
+                  </View>
+                  <View style={[styles.invoiceStatusBadge, { backgroundColor: wColor + '20' }]}>
+                    <Text style={[styles.invoiceStatusText, { color: wColor }]}>
+                      {w.status}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            {warranties.length > 3 && (
+              <TouchableOpacity
+                onPress={() => router.push('/warranty')}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All Warranties</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>No warranties yet</Text>
+        )}
+
+        {/* Permits */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Permits ({permits.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/permit/create')}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {permits.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {permits.slice(0, 3).map((p: any) => {
+              const pColor = p.status === 'ISSUED' ? colors.success
+                : p.status === 'APPLIED' ? colors.warning
+                : p.status === 'EXPIRED' || p.status === 'REVOKED' ? colors.error
+                : colors.textMuted;
+              return (
+                <TouchableOpacity
+                  key={p.id}
+                  style={styles.invoiceRow}
+                  onPress={() => router.push(`/permit/${p.id}`)}
+                >
+                  <View style={styles.invoiceInfo}>
+                    <Text style={styles.invoiceNumber}>
+                      {p.permitNumber || p.type}
+                    </Text>
+                    <Text style={styles.invoiceDate}>{p.type}</Text>
+                  </View>
+                  <View style={[styles.invoiceStatusBadge, { backgroundColor: pColor + '20' }]}>
+                    <Text style={[styles.invoiceStatusText, { color: pColor }]}>
+                      {p.status}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+            {permits.length > 3 && (
+              <TouchableOpacity
+                onPress={() => router.push('/permit')}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All Permits</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>No permits yet</Text>
+        )}
+
+        {/* Progress Billing */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Progress Billing
+          </Text>
+        </View>
+        {sov ? (
+          <TouchableOpacity
+            style={styles.invoiceRow}
+            onPress={() => router.push(`/progress-billing/${sov.id}`)}
+          >
+            <View style={styles.invoiceInfo}>
+              <Text style={styles.invoiceNumber}>Schedule of Values</Text>
+              <Text style={styles.invoiceDate}>
+                {sov.items?.length ?? 0} line items
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            onPress={() => router.push('/progress-billing/create-sov')}
+            style={styles.punchListEmptyBtn}
+          >
+            <Text style={styles.emptyPhotos}>Set up Schedule of Values</Text>
           </TouchableOpacity>
         )}
 

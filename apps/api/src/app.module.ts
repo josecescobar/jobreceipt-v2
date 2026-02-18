@@ -32,6 +32,10 @@ import { MaterialsModule } from './modules/materials/materials.module';
 import { EquipmentModule } from './modules/equipment/equipment.module';
 import { CloseOutModule } from './modules/close-out/close-out.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { WarrantiesModule } from './modules/warranties/warranties.module';
+import { PermitsModule } from './modules/permits/permits.module';
+import { SafetyModule } from './modules/safety/safety.module';
+import { ProgressBillingModule } from './modules/progress-billing/progress-billing.module';
 
 @Module({
   controllers: [AppController],
@@ -68,6 +72,10 @@ import { ReportsModule } from './modules/reports/reports.module';
     EquipmentModule,
     CloseOutModule,
     ReportsModule,
+    WarrantiesModule,
+    PermitsModule,
+    SafetyModule,
+    ProgressBillingModule,
   ],
 })
 export class AppModule {}

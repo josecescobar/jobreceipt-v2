@@ -143,6 +143,88 @@ enum CloseOutChecklistItemStatus {
   WAIVED
 }
 
+// ─── Warranty Enums ─────────────────────────────────────
+
+enum WarrantyStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  CLAIMED
+}
+
+enum WarrantyClaimStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  DENIED
+}
+
+// ─── Permit Enums ───────────────────────────────────────
+
+enum PermitType {
+  BUILDING
+  ELECTRICAL
+  PLUMBING
+  MECHANICAL
+  FIRE
+  DEMOLITION
+  GRADING
+  OTHER
+}
+
+enum PermitStatus {
+  APPLIED
+  ISSUED
+  EXPIRED
+  REVOKED
+  CLOSED
+}
+
+enum InspectionResult {
+  PASSED
+  FAILED
+  PARTIAL
+  PENDING
+}
+
+// ─── Safety Enums ───────────────────────────────────────
+
+enum SafetyInspectionStatus {
+  OPEN
+  COMPLETE
+}
+
+enum IncidentType {
+  INJURY
+  NEAR_MISS
+  PROPERTY_DAMAGE
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum IncidentStatus {
+  OPEN
+  INVESTIGATING
+  RESOLVED
+  CLOSED
+}
+
+// ─── Progress Billing Enums ─────────────────────────────
+
+enum DrawRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  PAID
+}
+
 // ─── Models ──────────────────────────────────────────────
 
 model User {
@@ -195,6 +277,18 @@ model User {
   maintenanceLogs          MaintenanceLog[] @relation("MaintenancePerformer")
   initiatedCloseOuts       JobCloseOut[]    @relation("CloseOutInitiator")
   completedChecklistItems  CloseOutChecklistItem[] @relation("ChecklistCompleter")
+  createdWarranties         Warranty[]            @relation("WarrantyCreator")
+  createdWarrantyClaims     WarrantyClaim[]       @relation("WarrantyClaimCreator")
+  createdPermits            Permit[]              @relation("PermitCreator")
+  createdPermitInspections  PermitInspection[]    @relation("InspectionCreator")
+  createdSafetyInspections  SafetyInspection[]    @relation("SafetyInspectionCreator")
+  completedSafetyInspections SafetyInspection[]   @relation("SafetyInspectionCompleter")
+  createdSafetyIncidents    SafetyIncident[]      @relation("IncidentCreator")
+  reportedSafetyIncidents   SafetyIncident[]      @relation("IncidentReporter")
+  incidentPhotos            SafetyIncidentPhoto[] @relation("IncidentPhotoUploader")
+  createdSOVs               ScheduleOfValues[]    @relation("SOVCreator")
+  createdDrawRequests       DrawRequest[]         @relation("DrawRequestCreator")
+  approvedDrawRequests      DrawRequest[]         @relation("DrawRequestApprover")
 
   @@index([email])
 }
@@ -240,6 +334,12 @@ model Organization {
   jobCloseOuts       JobCloseOut[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
+  warranties           Warranty[]
+  permits              Permit[]
+  safetyInspections    SafetyInspection[]
+  safetyIncidents      SafetyIncident[]
+  schedulesOfValues    ScheduleOfValues[]
+  drawRequests         DrawRequest[]
 }
 
 model OrganizationMember {
@@ -301,6 +401,11 @@ model Job {
   materialUsageLogs MaterialUsageLog[]
   equipmentAssignments EquipmentAssignment[]
   closeOut          JobCloseOut?
+  warranties           Warranty[]
+  permits              Permit[]
+  safetyInspections    SafetyInspection[]
+  safetyIncidents      SafetyIncident[]
+  scheduleOfValues     ScheduleOfValues?
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -325,6 +430,7 @@ model CostCode {
   jobTemplateLineItems JobTemplateLineItem[]
   vendorDefaults       Vendor[]             @relation("VendorDefaultCostCode")
   materialItems        MaterialItem[]
+  sovItems             ScheduleOfValuesItem[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -610,6 +716,7 @@ model Invoice {
   payments     InvoicePayment[]
   reminders    InvoiceReminder[]
   convertedFromEstimate Estimate? @relation("EstimateInvoice")
+  drawRequest          DrawRequest?
 
   @@unique([organizationId, invoiceNumber])
   @@index([organizationId])
@@ -980,6 +1087,8 @@ model Document {
   job           Job?           @relation(fields: [jobId], references: [id])
   vendor        Vendor?        @relation(fields: [vendorId], references: [id])
   subcontractor Subcontractor? @relation(fields: [subcontractorId], references: [id])
+  warranties    Warranty[]
+  permits       Permit[]
 
   @@index([organizationId])
   @@index([jobId])
@@ -1299,4 +1408,276 @@ model CloseOutChecklistItem {
   completedBy User?       @relation("ChecklistCompleter", fields: [completedById], references: [id])
 
   @@index([closeOutId])
+}
+
+// ─── Warranties ─────────────────────────────────────────
+
+model Warranty {
+  id               String         @id @default(uuid())
+  organizationId   String
+  jobId            String
+  title            String
+  description      String?
+  manufacturer     String?
+  warrantyProvider String?
+  startDate        DateTime
+  endDate          DateTime
+  status           WarrantyStatus @default(ACTIVE)
+  contactPhone     String?
+  contactEmail     String?
+  documentId       String?
+  notes            String?
+  createdById      String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job              @relation(fields: [jobId], references: [id])
+  document     Document?        @relation(fields: [documentId], references: [id])
+  createdBy    User             @relation("WarrantyCreator", fields: [createdById], references: [id])
+  claims       WarrantyClaim[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([jobId])
+  @@index([endDate])
+}
+
+model WarrantyClaim {
+  id          String              @id @default(uuid())
+  warrantyId  String
+  claimDate   DateTime
+  description String
+  status      WarrantyClaimStatus @default(OPEN)
+  resolution  String?
+  resolvedAt  DateTime?
+  createdById String
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  warranty  Warranty @relation(fields: [warrantyId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("WarrantyClaimCreator", fields: [createdById], references: [id])
+
+  @@index([warrantyId])
+}
+
+// ─── Permits ────────────────────────────────────────────
+
+model Permit {
+  id             String       @id @default(uuid())
+  organizationId String
+  jobId          String
+  permitNumber   String?
+  type           PermitType   @default(OTHER)
+  status         PermitStatus @default(APPLIED)
+  appliedDate    DateTime?
+  issuedDate     DateTime?
+  expiresAt      DateTime?
+  authority      String?
+  fee            Int?         // cents
+  documentId     String?
+  notes          String?
+  createdById    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                  @relation(fields: [jobId], references: [id])
+  document     Document?            @relation(fields: [documentId], references: [id])
+  createdBy    User                 @relation("PermitCreator", fields: [createdById], references: [id])
+  inspections  PermitInspection[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([jobId])
+  @@index([expiresAt])
+}
+
+model PermitInspection {
+  id            String           @id @default(uuid())
+  permitId      String
+  scheduledDate DateTime
+  completedDate DateTime?
+  result        InspectionResult @default(PENDING)
+  inspector     String?
+  notes         String?
+  createdById   String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  permit    Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("InspectionCreator", fields: [createdById], references: [id])
+
+  @@index([permitId])
+  @@index([scheduledDate])
+}
+
+// ─── Safety ─────────────────────────────────────────────
+
+model SafetyInspection {
+  id             String                 @id @default(uuid())
+  organizationId String
+  jobId          String
+  templateName   String
+  status         SafetyInspectionStatus @default(OPEN)
+  completedById  String?
+  completedAt    DateTime?
+  notes          String?
+  createdById    String
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                      @relation(fields: [jobId], references: [id])
+  completedBy  User?                    @relation("SafetyInspectionCompleter", fields: [completedById], references: [id])
+  createdBy    User                     @relation("SafetyInspectionCreator", fields: [createdById], references: [id])
+  items        SafetyInspectionItem[]
+
+  @@index([organizationId])
+  @@index([jobId])
+}
+
+model SafetyInspectionItem {
+  id           String  @id @default(uuid())
+  inspectionId String
+  label        String
+  isCompliant  Boolean @default(false)
+  notes        String?
+  sortOrder    Int     @default(0)
+
+  inspection SafetyInspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+
+  @@index([inspectionId])
+}
+
+model SafetyIncident {
+  id             String           @id @default(uuid())
+  organizationId String
+  jobId          String
+  reportedById   String
+  incidentDate   DateTime
+  type           IncidentType
+  severity       IncidentSeverity
+  title          String
+  description    String
+  location       String?
+  witnesses      String?
+  actionTaken    String?
+  followUp       String?
+  status         IncidentStatus   @default(OPEN)
+  resolvedAt     DateTime?
+  createdById    String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                    @relation(fields: [jobId], references: [id])
+  reportedBy   User                   @relation("IncidentReporter", fields: [reportedById], references: [id])
+  createdBy    User                   @relation("IncidentCreator", fields: [createdById], references: [id])
+  photos       SafetyIncidentPhoto[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([jobId])
+}
+
+model SafetyIncidentPhoto {
+  id           String   @id @default(uuid())
+  incidentId   String
+  imageKey     String
+  caption      String?
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  incident   SafetyIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  uploadedBy User           @relation("IncidentPhotoUploader", fields: [uploadedById], references: [id])
+
+  @@index([incidentId])
+}
+
+// ─── Progress Billing ───────────────────────────────────
+
+model ScheduleOfValues {
+  id               String   @id @default(uuid())
+  organizationId   String
+  jobId            String   @unique
+  retainagePercent Float    @default(10)
+  notes            String?
+  createdById      String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                     @relation(fields: [jobId], references: [id])
+  createdBy    User                    @relation("SOVCreator", fields: [createdById], references: [id])
+  items        ScheduleOfValuesItem[]
+  drawRequests DrawRequest[]
+
+  @@index([organizationId])
+}
+
+model ScheduleOfValuesItem {
+  id             String   @id @default(uuid())
+  scheduleId     String
+  itemNumber     String
+  description    String
+  scheduledValue Int      // cents
+  costCodeId     String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  schedule ScheduleOfValues   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  costCode CostCode?          @relation(fields: [costCodeId], references: [id])
+  entries  DrawRequestEntry[]
+
+  @@index([scheduleId])
+}
+
+model DrawRequest {
+  id                    String            @id @default(uuid())
+  scheduleId            String
+  organizationId        String
+  applicationNumber     Int
+  periodTo              DateTime
+  invoiceId             String?           @unique
+  status                DrawRequestStatus @default(DRAFT)
+  totalEarned           Int               @default(0) // cents
+  totalRetainage        Int               @default(0) // cents
+  totalPreviouslyBilled Int               @default(0) // cents
+  currentPaymentDue     Int               @default(0) // cents
+  notes                 String?
+  createdById           String
+  approvedById          String?
+  approvedAt            DateTime?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  schedule     ScheduleOfValues   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Invoice?           @relation(fields: [invoiceId], references: [id])
+  createdBy    User               @relation("DrawRequestCreator", fields: [createdById], references: [id])
+  approvedBy   User?              @relation("DrawRequestApprover", fields: [approvedById], references: [id])
+  entries      DrawRequestEntry[]
+
+  @@index([scheduleId])
+  @@index([organizationId])
+}
+
+model DrawRequestEntry {
+  id                        String @id @default(uuid())
+  drawRequestId             String
+  sovItemId                 String
+  workCompletedPrevious     Int    @default(0) // cents
+  workCompletedThisPeriod   Int    @default(0) // cents
+  materialsStored           Int    @default(0) // cents
+  totalCompletedAndStored   Int    @default(0) // cents
+  percentComplete           Float  @default(0)
+  balanceToFinish           Int    @default(0) // cents
+  retainage                 Int    @default(0) // cents
+
+  drawRequest DrawRequest          @relation(fields: [drawRequestId], references: [id], onDelete: Cascade)
+  sovItem     ScheduleOfValuesItem @relation(fields: [sovItemId], references: [id])
+
+  @@index([drawRequestId])
 }

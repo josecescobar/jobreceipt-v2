@@ -260,6 +260,27 @@ export default function SettingsScreen() {
             showChevron
           />
           <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Warranties"
+            subtitle="Track warranties & claims"
+            onPress={() => router.push('/warranty')}
+            showChevron
+          />
+          <SettingsRow
+            icon="document-lock-outline"
+            label="Permits"
+            subtitle="Permits & inspections"
+            onPress={() => router.push('/permit')}
+            showChevron
+          />
+          <SettingsRow
+            icon="warning-outline"
+            label="Safety"
+            subtitle="Inspections & incident reports"
+            onPress={() => router.push('/safety')}
+            showChevron
+          />
+          <SettingsRow
             icon="time-outline"
             label="Time Tracking"
             subtitle="Clock in/out & labor hours"
@@ -315,6 +336,13 @@ export default function SettingsScreen() {
             label="Recurring Invoices"
             subtitle="Automated billing schedules"
             onPress={() => router.push('/recurring-invoice')}
+            showChevron
+          />
+          <SettingsRow
+            icon="layers-outline"
+            label="Progress Billing"
+            subtitle="AIA-style draw requests"
+            onPress={() => router.push('/progress-billing')}
             showChevron
           />
         </SettingsSection>
