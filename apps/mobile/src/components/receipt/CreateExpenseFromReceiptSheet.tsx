@@ -50,7 +50,7 @@ export function CreateExpenseFromReceiptSheet({
   const typography = useMemo(() => createTypography(colors), [colors]);
 
   const [jobId, setJobId] = useState(receipt.suggestedJobId ?? '');
-  const [category, setCategory] = useState('MATERIALS');
+  const [category, setCategory] = useState(receipt.suggestedCategory ?? 'MATERIALS');
   const [description, setDescription] = useState(
     `Receipt from ${receipt.merchantName || 'Unknown'}`,
   );
@@ -122,7 +122,15 @@ export function CreateExpenseFromReceiptSheet({
           </ScrollView>
 
           {/* Category chips */}
-          <Text style={styles.label}>Category</Text>
+          <View style={styles.categoryHeader}>
+            <Text style={styles.label}>Category</Text>
+            {receipt.suggestedCategory && (
+              <View style={styles.suggestedHint}>
+                <Ionicons name="sparkles" size={12} color={colors.primary} />
+                <Text style={styles.suggestedHintText}>Suggested</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.categoryGrid}>
             {CATEGORIES.map((cat) => (
               <TouchableOpacity
@@ -212,6 +220,22 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
     marginBottom: spacing.sm,
+  },
+  categoryHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.sm,
+  },
+  suggestedHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  suggestedHintText: {
+    fontSize: 12,
+    color: colors.primary,
+    fontWeight: '500',
   },
   chipScroll: {
     marginBottom: spacing.lg,

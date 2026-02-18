@@ -165,7 +165,7 @@ export default function ReceiptDetailScreen() {
         jobId: receipt.suggestedJobId!,
         amount: receipt.totalAmount!,
         description: `Receipt from ${receipt.merchantName || 'Unknown'}`,
-        category: 'MATERIALS',
+        category: receipt.suggestedCategory || 'MATERIALS',
         date: receipt.transactionDate!.toString().split('T')[0],
         receiptId: receipt.id,
       });
@@ -355,6 +355,7 @@ export default function ReceiptDetailScreen() {
             <JobSuggestionBanner
               jobName={suggestedJob.name}
               confidence={receipt.confidenceScore || undefined}
+              suggestedCategory={receipt.suggestedCategory}
               onDismiss={handleDismissSuggestion}
             />
           </View>

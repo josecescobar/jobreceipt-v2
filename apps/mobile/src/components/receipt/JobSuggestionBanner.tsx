@@ -3,9 +3,18 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme, type ThemeColors, spacing, borderRadius, MIN_TOUCH_TARGET } from '../../theme';
 
+const CATEGORY_LABELS: Record<string, string> = {
+  MATERIALS: 'Materials',
+  LABOR: 'Labor',
+  EQUIPMENT: 'Equipment',
+  SUBCONTRACTOR: 'Subs',
+  OVERHEAD: 'Overhead',
+};
+
 interface JobSuggestionBannerProps {
   jobName: string;
   confidence?: string;
+  suggestedCategory?: string | null;
   onDismiss?: () => void;
 }
 
@@ -18,6 +27,7 @@ const CONFIDENCE_LABELS: Record<string, string> = {
 export function JobSuggestionBanner({
   jobName,
   confidence,
+  suggestedCategory,
   onDismiss,
 }: JobSuggestionBannerProps) {
   const { colors } = useTheme();
@@ -37,11 +47,20 @@ export function JobSuggestionBanner({
         )}
       </View>
       <Text style={styles.jobName}>{jobName}</Text>
-      {confidence && CONFIDENCE_LABELS[confidence] && (
-        <Text style={styles.confidence}>
-          {CONFIDENCE_LABELS[confidence]}
-        </Text>
-      )}
+      <View style={styles.metaRow}>
+        {confidence && CONFIDENCE_LABELS[confidence] && (
+          <Text style={styles.confidence}>
+            {CONFIDENCE_LABELS[confidence]}
+          </Text>
+        )}
+        {suggestedCategory && CATEGORY_LABELS[suggestedCategory] && (
+          <View style={styles.categoryChip}>
+            <Text style={styles.categoryChipText}>
+              {CATEGORY_LABELS[suggestedCategory]}
+            </Text>
+          </View>
+        )}
+      </View>
     </View>
   );
 }
@@ -85,8 +104,24 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.xs,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
   confidence: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  categoryChip: {
+    backgroundColor: colors.primary + '15',
+    borderRadius: borderRadius.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
 });

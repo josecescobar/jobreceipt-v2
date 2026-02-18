@@ -163,6 +163,7 @@ export class ReceiptOcrProcessor extends WorkerHost {
           status: 'REVIEW',
           processedAt: new Date(),
           suggestedJobId: suggestion?.jobId || null,
+          suggestedCategory: suggestion?.suggestedCategory || null,
           autoAssigned: suggestion?.autoAssigned || false,
         },
       });

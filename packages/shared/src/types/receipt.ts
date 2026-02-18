@@ -36,6 +36,7 @@ export interface Receipt {
   processedAt: Date | null;
   confidenceScore: string | null;
   suggestedJobId: string | null;
+  suggestedCategory: string | null;
   autoAssigned: boolean;
   duplicateOfId: string | null;
   createdAt: Date;

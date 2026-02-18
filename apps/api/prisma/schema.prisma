@@ -213,7 +213,8 @@ model Receipt {
   currency        String        @default("USD")
   processedAt     DateTime?
   confidenceScore String?       // "high" | "medium" | "low"
-  suggestedJobId  String?
+  suggestedJobId    String?
+  suggestedCategory String?
   autoAssigned    Boolean       @default(false)
   duplicateOfId   String?
   createdAt       DateTime      @default(now())

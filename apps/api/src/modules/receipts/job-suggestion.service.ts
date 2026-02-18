@@ -18,6 +18,7 @@ interface SuggestionResult {
   jobId: string;
   score: number;
   autoAssigned: boolean;
+  suggestedCategory: string | null;
 }
 
 // Scoring weights (total = 100)
@@ -105,7 +106,21 @@ export class JobSuggestionService {
     // Sort by score descending
     scores.sort((a, b) => b.score - a.score);
 
-    if (scores.length === 0 || scores[0].score < 10) return null;
+    // Always suggest category from merchant history (even if no good job match)
+    const suggestedCategory = await this.suggestCategory(orgId, merchantName);
+
+    if (scores.length === 0 || scores[0].score < 10) {
+      // No good job match, but may still have a category suggestion
+      if (suggestedCategory) {
+        return {
+          jobId: '',
+          score: 0,
+          autoAssigned: false,
+          suggestedCategory,
+        };
+      }
+      return null;
+    }
 
     const topScore = scores[0];
     this.logger.log(
@@ -116,7 +131,52 @@ export class JobSuggestionService {
       jobId: topScore.jobId,
       score: topScore.score,
       autoAssigned: topScore.score > 90,
+      suggestedCategory,
     };
+  }
+
+  async suggestCategory(
+    orgId: string,
+    merchantName: string,
+  ): Promise<string | null> {
+    if (!merchantName) return null;
+
+    const normalizedMerchant = merchantName.toLowerCase().trim();
+
+    // Find expenses linked to receipts from the same merchant
+    const expenses = await this.prisma.expense.findMany({
+      where: {
+        organizationId: orgId,
+        category: { not: null },
+        receipt: {
+          merchantName: { not: null },
+        },
+      },
+      select: {
+        category: true,
+        receipt: { select: { merchantName: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
+
+    // Filter to same merchant and count categories
+    const categoryCounts: Record<string, number> = {};
+    for (const exp of expenses) {
+      if (exp.receipt?.merchantName?.toLowerCase().trim() === normalizedMerchant && exp.category) {
+        categoryCounts[exp.category] = (categoryCounts[exp.category] || 0) + 1;
+      }
+    }
+
+    const entries = Object.entries(categoryCounts);
+    if (entries.length === 0) return null;
+
+    // Return the most common category
+    entries.sort((a, b) => b[1] - a[1]);
+    this.logger.log(
+      `Category suggestion for "${merchantName}": ${entries[0][0]} (${entries[0][1]} occurrences)`,
+    );
+    return entries[0][0];
   }
 
   private scoreMaterialMatch(materialCategories: string[], job: any): number {
