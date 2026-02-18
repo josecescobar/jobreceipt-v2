@@ -12,6 +12,8 @@ import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { MileageModule } from './modules/mileage/mileage.module';
 import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RecurringExpensesModule } from './modules/recurring-expenses/recurring-expenses.module';
+import { ExpenseTemplatesModule } from './modules/expense-templates/expense-templates.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
 
 @Module({
   controllers: [AppController],
@@ -28,6 +30,8 @@ import { RecurringExpensesModule } from './modules/recurring-expenses/recurring-
     MileageModule,
     AnalyticsModule,
     RecurringExpensesModule,
+    ExpenseTemplatesModule,
+    InvoicesModule,
   ],
 })
 export class AppModule {}

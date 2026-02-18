@@ -30,6 +30,7 @@ import { useBudget } from '../../src/hooks/useBudget';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
+import { useInvoices } from '../../src/hooks/useInvoices';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
@@ -82,6 +83,12 @@ export default function JobDetailScreen() {
   const mileageTrips = useMemo(
     () => mileageData?.pages?.flatMap((p) => p.data) ?? [],
     [mileageData],
+  );
+
+  const { data: invoicesData } = useInvoices({ jobId: id });
+  const invoices = useMemo(
+    () => invoicesData?.data ?? [],
+    [invoicesData],
   );
 
   const activityItems: ActivityItem[] = useMemo(() => {
@@ -456,6 +463,56 @@ export default function JobDetailScreen() {
           </Text>
         )}
 
+        {/* Invoices */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Invoices ({invoices.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/invoice/create', params: { jobId: id } })}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {invoices.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {invoices.map((inv) => {
+              const invStatus = inv.status === 'PAID'
+                ? { bg: colors.success + '20', text: colors.success }
+                : inv.status === 'SENT'
+                ? { bg: colors.primary + '20', text: colors.primary }
+                : { bg: colors.warning + '20', text: colors.warning };
+              return (
+                <TouchableOpacity
+                  key={inv.id}
+                  style={styles.invoiceRow}
+                  onPress={() => router.push(`/invoice/${inv.id}`)}
+                >
+                  <View style={styles.invoiceInfo}>
+                    <Text style={styles.invoiceNumber}>{inv.invoiceNumber}</Text>
+                    <Text style={styles.invoiceDate}>
+                      {new Date(inv.issueDate).toLocaleDateString()}
+                    </Text>
+                  </View>
+                  <View style={styles.invoiceRight}>
+                    <Text style={styles.invoiceTotal}>{formatMoney(inv.total)}</Text>
+                    <View style={[styles.invoiceStatusBadge, { backgroundColor: invStatus.bg }]}>
+                      <Text style={[styles.invoiceStatusText, { color: invStatus.text }]}>
+                        {inv.status}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No invoices yet — tap + to create one
+          </Text>
+        )}
+
         {/* Activity timeline */}
         <Text style={styles.sectionTitle}>
           Activity ({expenses.length + receipts.length + mileageTrips.length})
@@ -596,6 +653,58 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
     color: colors.textMuted,
     textAlign: 'center',
     paddingVertical: spacing.lg,
+  },
+  invoiceSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
+  },
+  invoiceList: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  invoiceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  invoiceInfo: {},
+  invoiceNumber: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  invoiceDate: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
+  invoiceRight: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  invoiceTotal: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.text,
+    fontVariant: ['tabular-nums' as const],
+  },
+  invoiceStatusBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  invoiceStatusText: {
+    fontSize: 10,
+    fontWeight: '700',
   },
   exportSection: {
     marginTop: spacing.xl,

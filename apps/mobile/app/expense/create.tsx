@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   Image,
   ActionSheetIOS,
   Alert,
+  Modal,
+  FlatList,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
@@ -20,9 +22,11 @@ import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { useCreateExpense, useCreateExpenseBatch } from '../../src/hooks/useExpenses';
 import { useJobs } from '../../src/hooks/useJobs';
+import { useExpenseTemplates } from '../../src/hooks/useExpenseTemplates';
 import { expensesApi } from '../../src/api/expenses';
-import { dollarsToCents, formatMoney } from '../../src/lib/format';
+import { dollarsToCents, centsToDollars, formatMoney } from '../../src/lib/format';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
+import type { ExpenseTemplate } from '@jobreceipt/shared';
 
 const CATEGORIES = [
   { key: 'MATERIALS', label: 'Materials', icon: '🧱' },
@@ -48,6 +52,12 @@ export default function CreateExpenseScreen() {
     () => jobsData?.pages?.flatMap((p) => p.data) ?? [],
     [jobsData],
   );
+  const { data: templatesData } = useExpenseTemplates();
+  const templates = useMemo(
+    () => templatesData?.data ?? [],
+    [templatesData],
+  );
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const [jobId, setJobId] = useState('');
   const [amount, setAmount] = useState('');
@@ -76,6 +86,14 @@ export default function CreateExpenseScreen() {
   const splitDiff = amountCents - splitTotal;
   const splitsValid = splitMode && amountNum > 0 && description.trim().length > 0 &&
     splits.every((s) => s.jobId && parseFloat(s.amount) > 0) && Math.abs(splitDiff) <= 1;
+
+  const handleSelectTemplate = useCallback((template: ExpenseTemplate) => {
+    if (template.description) setDescription(template.description);
+    if (template.amount) setAmount(centsToDollars(template.amount).toString());
+    if (template.category) setCategory(template.category);
+    setShowTemplates(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  }, []);
 
   const handleToggleSplit = () => {
     if (!splitMode) {
@@ -221,6 +239,17 @@ export default function CreateExpenseScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          {/* Use Template */}
+          {templates.length > 0 && (
+            <TouchableOpacity
+              style={styles.useTemplateBtn}
+              onPress={() => setShowTemplates(true)}
+            >
+              <Ionicons name="bookmark-outline" size={18} color={colors.primary} />
+              <Text style={styles.useTemplateText}>Use Template</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Amount */}
           <Input
             label="Amount *"
@@ -442,8 +471,78 @@ export default function CreateExpenseScreen() {
             loading={createExpense.isPending || createExpenseBatch.isPending || uploading}
             disabled={!canSubmit}
           />
+
+          {/* Save as Template */}
+          {description.trim() && (
+            <TouchableOpacity
+              style={styles.saveTemplateBtn}
+              onPress={() => {
+                const amountNum = parseFloat(amount);
+                router.push({
+                  pathname: '/expense-template/create',
+                  params: {
+                    description: description.trim(),
+                    ...(amountNum > 0 ? { amount: dollarsToCents(amountNum).toString() } : {}),
+                    ...(category ? { category } : {}),
+                  },
+                });
+              }}
+            >
+              <Ionicons name="bookmark" size={16} color={colors.primary} />
+              <Text style={styles.saveTemplateText}>Save as Template</Text>
+            </TouchableOpacity>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Template Picker Modal */}
+      <Modal visible={showTemplates} animationType="slide" presentationStyle="pageSheet">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Choose Template</Text>
+            <TouchableOpacity onPress={() => setShowTemplates(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={templates}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.modalList}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.templateRow}
+                onPress={() => handleSelectTemplate(item)}
+              >
+                <View style={styles.templateInfo}>
+                  <Text style={styles.templateName}>{item.name}</Text>
+                  {item.description && (
+                    <Text style={styles.templateDesc} numberOfLines={1}>
+                      {item.description}
+                    </Text>
+                  )}
+                  <View style={styles.templateMeta}>
+                    {item.amount != null && (
+                      <Text style={styles.templateMetaText}>
+                        {formatMoney(item.amount)}
+                      </Text>
+                    )}
+                    {item.category && (
+                      <Text style={styles.templateMetaText}>{item.category}</Text>
+                    )}
+                    {item.merchantName && (
+                      <Text style={styles.templateMetaText}>{item.merchantName}</Text>
+                    )}
+                  </View>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+              </TouchableOpacity>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No templates yet</Text>
+            }
+          />
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -690,5 +789,97 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: spacing.md,
+  },
+  useTemplateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignSelf: 'flex-start',
+  },
+  useTemplateText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  saveTemplateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+  },
+  saveTemplateText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: colors.primary,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalList: {
+    padding: spacing.lg,
+  },
+  templateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  templateInfo: {
+    flex: 1,
+  },
+  templateName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  templateDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  templateMeta: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginTop: 4,
+  },
+  templateMetaText: {
+    fontSize: 12,
+    color: colors.textMuted,
+    fontWeight: '500',
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: colors.textMuted,
+    fontSize: 14,
+    paddingVertical: spacing.xl,
   },
 });

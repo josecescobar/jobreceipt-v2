@@ -106,6 +106,8 @@ model User {
   mileageTrips             MileageTrip[]
   createdRecurringExpenses RecurringExpense[]   @relation("RecurringExpenseCreator")
   uploadedJobPhotos        JobPhoto[]           @relation("JobPhotoUploader")
+  createdExpenseTemplates  ExpenseTemplate[]    @relation("ExpenseTemplateCreator")
+  createdInvoices          Invoice[]            @relation("InvoiceCreator")
 
   @@index([email])
 }
@@ -130,6 +132,8 @@ model Organization {
   mileageTrips       MileageTrip[]
   recurringExpenses  RecurringExpense[]
   jobPhotos          JobPhoto[]
+  expenseTemplates   ExpenseTemplate[]
+  invoices           Invoice[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -175,6 +179,7 @@ model Job {
   budgetSnapshots   BudgetSnapshot[]
   recurringExpenses RecurringExpense[]
   photos            JobPhoto[]
+  invoices          Invoice[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -193,6 +198,7 @@ model CostCode {
   lineItems         ReceiptLineItem[]
   expenses          Expense[]
   recurringExpenses RecurringExpense[]
+  expenseTemplates  ExpenseTemplate[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -282,6 +288,7 @@ model Expense {
   costCode     CostCode?    @relation(fields: [costCodeId], references: [id])
   createdBy    User         @relation("ExpenseCreator", fields: [createdById], references: [id])
   approvedBy   User?        @relation("ExpenseApprover", fields: [approvedById], references: [id])
+  invoiceLineItems InvoiceLineItem[]
 
   @@index([organizationId])
   @@index([organizationId, jobId])
@@ -407,4 +414,77 @@ model JobPhoto {
 
   @@index([jobId])
   @@index([organizationId])
+}
+
+model ExpenseTemplate {
+  id             String   @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  amount         Int?     // cents
+  category       String?
+  taxCategory    String?
+  costCodeId     String?
+  merchantName   String?
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  costCode     CostCode?    @relation(fields: [costCodeId], references: [id])
+  createdBy    User         @relation("ExpenseTemplateCreator", fields: [createdById], references: [id])
+
+  @@index([organizationId])
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  organizationId String
+  jobId          String
+  invoiceNumber  String
+  status         InvoiceStatus @default(DRAFT)
+  issueDate      DateTime      @default(now())
+  dueDate        DateTime?
+  notes          String?
+  subtotal       Int           @default(0) // cents
+  taxRate        Float         @default(0) // e.g. 0.08 for 8%
+  taxAmount      Int           @default(0) // cents
+  total          Int           @default(0) // cents
+  createdById    String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job             @relation(fields: [jobId], references: [id])
+  createdBy    User            @relation("InvoiceCreator", fields: [createdById], references: [id])
+  lineItems    InvoiceLineItem[]
+
+  @@unique([organizationId, invoiceNumber])
+  @@index([organizationId])
+  @@index([organizationId, jobId])
+  @@index([organizationId, status])
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(uuid())
+  invoiceId   String
+  expenseId   String?
+  description String
+  quantity    Float    @default(1)
+  unitPrice   Int      // cents
+  total       Int      // cents
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  expense Expense? @relation(fields: [expenseId], references: [id])
+
+  @@index([invoiceId])
 }

@@ -10,6 +10,8 @@ export const CreateJobSchema = z.object({
   budgetTotal: z.number().int().min(0).nullable().optional(),
   budgetMaterials: z.number().int().min(0).nullable().optional(),
   budgetLabor: z.number().int().min(0).nullable().optional(),
+  /** Contract value / revenue in cents */
+  contractValue: z.number().int().min(0).nullable().optional(),
   startDate: z.string().datetime().nullable().optional(),
   endDate: z.string().datetime().nullable().optional(),
   notes: z.string().max(5000).nullable().optional(),
