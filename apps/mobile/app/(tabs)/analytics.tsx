@@ -79,6 +79,17 @@ export default function AnalyticsScreen() {
           </View>
         )}
 
+        {/* P&L Report link */}
+        <TouchableOpacity
+          style={styles.taxLink}
+          onPress={() => router.push('/reports/pnl')}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="stats-chart-outline" size={20} color={colors.primary} />
+          <Text style={styles.taxLinkText}>Profit & Loss Report</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+
         {/* Tax summary link */}
         <TouchableOpacity
           style={styles.taxLink}

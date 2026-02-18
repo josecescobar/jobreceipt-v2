@@ -82,6 +82,8 @@ enum RecurringExpenseFrequency {
   WEEKLY
   BIWEEKLY
   MONTHLY
+  QUARTERLY
+  ANNUALLY
 }
 
 // ─── Models ──────────────────────────────────────────────
@@ -112,6 +114,8 @@ model User {
   createdEstimates         Estimate[]       @relation("EstimateCreator")
   createdChangeOrders      ChangeOrder[]    @relation("ChangeOrderCreator")
   approvedChangeOrders     ChangeOrder[]    @relation("ChangeOrderApprover")
+  createdRecurringInvoices RecurringInvoice[] @relation("RecurringInvoiceCreator")
+  createdJobTemplates      JobTemplate[]    @relation("JobTemplateCreator")
 
   @@index([email])
 }
@@ -141,6 +145,8 @@ model Organization {
   timeEntries        TimeEntry[]
   estimates          Estimate[]
   changeOrders       ChangeOrder[]
+  recurringInvoices  RecurringInvoice[]
+  jobTemplates       JobTemplate[]
   quickBooksConnection QuickBooksConnection?
   syncLogs           SyncLog[]
 }
@@ -190,6 +196,7 @@ model Job {
   timeEntries       TimeEntry[]
   estimates         Estimate[]
   changeOrders      ChangeOrder[]
+  recurringInvoices RecurringInvoice[]
 
   @@index([organizationId])
   @@index([organizationId, status])
@@ -210,6 +217,7 @@ model CostCode {
   recurringExpenses RecurringExpense[]
   expenseTemplates  ExpenseTemplate[]
   changeOrderLineItems ChangeOrderLineItem[]
+  jobTemplateLineItems JobTemplateLineItem[]
 
   @@unique([organizationId, code])
   @@index([organizationId])
@@ -662,4 +670,87 @@ model ChangeOrderLineItem {
   costCode    CostCode?   @relation(fields: [costCodeId], references: [id])
 
   @@index([changeOrderId])
+}
+
+// ─── Recurring Invoices ──────────────────────────────────
+
+model RecurringInvoice {
+  id             String                    @id @default(uuid())
+  organizationId String
+  jobId          String
+  isActive       Boolean                   @default(true)
+  frequency      RecurringExpenseFrequency
+  nextOccurrence DateTime
+  lastCreatedAt  DateTime?
+  startDate      DateTime
+  endDate        DateTime?
+  notes          String?
+  taxRate        Float                     @default(0)
+  createdById    String
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  organization Organization              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job                        @relation(fields: [jobId], references: [id])
+  createdBy    User                       @relation("RecurringInvoiceCreator", fields: [createdById], references: [id])
+  lineItems    RecurringInvoiceLineItem[]
+
+  @@index([organizationId])
+  @@index([isActive, nextOccurrence])
+}
+
+model RecurringInvoiceLineItem {
+  id                 String   @id @default(uuid())
+  recurringInvoiceId String
+  description        String
+  quantity           Float    @default(1)
+  unitPrice          Int      // cents
+  sortOrder          Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  recurringInvoice RecurringInvoice @relation(fields: [recurringInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([recurringInvoiceId])
+}
+
+// ─── Job Templates ───────────────────────────────────────
+
+model JobTemplate {
+  id              String   @id @default(uuid())
+  organizationId  String
+  name            String
+  description     String?
+  customerName    String?
+  budgetTotal     Int?     // cents
+  budgetMaterials Int?     // cents
+  budgetLabor     Int?     // cents
+  contractValue   Int?     // cents
+  notes           String?
+  createdById     String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User                   @relation("JobTemplateCreator", fields: [createdById], references: [id])
+  lineItems    JobTemplateLineItem[]
+
+  @@index([organizationId])
+}
+
+model JobTemplateLineItem {
+  id              String   @id @default(uuid())
+  templateId      String
+  description     String
+  category        String?
+  estimatedAmount Int?     // cents
+  costCodeId      String?
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  template JobTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  costCode CostCode?   @relation(fields: [costCodeId], references: [id])
+
+  @@index([templateId])
 }

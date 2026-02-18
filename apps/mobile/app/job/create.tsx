@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,19 +6,26 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  TouchableOpacity,
+  Modal,
+  FlatList,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
 import { Button, Input, DatePickerField } from '../../src/components/ui';
 import { useCreateJob } from '../../src/hooks/useJobs';
-import { dollarsToCents } from '../../src/lib/format';
-import { useTheme, type ThemeColors, spacing } from '../../src/theme';
+import { useJobTemplates, useJobTemplate } from '../../src/hooks/useJobTemplates';
+import { dollarsToCents, centsToDollars, formatMoney } from '../../src/lib/format';
+import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
 
 export default function CreateJobScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const router = useRouter();
+  const { templateId } = useLocalSearchParams<{ templateId?: string }>();
   const createJob = useCreateJob();
 
   const [name, setName] = useState('');
@@ -32,6 +39,48 @@ export default function CreateJobScreen() {
   const [endDate, setEndDate] = useState('');
   const [notes, setNotes] = useState('');
   const [error, setError] = useState('');
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
+  const [appliedTemplateId, setAppliedTemplateId] = useState<string | undefined>(templateId);
+
+  // Fetch templates for picker
+  const { data: templatesData, isLoading: templatesLoading } = useJobTemplates();
+  const templates = useMemo(
+    () => templatesData?.pages?.flatMap((p) => p.data) ?? [],
+    [templatesData],
+  );
+
+  // Fetch selected template detail
+  const { data: selectedTemplate } = useJobTemplate(appliedTemplateId ?? '');
+
+  // Apply template data when it loads
+  useEffect(() => {
+    if (selectedTemplate) {
+      setName(selectedTemplate.name);
+      setCustomerName(selectedTemplate.customerName || '');
+      setTotalBudget(
+        selectedTemplate.budgetTotal != null
+          ? centsToDollars(selectedTemplate.budgetTotal).toString()
+          : '',
+      );
+      setMaterialsBudget(
+        selectedTemplate.budgetMaterials != null
+          ? centsToDollars(selectedTemplate.budgetMaterials).toString()
+          : '',
+      );
+      setLaborBudget(
+        selectedTemplate.budgetLabor != null
+          ? centsToDollars(selectedTemplate.budgetLabor).toString()
+          : '',
+      );
+      setContractValue(
+        selectedTemplate.contractValue != null
+          ? centsToDollars(selectedTemplate.contractValue).toString()
+          : '',
+      );
+      setNotes(selectedTemplate.notes || '');
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+  }, [selectedTemplate]);
 
   const handleSubmit = async () => {
     if (!name.trim()) {
@@ -77,6 +126,17 @@ export default function CreateJobScreen() {
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
         >
+          {/* From Template button */}
+          <TouchableOpacity
+            style={styles.templateBtn}
+            onPress={() => setShowTemplatePicker(true)}
+          >
+            <Ionicons name="document-text-outline" size={20} color={colors.primary} />
+            <Text style={styles.templateBtnText}>
+              {appliedTemplateId ? 'Change Template' : 'From Template'}
+            </Text>
+          </TouchableOpacity>
+
           <Text style={styles.sectionTitle}>Job Details</Text>
 
           <Input
@@ -188,6 +248,64 @@ export default function CreateJobScreen() {
           />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Template Picker Modal */}
+      <Modal
+        visible={showTemplatePicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowTemplatePicker(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Choose Template</Text>
+            <TouchableOpacity onPress={() => setShowTemplatePicker(false)}>
+              <Ionicons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+          </View>
+          {templatesLoading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={styles.modalLoading} />
+          ) : templates.length === 0 ? (
+            <View style={styles.modalEmpty}>
+              <Ionicons name="document-text-outline" size={48} color={colors.textMuted} />
+              <Text style={styles.modalEmptyText}>No templates yet</Text>
+              <Text style={styles.modalEmptySubtext}>
+                Create templates from the Templates section
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={templates}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.modalList}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.templateItem}
+                  onPress={() => {
+                    setAppliedTemplateId(item.id);
+                    setShowTemplatePicker(false);
+                  }}
+                >
+                  <View style={styles.templateItemInfo}>
+                    <Text style={styles.templateItemName}>{item.name}</Text>
+                    {item.description && (
+                      <Text style={styles.templateItemDesc} numberOfLines={1}>
+                        {item.description}
+                      </Text>
+                    )}
+                    {item.budgetTotal != null && (
+                      <Text style={styles.templateItemMeta}>
+                        Budget: {formatMoney(item.budgetTotal)}
+                      </Text>
+                    )}
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </View>
+      </Modal>
     </Screen>
   );
 }
@@ -199,6 +317,23 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
   scroll: {
     padding: spacing.lg,
     paddingBottom: spacing.xxxl,
+  },
+  templateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+    marginBottom: spacing.md,
+  },
+  templateBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   sectionTitle: {
     fontSize: 13,
@@ -225,5 +360,71 @@ const createStyles = (colors: ThemeColors) => StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     marginBottom: spacing.md,
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.lg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+  },
+  modalLoading: {
+    marginTop: spacing.xxxl,
+  },
+  modalEmpty: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  modalEmptySubtext: {
+    fontSize: 14,
+    color: colors.textMuted,
+  },
+  modalList: {
+    padding: spacing.lg,
+  },
+  templateItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.sm,
+  },
+  templateItemInfo: {
+    flex: 1,
+  },
+  templateItemName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  templateItemDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  templateItemMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 4,
   },
 });

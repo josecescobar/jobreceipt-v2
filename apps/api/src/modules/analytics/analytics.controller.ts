@@ -6,6 +6,7 @@ import { CurrentOrg } from '../../common/decorators/current-org.decorator';
 import { AnalyticsService } from './analytics.service';
 import { QueryAnalyticsDto } from './dto/query-analytics.dto';
 import { QueryCalendarDto } from './dto/query-calendar.dto';
+import { QueryPnlDto } from './dto/query-pnl.dto';
 
 @ApiTags('Analytics')
 @Controller('analytics')
@@ -46,6 +47,15 @@ export class AnalyticsController {
     @Query() query: QueryAnalyticsDto,
   ) {
     return this.analyticsService.getJobProfitability(orgId, query);
+  }
+
+  @Get('pnl')
+  @ApiOperation({ summary: 'Get profit & loss report with income vs expenses' })
+  async getPnlReport(
+    @CurrentOrg() orgId: string,
+    @Query() query: QueryPnlDto,
+  ) {
+    return this.analyticsService.getPnlReport(orgId, query);
   }
 
   @Get('calendar')

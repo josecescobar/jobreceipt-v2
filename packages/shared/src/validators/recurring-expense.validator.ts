@@ -7,7 +7,7 @@ export const CreateRecurringExpenseSchema = z.object({
   description: z.string().min(1).max(500),
   category: z.string().max(100).nullable().optional(),
   taxCategory: z.string().max(50).nullable().optional(),
-  frequency: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY']),
+  frequency: z.enum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY']),
   startDate: z.string(),
   endDate: z.string().nullable().optional(),
 });

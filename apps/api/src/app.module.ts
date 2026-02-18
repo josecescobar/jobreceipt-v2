@@ -17,6 +17,8 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
 import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module';
 import { EstimatesModule } from './modules/estimates/estimates.module';
 import { ChangeOrdersModule } from './modules/change-orders/change-orders.module';
+import { RecurringInvoicesModule } from './modules/recurring-invoices/recurring-invoices.module';
+import { JobTemplatesModule } from './modules/job-templates/job-templates.module';
 
 @Module({
   controllers: [AppController],
@@ -38,6 +40,8 @@ import { ChangeOrdersModule } from './modules/change-orders/change-orders.module
     TimeTrackingModule,
     EstimatesModule,
     ChangeOrdersModule,
+    RecurringInvoicesModule,
+    JobTemplatesModule,
   ],
 })
 export class AppModule {}

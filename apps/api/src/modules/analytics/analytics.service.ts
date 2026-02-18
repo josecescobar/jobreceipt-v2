@@ -720,6 +720,164 @@ export class AnalyticsService {
     return { days, summary };
   }
 
+  async getPnlReport(
+    orgId: string,
+    query: { period?: string; startDate?: string; endDate?: string },
+  ) {
+    const now = new Date();
+    let start: Date;
+    let end: Date;
+    let label: string;
+
+    const period = query.period || 'month';
+
+    if (period === 'custom' && query.startDate && query.endDate) {
+      start = new Date(query.startDate);
+      end = new Date(query.endDate);
+      label = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+    } else if (period === 'year') {
+      start = new Date(now.getFullYear(), 0, 1);
+      end = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
+      label = `${now.getFullYear()}`;
+    } else if (period === 'quarter') {
+      const q = Math.floor(now.getMonth() / 3);
+      start = new Date(now.getFullYear(), q * 3, 1);
+      end = new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59, 999);
+      label = `Q${q + 1} ${now.getFullYear()}`;
+    } else {
+      // month
+      start = new Date(now.getFullYear(), now.getMonth(), 1);
+      end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      label = `${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+    }
+
+    // Income: sum invoice payments within date range, grouped by job
+    const [incomeByJob, expensesByCategory, expensesByJob, mileageAgg] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ job_id: string; job_name: string; total: bigint }>>`
+        SELECT j.id as job_id, j.name as job_name, COALESCE(SUM(ip.amount), 0) as total
+        FROM "InvoicePayment" ip
+        JOIN "Invoice" i ON i.id = ip."invoiceId"
+        JOIN "Job" j ON j.id = i."jobId"
+        WHERE i."organizationId" = ${orgId}
+          AND ip.date >= ${start}
+          AND ip.date <= ${end}
+        GROUP BY j.id, j.name
+        ORDER BY total DESC
+      `,
+      this.prisma.expense.groupBy({
+        by: ['category'],
+        where: {
+          organizationId: orgId,
+          date: { gte: start, lte: end },
+        },
+        _sum: { amount: true },
+        orderBy: { _sum: { amount: 'desc' } },
+      }),
+      this.prisma.$queryRaw<Array<{ job_id: string; job_name: string; total: bigint }>>`
+        SELECT j.id as job_id, j.name as job_name, COALESCE(SUM(e.amount), 0) as total
+        FROM "Expense" e
+        JOIN "Job" j ON j.id = e."jobId"
+        WHERE e."organizationId" = ${orgId}
+          AND e.date >= ${start}
+          AND e.date <= ${end}
+        GROUP BY j.id, j.name
+        ORDER BY total DESC
+      `,
+      this.prisma.mileageTrip.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: start, lte: end },
+        },
+        _sum: { totalDeduction: true },
+      }),
+    ]);
+
+    const incomeTotal = incomeByJob.reduce((sum, r) => sum + Number(r.total), 0);
+    const expenseTotal = expensesByCategory.reduce((sum, g) => sum + (g._sum.amount ?? 0), 0);
+    const mileageDeductions = mileageAgg._sum.totalDeduction ?? 0;
+    const netProfit = incomeTotal - expenseTotal - mileageDeductions;
+    const profitMargin = incomeTotal > 0
+      ? Math.round((netProfit / incomeTotal) * 10000) / 100
+      : 0;
+
+    // Previous period comparison
+    const durationMs = end.getTime() - start.getTime();
+    const prevEnd = new Date(start.getTime() - 1);
+    const prevStart = new Date(prevEnd.getTime() - durationMs);
+
+    const [prevIncomeAgg, prevExpenseAgg, prevMileageAgg] = await Promise.all([
+      this.prisma.$queryRaw<Array<{ total: bigint }>>`
+        SELECT COALESCE(SUM(ip.amount), 0) as total
+        FROM "InvoicePayment" ip
+        JOIN "Invoice" i ON i.id = ip."invoiceId"
+        WHERE i."organizationId" = ${orgId}
+          AND ip.date >= ${prevStart}
+          AND ip.date <= ${prevEnd}
+      `,
+      this.prisma.expense.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: prevStart, lte: prevEnd },
+        },
+        _sum: { amount: true },
+      }),
+      this.prisma.mileageTrip.aggregate({
+        where: {
+          organizationId: orgId,
+          date: { gte: prevStart, lte: prevEnd },
+        },
+        _sum: { totalDeduction: true },
+      }),
+    ]);
+
+    const prevIncome = Number(prevIncomeAgg[0]?.total ?? 0);
+    const prevExpense = prevExpenseAgg._sum.amount ?? 0;
+    const prevMileage = prevMileageAgg._sum.totalDeduction ?? 0;
+    const previousNetProfit = prevIncome - prevExpense - prevMileage;
+
+    let comparison: { previousNetProfit: number; changePercent: number } | undefined;
+    if (previousNetProfit !== 0 || netProfit !== 0) {
+      const changePercent = previousNetProfit !== 0
+        ? Math.round(((netProfit - previousNetProfit) / Math.abs(previousNetProfit)) * 10000) / 100
+        : netProfit > 0 ? 100 : -100;
+      comparison = { previousNetProfit, changePercent };
+    }
+
+    return {
+      period: { start: start.toISOString(), end: end.toISOString(), label },
+      income: {
+        invoicePayments: incomeTotal,
+        total: incomeTotal,
+        byJob: incomeByJob.map((r) => ({
+          jobId: r.job_id,
+          jobName: r.job_name,
+          amount: Number(r.total),
+        })),
+      },
+      expenses: {
+        total: expenseTotal,
+        byCategory: expensesByCategory.map((g) => {
+          const amount = g._sum.amount ?? 0;
+          return {
+            category: g.category || 'Uncategorized',
+            amount,
+            percentage: expenseTotal > 0 ? Math.round((amount / expenseTotal) * 10000) / 100 : 0,
+          };
+        }),
+        byJob: expensesByJob.map((r) => ({
+          jobId: r.job_id,
+          jobName: r.job_name,
+          amount: Number(r.total),
+        })),
+      },
+      mileageDeductions,
+      netProfit,
+      profitMargin,
+      comparison,
+    };
+  }
+
   private async getTopJobs(orgId: string, startDate?: Date, endDate?: Date) {
     const where: Prisma.ExpenseWhereInput = { organizationId: orgId };
     if (startDate || endDate) {

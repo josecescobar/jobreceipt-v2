@@ -12,3 +12,6 @@ export * from './time-entry';
 export * from './estimate';
 export * from './change-order';
 export * from './calendar';
+export * from './recurring-invoice';
+export * from './pnl';
+export * from './job-template';

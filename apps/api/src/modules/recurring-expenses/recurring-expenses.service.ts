@@ -217,6 +217,12 @@ export class RecurringExpensesService {
       case 'MONTHLY':
         next.setMonth(next.getMonth() + 1);
         break;
+      case 'QUARTERLY':
+        next.setMonth(next.getMonth() + 3);
+        break;
+      case 'ANNUALLY':
+        next.setFullYear(next.getFullYear() + 1);
+        break;
     }
     return next;
   }

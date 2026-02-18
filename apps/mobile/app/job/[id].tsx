@@ -33,6 +33,8 @@ import { useMileageTrips } from '../../src/hooks/useMileage';
 import { useInvoices } from '../../src/hooks/useInvoices';
 import { useEstimates } from '../../src/hooks/useEstimates';
 import { useChangeOrders } from '../../src/hooks/useChangeOrders';
+import { useRecurringInvoices } from '../../src/hooks/useRecurringInvoices';
+import { useCreateTemplateFromJob } from '../../src/hooks/useJobTemplates';
 import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
@@ -69,6 +71,7 @@ export default function JobDetailScreen() {
   const [exporting, setExporting] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const createTemplate = useCreateTemplateFromJob();
 
   const { data: expensesData } = useExpenses({ jobId: id });
   const expenses = useMemo(
@@ -112,6 +115,12 @@ export default function JobDetailScreen() {
   const approvedCOCount = useMemo(
     () => changeOrders.filter((co) => co.status === 'APPROVED').length,
     [changeOrders],
+  );
+
+  const { data: recurringInvoicesData } = useRecurringInvoices({ jobId: id });
+  const recurringInvoices = useMemo(
+    () => recurringInvoicesData?.pages?.flatMap((p) => p.data) ?? [],
+    [recurringInvoicesData],
   );
 
   const { data: timeData } = useTimeEntries({ jobId: id });
@@ -312,6 +321,39 @@ export default function JobDetailScreen() {
         },
       },
     ]);
+  };
+
+  const doSaveAsTemplate = async (templateName: string) => {
+    if (!templateName.trim()) return;
+    try {
+      await createTemplate.mutateAsync({ jobId: id!, name: templateName.trim() });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Template Saved', `"${templateName.trim()}" has been saved as a template.`);
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to save template');
+    }
+  };
+
+  const handleSaveAsTemplate = () => {
+    if (Platform.OS === 'ios') {
+      Alert.prompt(
+        'Save as Template',
+        'Enter a name for this template:',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Save', onPress: (text) => doSaveAsTemplate(text ?? '') },
+        ],
+        'plain-text',
+        job?.name ? `${job.name} Template` : '',
+      );
+    } else {
+      // Android: use default name since Alert.prompt is iOS-only
+      const defaultName = job?.name ? `${job.name} Template` : 'New Template';
+      Alert.alert('Save as Template', `Save "${defaultName}" as a reusable template?`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save', onPress: () => doSaveAsTemplate(defaultName) },
+      ]);
+    }
   };
 
   const activeCategories = [
@@ -658,6 +700,51 @@ export default function JobDetailScreen() {
           </Text>
         )}
 
+        {/* Recurring Invoices */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Recurring Invoices ({recurringInvoices.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/recurring-invoice/create', params: { jobId: id } })}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {recurringInvoices.length > 0 ? (
+          <View style={styles.invoiceList}>
+            {recurringInvoices.map((ri) => (
+              <TouchableOpacity
+                key={ri.id}
+                style={styles.invoiceRow}
+                onPress={() => router.push(`/recurring-invoice/${ri.id}`)}
+              >
+                <View style={styles.invoiceInfo}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Ionicons name="repeat" size={14} color={colors.primary} />
+                    <Text style={styles.invoiceNumber}>{ri.frequency}</Text>
+                  </View>
+                  <Text style={styles.invoiceDate}>
+                    Next: {new Date(ri.nextOccurrence).toLocaleDateString()}
+                  </Text>
+                </View>
+                <View style={styles.invoiceRight}>
+                  <View style={[styles.invoiceStatusBadge, { backgroundColor: ri.isActive ? colors.success + '20' : colors.textMuted + '20' }]}>
+                    <Text style={[styles.invoiceStatusText, { color: ri.isActive ? colors.success : colors.textMuted }]}>
+                      {ri.isActive ? 'Active' : 'Paused'}
+                    </Text>
+                  </View>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No recurring invoices — tap + to set one up
+          </Text>
+        )}
+
         {/* Time Entries */}
         <View style={styles.invoiceSectionHeader}>
           <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
@@ -716,7 +803,7 @@ export default function JobDetailScreen() {
         </Text>
         <ActivityFeed items={activityItems} />
 
-        {/* Export report */}
+        {/* Export & Template */}
         <View style={styles.exportSection}>
           <Button
             title={exportingPdf ? 'Generating PDF...' : 'Export PDF Report'}
@@ -728,6 +815,12 @@ export default function JobDetailScreen() {
             onPress={handleExport}
             variant="secondary"
             loading={exporting}
+          />
+          <Button
+            title="Save as Template"
+            onPress={handleSaveAsTemplate}
+            variant="ghost"
+            loading={createTemplate.isPending}
           />
         </View>
 

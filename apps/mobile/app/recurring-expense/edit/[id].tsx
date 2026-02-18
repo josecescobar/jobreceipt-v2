@@ -35,6 +35,8 @@ const FREQUENCIES = [
   { key: 'WEEKLY' as const, label: 'Weekly' },
   { key: 'BIWEEKLY' as const, label: 'Every 2 Weeks' },
   { key: 'MONTHLY' as const, label: 'Monthly' },
+  { key: 'QUARTERLY' as const, label: 'Quarterly' },
+  { key: 'ANNUALLY' as const, label: 'Annually' },
 ];
 
 export default function EditRecurringExpenseScreen() {
@@ -56,7 +58,7 @@ export default function EditRecurringExpenseScreen() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
-  const [frequency, setFrequency] = useState<'WEEKLY' | 'BIWEEKLY' | 'MONTHLY'>('MONTHLY');
+  const [frequency, setFrequency] = useState<'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY'>('MONTHLY');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [isActive, setIsActive] = useState(true);

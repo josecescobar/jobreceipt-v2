@@ -1,4 +1,4 @@
-export type RecurringExpenseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+export type RecurringExpenseFrequency = 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY';
 
 export interface RecurringExpense {
   id: string;

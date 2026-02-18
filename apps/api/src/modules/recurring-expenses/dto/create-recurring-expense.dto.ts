@@ -32,9 +32,9 @@ export class CreateRecurringExpenseDto {
   @IsString()
   taxCategory?: string;
 
-  @ApiProperty({ enum: ['WEEKLY', 'BIWEEKLY', 'MONTHLY'] })
-  @IsEnum(['WEEKLY', 'BIWEEKLY', 'MONTHLY'])
-  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY';
+  @ApiProperty({ enum: ['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY'] })
+  @IsEnum(['WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'ANNUALLY'])
+  frequency: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'ANNUALLY';
 
   @ApiProperty()
   @IsDateString()
