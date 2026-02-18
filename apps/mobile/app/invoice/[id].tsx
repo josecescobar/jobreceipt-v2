@@ -7,23 +7,36 @@ import {
   Alert,
   StyleSheet,
   ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Screen, Header } from '../../src/components/layout';
-import { Button } from '../../src/components/ui';
-import { useInvoice, useUpdateInvoice, useDeleteInvoice } from '../../src/hooks/useInvoices';
-import { formatMoney } from '../../src/lib/format';
+import { Button, Input, DatePickerField } from '../../src/components/ui';
+import { useInvoice, useUpdateInvoice, useDeleteInvoice, useAddPayment, useRemovePayment } from '../../src/hooks/useInvoices';
+import { formatMoney, dollarsToCents, centsToDollars } from '../../src/lib/format';
 import { exportInvoicePdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../../src/theme';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {};
 
+const PAYMENT_METHODS = ['CASH', 'CHECK', 'BANK_TRANSFER', 'CREDIT_CARD', 'OTHER'] as const;
+const METHOD_LABELS: Record<string, string> = {
+  CASH: 'Cash',
+  CHECK: 'Check',
+  BANK_TRANSFER: 'Bank Transfer',
+  CREDIT_CARD: 'Credit Card',
+  OTHER: 'Other',
+};
+
 function getStatusStyle(status: string, colors: ThemeColors) {
   if (status === 'PAID') return { bg: colors.success + '20', text: colors.success };
   if (status === 'SENT') return { bg: colors.primary + '20', text: colors.primary };
-  return { bg: colors.warning + '20', text: colors.warning };
+  if (status === 'PARTIALLY_PAID') return { bg: colors.warning + '20', text: colors.warning };
+  return { bg: colors.textMuted + '20', text: colors.textMuted };
 }
 
 export default function InvoiceDetailScreen() {
@@ -34,7 +47,14 @@ export default function InvoiceDetailScreen() {
   const { data: invoice, isLoading } = useInvoice(id ?? '');
   const updateInvoice = useUpdateInvoice();
   const deleteInvoice = useDeleteInvoice();
+  const addPayment = useAddPayment();
+  const removePayment = useRemovePayment();
   const [exporting, setExporting] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [paymentMethod, setPaymentMethod] = useState<typeof PAYMENT_METHODS[number]>('CHECK');
+  const [paymentNote, setPaymentNote] = useState('');
 
   const handleSharePdf = async () => {
     if (!invoice) return;
@@ -95,6 +115,58 @@ export default function InvoiceDetailScreen() {
             router.back();
           } catch (err: any) {
             Alert.alert('Error', err.response?.data?.message || 'Failed to delete');
+          }
+        },
+      },
+    ]);
+  };
+
+  const openPaymentModal = () => {
+    if (invoice) {
+      const remaining = invoice.total - (invoice.paidAmount ?? 0);
+      setPaymentAmount(String(centsToDollars(remaining)));
+    }
+    setPaymentDate(new Date().toISOString().split('T')[0]);
+    setPaymentMethod('CHECK');
+    setPaymentNote('');
+    setShowPaymentModal(true);
+  };
+
+  const handleRecordPayment = async () => {
+    const amountCents = dollarsToCents(parseFloat(paymentAmount) || 0);
+    if (amountCents <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a payment amount greater than zero.');
+      return;
+    }
+    try {
+      await addPayment.mutateAsync({
+        invoiceId: id!,
+        payment: {
+          amount: amountCents,
+          date: paymentDate,
+          method: paymentMethod,
+          note: paymentNote || undefined,
+        },
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowPaymentModal(false);
+    } catch (err: any) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to record payment');
+    }
+  };
+
+  const handleRemovePayment = (paymentId: string, amount: number) => {
+    Alert.alert('Remove Payment', `Remove payment of ${formatMoney(amount)}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await removePayment.mutateAsync({ invoiceId: id!, paymentId });
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          } catch (err: any) {
+            Alert.alert('Error', err.response?.data?.message || 'Failed to remove payment');
           }
         },
       },
@@ -200,6 +272,34 @@ export default function InvoiceDetailScreen() {
           </View>
         </View>
 
+        {/* Payments & Balance */}
+        {(invoice.paidAmount ?? 0) > 0 && (
+          <View style={styles.paymentsSection}>
+            <Text style={styles.sectionTitle}>Payments</Text>
+            {(invoice as any).payments?.map((p: any) => (
+              <TouchableOpacity
+                key={p.id}
+                style={styles.paymentRow}
+                onLongPress={() => handleRemovePayment(p.id, p.amount)}
+              >
+                <View>
+                  <Text style={styles.paymentMethod}>{METHOD_LABELS[p.method] || p.method}</Text>
+                  <Text style={styles.paymentDate}>
+                    {new Date(p.date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.paymentAmount}>{formatMoney(p.amount)}</Text>
+              </TouchableOpacity>
+            ))}
+            <View style={[styles.totalsRow, styles.balanceRow]}>
+              <Text style={styles.balanceLabel}>Balance Due</Text>
+              <Text style={styles.balanceValue}>
+                {formatMoney(invoice.total - (invoice.paidAmount ?? 0))}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Notes */}
         {invoice.notes && (
           <View style={styles.section}>
@@ -235,12 +335,11 @@ export default function InvoiceDetailScreen() {
             </>
           )}
 
-          {invoice.status === 'SENT' && (
+          {(invoice.status === 'SENT' || invoice.status === 'PARTIALLY_PAID') && (
             <Button
-              title="Mark as Paid"
-              onPress={handleMarkPaid}
+              title="Record Payment"
+              onPress={openPaymentModal}
               variant="secondary"
-              loading={updateInvoice.isPending}
               style={styles.actionBtn}
             />
           )}
@@ -256,6 +355,77 @@ export default function InvoiceDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Payment Modal */}
+      <Modal visible={showPaymentModal} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Record Payment</Text>
+              <TouchableOpacity onPress={() => setShowPaymentModal(false)}>
+                <Ionicons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <Input
+              label="Amount ($)"
+              value={paymentAmount}
+              onChangeText={setPaymentAmount}
+              keyboardType="decimal-pad"
+              placeholder="0.00"
+            />
+
+            <DatePickerField
+              label="Payment Date"
+              value={paymentDate}
+              onChange={setPaymentDate}
+            />
+
+            <Text style={styles.methodLabel}>Payment Method</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.methodScroll}
+            >
+              {PAYMENT_METHODS.map((method) => (
+                <TouchableOpacity
+                  key={method}
+                  style={[
+                    styles.methodChip,
+                    paymentMethod === method && styles.methodChipActive,
+                  ]}
+                  onPress={() => setPaymentMethod(method)}
+                >
+                  <Text
+                    style={[
+                      styles.methodChipText,
+                      paymentMethod === method && styles.methodChipTextActive,
+                    ]}
+                  >
+                    {METHOD_LABELS[method]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            <Input
+              label="Note (optional)"
+              value={paymentNote}
+              onChangeText={setPaymentNote}
+              placeholder="Check #1234, etc."
+            />
+
+            <Button
+              title="Record Payment"
+              onPress={handleRecordPayment}
+              loading={addPayment.isPending}
+            />
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </Screen>
   );
 }
@@ -356,4 +526,75 @@ const createStyles = (colors: ThemeColors) =>
       paddingVertical: spacing.sm,
     },
     editBtnText: { fontSize: 14, fontWeight: '500', color: colors.primary },
+    paymentsSection: { marginBottom: spacing.lg },
+    paymentRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: spacing.sm,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    paymentMethod: { fontSize: 14, fontWeight: '500', color: colors.text },
+    paymentDate: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
+    paymentAmount: {
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.success,
+      fontVariant: ['tabular-nums'],
+    },
+    balanceRow: {
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+      marginTop: spacing.sm,
+      paddingTop: spacing.sm,
+    },
+    balanceLabel: { fontSize: 16, fontWeight: '700', color: colors.text },
+    balanceValue: {
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.warning,
+      fontVariant: ['tabular-nums'],
+    },
+    modalOverlay: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    modalContent: {
+      backgroundColor: colors.background,
+      borderTopLeftRadius: borderRadius.xl,
+      borderTopRightRadius: borderRadius.xl,
+      padding: spacing.lg,
+      paddingBottom: spacing.xxxl,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: spacing.lg,
+    },
+    modalTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+    methodLabel: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.textSecondary,
+      marginBottom: spacing.sm,
+    },
+    methodScroll: { marginBottom: spacing.lg },
+    methodChip: {
+      paddingHorizontal: spacing.lg,
+      paddingVertical: spacing.sm,
+      borderRadius: borderRadius.full,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginRight: spacing.sm,
+    },
+    methodChipActive: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    methodChipText: { fontSize: 13, color: colors.textSecondary },
+    methodChipTextActive: { color: colors.white },
   });

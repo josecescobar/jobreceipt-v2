@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateInvoiceLineItemDto } from './dto/create-invoice.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 interface CreateInvoiceData {
   jobId: string;
@@ -12,7 +13,7 @@ interface CreateInvoiceData {
 }
 
 interface UpdateInvoiceData {
-  status?: 'DRAFT' | 'SENT' | 'PAID';
+  status?: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID';
   issueDate?: string;
   dueDate?: string;
   notes?: string;
@@ -24,6 +25,9 @@ const invoiceInclude = {
   job: { select: { id: true, name: true, customerName: true, customerAddress: true } },
   lineItems: {
     orderBy: { sortOrder: 'asc' as const },
+  },
+  payments: {
+    orderBy: { date: 'desc' as const },
   },
 };
 
@@ -186,5 +190,85 @@ export class InvoicesService {
   async remove(orgId: string, id: string) {
     await this.findOne(orgId, id);
     return this.prisma.invoice.delete({ where: { id } });
+  }
+
+  private determineInvoiceStatus(paidAmount: number, total: number): 'SENT' | 'PARTIALLY_PAID' | 'PAID' {
+    if (paidAmount >= total) return 'PAID';
+    if (paidAmount > 0) return 'PARTIALLY_PAID';
+    return 'SENT';
+  }
+
+  async addPayment(orgId: string, invoiceId: string, dto: CreatePaymentDto) {
+    const invoice = await this.findOne(orgId, invoiceId);
+
+    if (invoice.status === 'DRAFT') {
+      throw new BadRequestException('Cannot add payment to a draft invoice');
+    }
+
+    const remaining = invoice.total - invoice.paidAmount;
+    if (dto.amount > remaining) {
+      throw new BadRequestException(
+        `Payment amount (${dto.amount}) exceeds remaining balance (${remaining})`,
+      );
+    }
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.invoicePayment.create({
+        data: {
+          invoiceId,
+          amount: dto.amount,
+          date: new Date(dto.date),
+          method: dto.method,
+          note: dto.note,
+        },
+      });
+
+      const newPaidAmount = invoice.paidAmount + dto.amount;
+      const newStatus = this.determineInvoiceStatus(newPaidAmount, invoice.total);
+
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { paidAmount: newPaidAmount, status: newStatus },
+      });
+
+      return tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: invoiceInclude,
+      });
+    });
+  }
+
+  async getPayments(orgId: string, invoiceId: string) {
+    await this.findOne(orgId, invoiceId);
+    return this.prisma.invoicePayment.findMany({
+      where: { invoiceId },
+      orderBy: { date: 'desc' },
+    });
+  }
+
+  async removePayment(orgId: string, invoiceId: string, paymentId: string) {
+    const invoice = await this.findOne(orgId, invoiceId);
+
+    const payment = await this.prisma.invoicePayment.findFirst({
+      where: { id: paymentId, invoiceId },
+    });
+    if (!payment) throw new NotFoundException('Payment not found');
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.invoicePayment.delete({ where: { id: paymentId } });
+
+      const newPaidAmount = invoice.paidAmount - payment.amount;
+      const newStatus = this.determineInvoiceStatus(newPaidAmount, invoice.total);
+
+      await tx.invoice.update({
+        where: { id: invoiceId },
+        data: { paidAmount: newPaidAmount, status: newStatus },
+      });
+
+      return tx.invoice.findUnique({
+        where: { id: invoiceId },
+        include: invoiceInclude,
+      });
+    });
   }
 }

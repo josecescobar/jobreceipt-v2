@@ -13,10 +13,10 @@ import { Type } from 'class-transformer';
 import { CreateInvoiceLineItemDto } from './create-invoice.dto';
 
 export class UpdateInvoiceDto {
-  @ApiPropertyOptional({ enum: ['DRAFT', 'SENT', 'PAID'] })
+  @ApiPropertyOptional({ enum: ['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID'] })
   @IsOptional()
-  @IsEnum(['DRAFT', 'SENT', 'PAID'])
-  status?: 'DRAFT' | 'SENT' | 'PAID';
+  @IsEnum(['DRAFT', 'SENT', 'PARTIALLY_PAID', 'PAID'])
+  status?: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID';
 
   @ApiPropertyOptional()
   @IsOptional()

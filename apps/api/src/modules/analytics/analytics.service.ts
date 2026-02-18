@@ -468,22 +468,38 @@ export class AnalyticsService {
     }
 
     // Aggregate expenses per job
-    const expensesByJob = await this.prisma.expense.groupBy({
-      by: ['jobId'],
-      where: expenseWhere,
-      _sum: { amount: true },
-      _count: true,
-    });
+    const timeEntryWhere: Prisma.TimeEntryWhereInput = {
+      organizationId: orgId,
+      jobId: { in: jobs.map((j) => j.id) },
+    };
+    if (startDate || endDate) {
+      timeEntryWhere.date = {};
+      if (startDate) timeEntryWhere.date.gte = startDate;
+      if (endDate) timeEntryWhere.date.lte = endDate;
+    }
 
-    // Get per-job category breakdown
-    const expensesWithCategory = await this.prisma.expense.findMany({
-      where: expenseWhere,
-      select: {
-        jobId: true,
-        amount: true,
-        costCode: { select: { category: true } },
-      },
-    });
+    const [expensesByJob, expensesWithCategory, timeEntriesByJob] = await Promise.all([
+      this.prisma.expense.groupBy({
+        by: ['jobId'],
+        where: expenseWhere,
+        _sum: { amount: true },
+        _count: true,
+      }),
+      this.prisma.expense.findMany({
+        where: expenseWhere,
+        select: {
+          jobId: true,
+          amount: true,
+          costCode: { select: { category: true } },
+        },
+      }),
+      this.prisma.timeEntry.groupBy({
+        by: ['jobId'],
+        where: timeEntryWhere,
+        _sum: { totalCost: true, durationMinutes: true },
+        _count: true,
+      }),
+    ]);
 
     const jobCategoryMap = new Map<string, Record<string, number>>();
     for (const exp of expensesWithCategory) {
@@ -492,6 +508,13 @@ export class AnalyticsService {
       const catMap = jobCategoryMap.get(exp.jobId)!;
       catMap[cat] = (catMap[cat] || 0) + exp.amount;
     }
+
+    const laborMap = new Map(
+      timeEntriesByJob.map((g) => [
+        g.jobId,
+        { totalCost: g._sum.totalCost ?? 0, totalMinutes: g._sum.durationMinutes ?? 0, count: g._count },
+      ]),
+    );
 
     const spentMap = new Map(
       expensesByJob.map((g) => [g.jobId, { total: g._sum.amount ?? 0, count: g._count }]),
@@ -503,8 +526,12 @@ export class AnalyticsService {
     let marginSum = 0;
 
     const profitabilityJobs = jobs.map((job) => {
-      const spent = spentMap.get(job.id)?.total ?? 0;
+      const materialSpent = spentMap.get(job.id)?.total ?? 0;
       const expenseCount = spentMap.get(job.id)?.count ?? 0;
+      const labor = laborMap.get(job.id);
+      const laborCost = labor?.totalCost ?? 0;
+      const laborMinutes = labor?.totalMinutes ?? 0;
+      const spent = materialSpent + laborCost;
       const revenue = job.contractValue ?? 0;
       const profit = revenue - spent;
       const marginPercent =
@@ -519,6 +546,11 @@ export class AnalyticsService {
         jobsWithMargin++;
       }
 
+      const categories = jobCategoryMap.get(job.id) ?? {};
+      if (laborCost > 0) {
+        categories['LABOR'] = (categories['LABOR'] || 0) + laborCost;
+      }
+
       return {
         jobId: job.id,
         jobName: job.name,
@@ -527,10 +559,12 @@ export class AnalyticsService {
         contractValue: revenue,
         totalExpenses: spent,
         expenseCount,
+        laborCost,
+        laborHours: Math.round(laborMinutes / 6) / 10, // 1 decimal place
         netProfit: profit,
         profitMarginPercent: marginPercent,
         budgetTotal: job.budgetTotal ?? 0,
-        expensesByCategory: jobCategoryMap.get(job.id) ?? {},
+        expensesByCategory: categories,
       };
     });
 

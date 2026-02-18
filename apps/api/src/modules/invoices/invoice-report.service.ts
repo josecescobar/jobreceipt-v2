@@ -104,6 +104,34 @@ export class InvoiceReportService {
     doc.text(this.formatMoney(invoice.total), totalsX, y, { width: totalsW, align: 'right' });
     y += 25;
 
+    // --- Payment History & Balance ---
+    if (invoice.paidAmount > 0 && (invoice as any).payments?.length > 0) {
+      doc.fontSize(10).font('Helvetica');
+      const payments = (invoice as any).payments as Array<{
+        amount: number;
+        date: Date | string;
+        method: string;
+        note?: string;
+      }>;
+
+      for (const payment of payments) {
+        if (y > 700) { doc.addPage(); y = 50; }
+        const methodLabel = payment.method.replace(/_/g, ' ');
+        const label = `Payment (${methodLabel}) - ${this.formatDate(payment.date)}:`;
+        doc.text(label, labelsX - 100, y, { width: labelsW + 100, align: 'right' });
+        doc.text(`-${this.formatMoney(payment.amount)}`, totalsX, y, { width: totalsW, align: 'right' });
+        y += 16;
+      }
+
+      this.drawLine(doc, y);
+      y += 8;
+      const balanceDue = invoice.total - invoice.paidAmount;
+      doc.fontSize(14).font('Helvetica-Bold');
+      doc.text('Balance Due:', labelsX, y, { width: labelsW, align: 'right' });
+      doc.text(this.formatMoney(balanceDue), totalsX, y, { width: totalsW, align: 'right' });
+      y += 25;
+    }
+
     // --- Notes ---
     if (invoice.notes) {
       doc.y = y;

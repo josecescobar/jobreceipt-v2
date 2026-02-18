@@ -21,6 +21,7 @@ import { InvoiceReportService } from './invoice-report.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { UpdateInvoiceDto } from './dto/update-invoice.dto';
 import { QueryInvoiceDto } from './dto/query-invoice.dto';
+import { CreatePaymentDto } from './dto/create-payment.dto';
 
 @ApiTags('Invoices')
 @Controller('invoices')
@@ -82,6 +83,35 @@ export class InvoicesController {
     @Param('id') id: string,
   ) {
     return this.service.remove(orgId, id);
+  }
+
+  @Post(':id/payments')
+  @ApiOperation({ summary: 'Record a payment on an invoice' })
+  async addPayment(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Body() body: CreatePaymentDto,
+  ) {
+    return this.service.addPayment(orgId, id, body);
+  }
+
+  @Get(':id/payments')
+  @ApiOperation({ summary: 'List payments for an invoice' })
+  async getPayments(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+  ) {
+    return this.service.getPayments(orgId, id);
+  }
+
+  @Delete(':id/payments/:paymentId')
+  @ApiOperation({ summary: 'Remove a payment from an invoice' })
+  async removePayment(
+    @CurrentOrg() orgId: string,
+    @Param('id') id: string,
+    @Param('paymentId') paymentId: string,
+  ) {
+    return this.service.removePayment(orgId, id, paymentId);
   }
 
   @Get(':id/pdf')

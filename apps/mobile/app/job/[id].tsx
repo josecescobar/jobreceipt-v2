@@ -31,6 +31,7 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useReceipts } from '../../src/hooks/useReceipts';
 import { useMileageTrips } from '../../src/hooks/useMileage';
 import { useInvoices } from '../../src/hooks/useInvoices';
+import { useTimeEntries, useTimeEntrySummary } from '../../src/hooks/useTimeTracking';
 import { formatMoney, formatDate } from '../../src/lib/format';
 import { exportJobReport, exportJobReportPdf } from '../../src/lib/export';
 import { useTheme, type ThemeColors, createTypography, spacing } from '../../src/theme';
@@ -90,6 +91,13 @@ export default function JobDetailScreen() {
     () => invoicesData?.data ?? [],
     [invoicesData],
   );
+
+  const { data: timeData } = useTimeEntries({ jobId: id });
+  const timeEntries = useMemo(
+    () => timeData?.pages?.flatMap((p) => p.data) ?? [],
+    [timeData],
+  );
+  const { data: timeSummary } = useTimeEntrySummary({ jobId: id });
 
   const activityItems: ActivityItem[] = useMemo(() => {
     const items: ActivityItem[] = [];
@@ -482,7 +490,9 @@ export default function JobDetailScreen() {
                 ? { bg: colors.success + '20', text: colors.success }
                 : inv.status === 'SENT'
                 ? { bg: colors.primary + '20', text: colors.primary }
-                : { bg: colors.warning + '20', text: colors.warning };
+                : inv.status === 'PARTIALLY_PAID'
+                ? { bg: colors.warning + '20', text: colors.warning }
+                : { bg: colors.textMuted + '20', text: colors.textMuted };
               return (
                 <TouchableOpacity
                   key={inv.id}
@@ -510,6 +520,58 @@ export default function JobDetailScreen() {
         ) : (
           <Text style={styles.emptyPhotos}>
             No invoices yet — tap + to create one
+          </Text>
+        )}
+
+        {/* Time Entries */}
+        <View style={styles.invoiceSectionHeader}>
+          <Text style={[styles.sectionTitle, { marginTop: 0, marginBottom: 0 }]}>
+            Time Entries ({timeEntries.length})
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push({ pathname: '/time-tracking/create', params: { jobId: id } })}
+            style={styles.addPhotoBtn}
+          >
+            <Ionicons name="add-circle" size={28} color={colors.primary} />
+          </TouchableOpacity>
+        </View>
+        {timeSummary && (timeSummary.totalMinutes > 0) ? (
+          <>
+            <View style={styles.timeSummaryRow}>
+              <Text style={styles.timeSummaryLabel}>
+                {Math.floor(timeSummary.totalMinutes / 60)}h {timeSummary.totalMinutes % 60}m logged
+              </Text>
+              <Text style={styles.timeSummaryValue}>{formatMoney(timeSummary.totalCost)}</Text>
+            </View>
+            {timeEntries.slice(0, 3).map((entry) => (
+              <TouchableOpacity
+                key={entry.id}
+                style={styles.invoiceRow}
+                onPress={() => router.push(`/time-tracking/edit/${entry.id}`)}
+              >
+                <View style={styles.invoiceInfo}>
+                  <Text style={styles.invoiceNumber}>
+                    {Math.floor(entry.durationMinutes / 60)}h {entry.durationMinutes % 60}m
+                  </Text>
+                  <Text style={styles.invoiceDate}>
+                    {new Date(entry.date).toLocaleDateString()}
+                  </Text>
+                </View>
+                <Text style={styles.invoiceTotal}>{formatMoney(entry.totalCost)}</Text>
+              </TouchableOpacity>
+            ))}
+            {timeEntries.length > 3 && (
+              <TouchableOpacity
+                onPress={() => router.push({ pathname: '/time-tracking', params: { jobId: id } })}
+                style={styles.viewAllBtn}
+              >
+                <Text style={styles.viewAllText}>View All Time Entries</Text>
+              </TouchableOpacity>
+            )}
+          </>
+        ) : (
+          <Text style={styles.emptyPhotos}>
+            No time entries yet — tap + to log hours
           </Text>
         )}
 
@@ -705,6 +767,36 @@ const createStyles = (colors: ThemeColors, typography: ReturnType<typeof createT
   invoiceStatusText: {
     fontSize: 10,
     fontWeight: '700',
+  },
+  timeSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    backgroundColor: colors.primary + '10',
+    borderRadius: 12,
+    marginBottom: spacing.sm,
+  },
+  timeSummaryLabel: {
+    fontSize: 14,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  timeSummaryValue: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primary,
+    fontVariant: ['tabular-nums' as const],
+  },
+  viewAllBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  viewAllText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
   },
   exportSection: {
     marginTop: spacing.xl,

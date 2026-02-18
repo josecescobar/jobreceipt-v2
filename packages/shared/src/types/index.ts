@@ -8,3 +8,4 @@ export * from './analytics';
 export * from './recurring-expense';
 export * from './expense-template';
 export * from './invoice';
+export * from './time-entry';

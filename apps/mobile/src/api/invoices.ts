@@ -25,12 +25,29 @@ interface CreateInvoiceInput {
 }
 
 interface UpdateInvoiceInput {
-  status?: 'DRAFT' | 'SENT' | 'PAID';
+  status?: 'DRAFT' | 'SENT' | 'PARTIALLY_PAID' | 'PAID';
   issueDate?: string;
   dueDate?: string;
   notes?: string;
   taxRate?: number;
   lineItems?: CreateInvoiceLineItemInput[];
+}
+
+interface CreatePaymentInput {
+  amount: number;
+  date: string;
+  method: 'CASH' | 'CHECK' | 'BANK_TRANSFER' | 'CREDIT_CARD' | 'OTHER';
+  note?: string;
+}
+
+interface InvoicePayment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  date: string;
+  method: string;
+  note?: string | null;
+  createdAt: string;
 }
 
 export const invoicesApi = {
@@ -61,5 +78,20 @@ export const invoicesApi = {
 
   delete: async (id: string): Promise<void> => {
     await apiClient.delete(`/invoices/${id}`);
+  },
+
+  addPayment: async (invoiceId: string, input: CreatePaymentInput): Promise<Invoice> => {
+    const { data } = await apiClient.post(`/invoices/${invoiceId}/payments`, input);
+    return data;
+  },
+
+  getPayments: async (invoiceId: string): Promise<InvoicePayment[]> => {
+    const { data } = await apiClient.get(`/invoices/${invoiceId}/payments`);
+    return data;
+  },
+
+  removePayment: async (invoiceId: string, paymentId: string): Promise<Invoice> => {
+    const { data } = await apiClient.delete(`/invoices/${invoiceId}/payments/${paymentId}`);
+    return data;
   },
 };

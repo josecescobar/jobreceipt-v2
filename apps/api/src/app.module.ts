@@ -14,6 +14,7 @@ import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { RecurringExpensesModule } from './modules/recurring-expenses/recurring-expenses.module';
 import { ExpenseTemplatesModule } from './modules/expense-templates/expense-templates.module';
 import { InvoicesModule } from './modules/invoices/invoices.module';
+import { TimeTrackingModule } from './modules/time-tracking/time-tracking.module';
 
 @Module({
   controllers: [AppController],
@@ -32,6 +33,7 @@ import { InvoicesModule } from './modules/invoices/invoices.module';
     RecurringExpensesModule,
     ExpenseTemplatesModule,
     InvoicesModule,
+    TimeTrackingModule,
   ],
 })
 export class AppModule {}

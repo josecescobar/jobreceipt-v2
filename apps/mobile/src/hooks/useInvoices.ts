@@ -55,14 +55,19 @@ export function useUpdateInvoice() {
 export function useUnpaidInvoiceSummary() {
   const { data: draftData, isLoading: draftLoading } = useInvoices({ status: 'DRAFT' });
   const { data: sentData, isLoading: sentLoading } = useInvoices({ status: 'SENT' });
+  const { data: partialData, isLoading: partialLoading } = useInvoices({ status: 'PARTIALLY_PAID' });
 
   const drafts = (draftData as any)?.data ?? [];
   const sents = (sentData as any)?.data ?? [];
-  const all = [...drafts, ...sents];
+  const partials = (partialData as any)?.data ?? [];
+  const all = [...drafts, ...sents, ...partials];
   const count = all.length;
-  const total = all.reduce((sum: number, inv: any) => sum + (inv.total ?? 0), 0);
+  const total = all.reduce(
+    (sum: number, inv: any) => sum + ((inv.total ?? 0) - (inv.paidAmount ?? 0)),
+    0,
+  );
 
-  return { count, total, isLoading: draftLoading || sentLoading };
+  return { count, total, isLoading: draftLoading || sentLoading || partialLoading };
 }
 
 export function useDeleteInvoice() {
@@ -70,6 +75,44 @@ export function useDeleteInvoice() {
   return useMutation({
     mutationFn: (id: string) => invoicesApi.delete(id),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+  });
+}
+
+export function useAddPayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      payment,
+    }: {
+      invoiceId: string;
+      payment: Parameters<typeof invoicesApi.addPayment>[1];
+    }) => invoicesApi.addPayment(invoiceId, payment),
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.setQueryData(invoiceKeys.detail(data.id), data);
+      }
+      queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
+    },
+  });
+}
+
+export function useRemovePayment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      invoiceId,
+      paymentId,
+    }: {
+      invoiceId: string;
+      paymentId: string;
+    }) => invoicesApi.removePayment(invoiceId, paymentId),
+    onSuccess: (data) => {
+      if (data) {
+        queryClient.setQueryData(invoiceKeys.detail(data.id), data);
+      }
       queryClient.invalidateQueries({ queryKey: invoiceKeys.lists() });
     },
   });
