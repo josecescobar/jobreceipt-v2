@@ -465,7 +465,7 @@ export default function ReceiptDetailScreen() {
                   <TouchableOpacity
                     key={exp.id}
                     activeOpacity={0.7}
-                    onPress={() => router.push(`/expense/edit/${exp.id}`)}
+                    onPress={() => router.push(`/expense/${exp.id}`)}
                   >
                     <Card style={styles.linkedCard}>
                       <View style={styles.linkedRow}>

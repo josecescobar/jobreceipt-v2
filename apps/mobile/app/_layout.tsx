@@ -17,6 +17,8 @@ import { setQueryClient } from '../src/lib/query-client';
 import { setTokenGetter } from '../src/api/client';
 import { offlineQueue } from '../src/lib/offline-queue';
 import { useNotifications } from '../src/hooks/useNotifications';
+import { useReceiptUpload } from '../src/hooks/useReceiptUpload';
+import { useNetworkStatus } from '../src/hooks/useNetworkStatus';
 import { ThemeProvider, useTheme } from '../src/theme';
 import { ErrorBoundary, ToastContainer } from '../src/components/ui';
 
@@ -65,6 +67,10 @@ function TokenInjector({ children }: { children: React.ReactNode }) {
   }, []);
 
   useNotifications();
+
+  // Wire receipt upload replay on reconnect
+  const { upload } = useReceiptUpload();
+  useNetworkStatus(upload);
 
   return <>{children}</>;
 }
