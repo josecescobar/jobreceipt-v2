@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import { ReceiptOcrProcessor } from '../../src/queue/receipt-ocr.processor';
 import { PrismaService } from '../../src/prisma/prisma.service';
 import { S3Service } from '../../src/common/services/s3.service';
+import { NotificationService } from '../../src/common/services/notification.service';
 import { JobSuggestionService } from '../../src/modules/receipts/job-suggestion.service';
+import { ReceiptsService } from '../../src/modules/receipts/receipts.service';
 
 describe('ReceiptOcrProcessor', () => {
   let processor: ReceiptOcrProcessor;
@@ -20,10 +22,21 @@ describe('ReceiptOcrProcessor', () => {
 
   const mockS3Service = {
     generateDownloadUrl: jest.fn(),
+    deleteObject: jest.fn(),
+  };
+
+  const mockNotificationService = {
+    sendPushNotification: jest.fn(),
+    notifyUser: jest.fn(),
   };
 
   const mockJobSuggestion = {
     suggestJob: jest.fn(),
+  };
+
+  const mockReceiptsService = {
+    findOne: jest.fn(),
+    update: jest.fn(),
   };
 
   const mockConfigService = {
@@ -45,7 +58,9 @@ describe('ReceiptOcrProcessor', () => {
         ReceiptOcrProcessor,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: S3Service, useValue: mockS3Service },
+        { provide: NotificationService, useValue: mockNotificationService },
         { provide: JobSuggestionService, useValue: mockJobSuggestion },
+        { provide: ReceiptsService, useValue: mockReceiptsService },
         { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();

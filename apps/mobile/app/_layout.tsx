@@ -4,7 +4,12 @@ import { StatusBar } from 'expo-status-bar';
 import { ClerkProvider, ClerkLoaded, useAuth } from '@clerk/clerk-expo';
 import { QueryClient } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { GestureHandlerRootView as GestureHandlerRootViewBase } from 'react-native-gesture-handler';
+import type { StyleProp, ViewStyle } from 'react-native';
+const GestureHandlerRootView = GestureHandlerRootViewBase as React.ComponentType<{
+  style?: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
+}>;
 import * as SecureStore from 'expo-secure-store';
 import { CLERK_PUBLISHABLE_KEY, QUERY_STALE_TIME } from '../src/lib/constants';
 import { asyncStoragePersister, QUERY_CACHE_BUSTER } from '../src/lib/query-persister';

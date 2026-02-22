@@ -10,6 +10,9 @@ describe('JobSuggestionService', () => {
     job: {
       findMany: jest.fn(),
     },
+    expense: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
   };
 
   beforeEach(async () => {
@@ -64,6 +67,7 @@ describe('JobSuggestionService', () => {
         expenses: [],
       },
     ]);
+    mockPrisma.expense.findMany.mockResolvedValue([]);
 
     const result = await service.suggestJob('org-1', 'receipt-1', {
       merchant: { name: 'Home Depot', address: '456 Oak Ave, Anytown, WV' },
@@ -125,6 +129,7 @@ describe('JobSuggestionService', () => {
         expenses: [],
       },
     ]);
+    mockPrisma.expense.findMany.mockResolvedValue([]);
 
     const result = await service.suggestJob('org-1', 'receipt-1', {
       merchant: { name: 'Home Depot' },
@@ -158,6 +163,7 @@ describe('JobSuggestionService', () => {
         ],
       },
     ]);
+    mockPrisma.expense.findMany.mockResolvedValue([]);
 
     const result = await service.suggestJob('org-1', 'receipt-1', {
       merchant: { name: 'Home Depot', address: '456 Oak Ave, Anytown, WV' },

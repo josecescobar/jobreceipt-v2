@@ -129,7 +129,7 @@ export default function ExpensesScreen() {
           <ExpenseCard
             expense={item}
             jobName={item.jobId ? jobNameMap[item.jobId] : undefined}
-            onPress={() => router.push(`/expense/edit/${item.id}`)}
+            onPress={() => router.push(`/expense/${item.id}`)}
             selectionMode={expenseSelectionMode}
             selected={selectedExpenseIds.includes(item.id)}
             onLongPress={() => handleLongPress(item.id)}
