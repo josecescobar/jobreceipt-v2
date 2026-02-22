@@ -108,4 +108,68 @@ class OfflineQueue {
   }
 }
 
+
+// ─── Pending receipt uploads (image URIs stored for replay) ─────────────────
+// Receipt upload is a 3-step flow (presigned URL → S3 → confirm) that cannot
+// be queued as a simple REST call. Instead we store the image URI and replay
+// the full upload flow when connectivity is restored.
+
+const PENDING_RECEIPT_UPLOADS_KEY = '@jobreceipt/pending_receipt_uploads';
+
+export interface PendingReceiptUpload {
+  id: string;
+  uri: string;
+  createdAt: number;
+}
+
+export async function enqueuePendingUpload(uri: string): Promise<string> {
+  const raw = await AsyncStorage.getItem(PENDING_RECEIPT_UPLOADS_KEY);
+  const queue: PendingReceiptUpload[] = raw ? JSON.parse(raw) : [];
+  const id = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  queue.push({ id, uri, createdAt: Date.now() });
+  await AsyncStorage.setItem(PENDING_RECEIPT_UPLOADS_KEY, JSON.stringify(queue));
+  return id;
+}
+
+export async function getPendingUploads(): Promise<PendingReceiptUpload[]> {
+  const raw = await AsyncStorage.getItem(PENDING_RECEIPT_UPLOADS_KEY);
+  return raw ? JSON.parse(raw) : [];
+}
+
+export async function removePendingUpload(id: string): Promise<void> {
+  const queue = await getPendingUploads();
+  const updated = queue.filter((item) => item.id !== id);
+  await AsyncStorage.setItem(PENDING_RECEIPT_UPLOADS_KEY, JSON.stringify(updated));
+}
+
+export async function clearAllPendingUploads(): Promise<void> {
+  await AsyncStorage.removeItem(PENDING_RECEIPT_UPLOADS_KEY);
+}
+
+/**
+ * Replay all pending receipt uploads.
+ * The caller provides the upload function (from useReceiptUpload) to avoid
+ * circular dependencies between hooks and this module.
+ *
+ * @param uploadFn - async (uri: string) => receiptId | undefined
+ */
+export async function replayPendingUploads(
+  uploadFn: (uri: string) => Promise<string | undefined>,
+): Promise<void> {
+  const netState = await NetInfo.fetch();
+  if (!netState.isConnected) return;
+
+  const queue = await getPendingUploads();
+  if (queue.length === 0) return;
+
+  for (const item of queue) {
+    try {
+      await uploadFn(item.uri);
+      await removePendingUpload(item.id);
+    } catch {
+      // Upload still failed — leave in queue for next reconnect attempt
+    }
+  }
+}
+
 export const offlineQueue = new OfflineQueue();

@@ -47,8 +47,8 @@ export const receiptsApi = {
     }
   },
 
-  confirmUpload: async (imageKey: string): Promise<Receipt> => {
-    const { data } = await apiClient.post('/receipts/upload/confirm', { imageKey });
+  confirmUpload: async (receiptId: string, imageKey: string): Promise<Receipt> => {
+    const { data } = await apiClient.post('/receipts/upload/confirm', { receiptId, imageKey });
     return data;
   },
 

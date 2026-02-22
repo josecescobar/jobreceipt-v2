@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import NetInfo from '@react-native-community/netinfo';
-import { offlineQueue } from '../lib/offline-queue';
+import { offlineQueue, replayPendingUploads } from '../lib/offline-queue';
 import { getQueryClient } from '../lib/query-client';
 import { useUIStore } from '../stores/ui.store';
 
-export function useNetworkStatus() {
+export function useNetworkStatus(receiptUploadFn?: (uri: string) => Promise<string | undefined>) {
   const [isConnected, setIsConnected] = useState(true);
   const [pendingActions, setPendingActions] = useState(0);
   const wasConnected = useRef(true);
@@ -54,6 +54,12 @@ export function useNetworkStatus() {
           type: 'info',
           duration: 2000,
         });
+        // Replay any pending receipt uploads
+        if (receiptUploadFn) {
+          replayPendingUploads(receiptUploadFn).catch(() => {
+            // Replay errors are non-fatal — will retry on next reconnect
+          });
+        }
       }
 
       wasConnected.current = connected;

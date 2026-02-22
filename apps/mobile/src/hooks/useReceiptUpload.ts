@@ -97,7 +97,7 @@ export function useReceiptUpload() {
       setState((s) => ({ ...s, status: 'confirming' }));
       updateUpload(uploadId, { status: 'confirming', receiptId });
 
-      await receiptsApi.confirmUpload(imageKey);
+      await receiptsApi.confirmUpload(receiptId, imageKey);
 
       // Done
       setState({ status: 'done', receiptId, error: null });

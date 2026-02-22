@@ -87,7 +87,9 @@ export default function EditReceiptScreen() {
           merchantName: merchantName.trim() || undefined,
           totalAmount: totalCents ?? undefined,
           taxAmount: taxCents ?? undefined,
-          transactionDate: transactionDate || undefined,
+          transactionDate: transactionDate
+            ? (transactionDate.length === 10 ? `${transactionDate}T00:00:00.000Z` : transactionDate)
+            : undefined,
           suggestedJobId: jobId || undefined,
         },
       });

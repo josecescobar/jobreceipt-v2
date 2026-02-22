@@ -6,6 +6,7 @@ export const RequestUploadUrlSchema = z.object({
 });
 
 export const ConfirmUploadSchema = z.object({
+  receiptId: z.string().min(1),
   imageKey: z.string().min(1),
 });
 

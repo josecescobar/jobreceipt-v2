@@ -8,6 +8,8 @@ import { CameraViewfinder, RecentReceiptsStrip } from '../src/components/camera'
 import { Button } from '../src/components/ui';
 import { Screen, Header } from '../src/components/layout';
 import { useReceiptUpload } from '../src/hooks/useReceiptUpload';
+import { enqueuePendingUpload } from '../src/lib/offline-queue';
+import { useUIStore } from '../src/stores/ui.store';
 import { useTheme, type ThemeColors, spacing, borderRadius } from '../src/theme';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -22,6 +24,7 @@ export default function CaptureScreen() {
   const { colors } = useTheme();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const { upload, isUploading, status, error, reset } = useReceiptUpload();
+  const addToast = useUIStore((s) => s.addToast);
   const [previewUri, setPreviewUri] = useState<string | null>(null);
   const [pendingUris, setPendingUris] = useState<string[]>([]);
   const [uploadedReceipts, setUploadedReceipts] = useState<UploadedReceipt[]>([]);
@@ -70,8 +73,23 @@ export default function CaptureScreen() {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
           }
         }
-      } catch {
-        // Error state handled by hook
+      } catch (err: unknown) {
+        // Check for network error — enqueue for offline replay
+        const isNetworkError =
+          err != null &&
+          typeof err === 'object' &&
+          'response' in err === false &&
+          !('status' in err);
+        if (isNetworkError) {
+          await enqueuePendingUpload(uri);
+          addToast({
+            id: `offline_upload_${Date.now()}`,
+            message: 'Receipt saved offline — will upload when back online',
+            type: 'info',
+          });
+          router.replace('/(tabs)/receipts');
+        }
+        // Other errors handled by hook (error state shown in UI)
       }
     }
   }, [pendingUris, upload, router]);
