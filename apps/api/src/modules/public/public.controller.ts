@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Param, Res, Header } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Response } from 'express';
 import { PublicService } from './public.service';
 import { InvoiceReportService } from '../invoices/invoice-report.service';
@@ -7,6 +8,7 @@ import { EstimateReportService } from '../estimates/estimate-report.service';
 
 @ApiTags('Public')
 @Controller('public')
+@Throttle([{ ttl: 60_000, limit: 20 }])
 export class PublicController {
   constructor(
     private readonly publicService: PublicService,

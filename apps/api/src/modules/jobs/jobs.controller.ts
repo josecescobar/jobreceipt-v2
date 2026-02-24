@@ -21,6 +21,8 @@ import { ReportService } from './report.service';
 import { CreateJobDto } from './dto/create-job.dto';
 import { UpdateJobDto } from './dto/update-job.dto';
 import { QueryJobDto } from './dto/query-job.dto';
+import { CreatePhotoDto } from './dto/create-photo.dto';
+import { UpdatePhotoAnnotationsDto } from './dto/update-photo-annotations.dto';
 
 @ApiTags('Jobs')
 @Controller('jobs')
@@ -70,7 +72,7 @@ export class JobsController {
     @CurrentOrg() orgId: string,
     @CurrentUser('id') userId: string,
     @Param('id') id: string,
-    @Body() body: { imageKey: string; caption?: string },
+    @Body() body: CreatePhotoDto,
   ) {
     return this.jobsService.createPhoto(orgId, id, userId, body.imageKey, body.caption);
   }
@@ -90,7 +92,7 @@ export class JobsController {
     @CurrentOrg() orgId: string,
     @Param('id') id: string,
     @Param('photoId') photoId: string,
-    @Body() body: { annotations: any[]; annotatedImageKey?: string },
+    @Body() body: UpdatePhotoAnnotationsDto,
   ) {
     return this.jobsService.updatePhotoAnnotations(
       orgId,

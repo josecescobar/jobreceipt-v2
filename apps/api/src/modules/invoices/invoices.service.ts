@@ -73,7 +73,7 @@ export class InvoicesService {
     const taxRate = data.taxRate ?? 0;
     const { subtotal, taxAmount, total } = this.computeTotals(data.lineItems, taxRate);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const invoice = await tx.invoice.create({
         data: {
           organization: { connect: { id: orgId } },
@@ -152,7 +152,7 @@ export class InvoicesService {
   async update(orgId: string, id: string, data: UpdateInvoiceData) {
     const existing = await this.findOne(orgId, id);
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       const updateData: any = {};
       if (data.status !== undefined) updateData.status = data.status;
       if (data.issueDate !== undefined) updateData.issueDate = new Date(data.issueDate);
@@ -240,7 +240,7 @@ export class InvoicesService {
       );
     }
 
-    const result = await this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx: any) => {
       await tx.invoicePayment.create({
         data: {
           invoiceId,
@@ -298,7 +298,7 @@ export class InvoicesService {
     });
     if (!payment) throw new NotFoundException('Payment not found');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: any) => {
       await tx.invoicePayment.delete({ where: { id: paymentId } });
 
       const newPaidAmount = invoice.paidAmount - payment.amount;
@@ -387,7 +387,7 @@ export class InvoicesService {
     return {
       totalOverdue,
       totalOutstanding,
-      overdueCount: overdueInvoices.filter((inv) => {
+      overdueCount: overdueInvoices.filter((inv: any) => {
         const days = Math.floor(
           (now.getTime() - new Date(inv.dueDate!).getTime()) / (1000 * 60 * 60 * 24),
         );

@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { useUser } from '@clerk/clerk-expo';
 import { Screen } from '../../src/components/layout';
-import { Card, ProgressBar } from '../../src/components/ui';
+import { Card, ProgressBar, ErrorBoundary } from '../../src/components/ui';
 import {
   QuickActionGrid,
   ActivityFeed,
@@ -808,7 +808,12 @@ export default function HomeScreen() {
           .filter((section) => section.visible)
           .map((section) => {
             const render = SECTION_RENDERERS[section.id];
-            return render ? render() : null;
+            if (!render) return null;
+            return (
+              <ErrorBoundary key={section.id} fallbackTitle={`Couldn't load ${section.id}`}>
+                {render()}
+              </ErrorBoundary>
+            );
           })}
 
         <View style={styles.bottomSpacer} />
