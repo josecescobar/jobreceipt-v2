@@ -8,7 +8,7 @@ import { EstimateReportService } from '../estimates/estimate-report.service';
 
 @ApiTags('Public')
 @Controller('public')
-@Throttle([{ ttl: 60_000, limit: 20 }])
+@Throttle({ default: { ttl: 60_000, limit: 20 } })
 export class PublicController {
   constructor(
     private readonly publicService: PublicService,
