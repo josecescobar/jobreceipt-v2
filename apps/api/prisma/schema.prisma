@@ -1,0 +1,309 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  BOOKKEEPER
+  CREW
+}
+
+enum PlanTier {
+  FREE
+  PRO
+  CREW
+}
+
+enum JobStatus {
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum ReceiptStatus {
+  PROCESSING
+  REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum CostCodeCategory {
+  MATERIALS
+  LABOR
+  EQUIPMENT
+  SUBCONTRACTOR
+  OVERHEAD
+}
+
+model User {
+  id               String               @id @default(cuid())
+  clerkId          String               @unique
+  email            String               @unique
+  name             String?
+  phone            String?
+  role             UserRole             @default(OWNER)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  memberships      OrganizationMember[]
+  organizationsOwned Organization[]     @relation("OrganizationOwner")
+  uploadedReceipts Receipt[]            @relation("UploadedReceipts")
+  createdExpenses  Expense[]            @relation("CreatedExpenses")
+  approvedExpenses Expense[]            @relation("ApprovedExpenses")
+  mileageTrips     MileageTrip[]
+}
+
+model Organization {
+  id                  String               @id @default(cuid())
+  name                String
+  slug                String               @unique
+  ownerId             String
+  plan                PlanTier             @default(FREE)
+  stripeCustomerId    String?
+  qbRealmId           String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+
+  owner               User                 @relation("OrganizationOwner", fields: [ownerId], references: [id])
+  members             OrganizationMember[]
+  jobs                Job[]
+  costCodes           CostCode[]
+  receipts            Receipt[]
+  expenses            Expense[]
+  budgetSnapshots     BudgetSnapshot[]
+  mileageTrips        MileageTrip[]
+  quickBooksConnection QuickBooksConnection?
+  syncLogs            SyncLog[]
+
+  @@index([ownerId])
+}
+
+model OrganizationMember {
+  id             String        @id @default(cuid())
+  organizationId String
+  userId         String
+  role           UserRole
+  invitedAt      DateTime      @default(now())
+  acceptedAt     DateTime?
+
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  user           User          @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model Job {
+  id                   String        @id @default(cuid())
+  organizationId       String
+  name                 String
+  customerName         String?
+  customerAddress      String?
+  customerLat          Float?
+  customerLng          Float?
+  status               JobStatus     @default(ACTIVE)
+  budgetTotalCents     Int           @default(0)
+  budgetMaterialsCents Int           @default(0)
+  budgetLaborCents     Int           @default(0)
+  startDate            DateTime?
+  endDate              DateTime?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  organization         Organization  @relation(fields: [organizationId], references: [id])
+  expenses             Expense[]
+  receiptLineItems     ReceiptLineItem[]
+  suggestedReceipts    Receipt[]     @relation("SuggestedJob")
+  mileageTrips         MileageTrip[]
+  budgetSnapshots      BudgetSnapshot[]
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+}
+
+model CostCode {
+  id             String            @id @default(cuid())
+  organizationId String
+  code           String
+  name           String
+  category       CostCodeCategory
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization   Organization      @relation(fields: [organizationId], references: [id])
+  receiptLineItems ReceiptLineItem[]
+  expenses       Expense[]
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+}
+
+model Receipt {
+  id                String         @id @default(cuid())
+  organizationId    String
+  uploadedById      String
+  imageUrl          String
+  thumbnailUrl      String?
+  status            ReceiptStatus  @default(PROCESSING)
+  ocrRawJson        Json?
+  merchantName      String?
+  merchantAddress   String?
+  subtotalCents     Int?
+  taxAmountCents    Int?
+  totalAmountCents  Int?
+  transactionDate   DateTime?
+  currency          String         @default("USD")
+  confidenceScore   Int?
+  processedAt       DateTime?
+  suggestedJobId    String?
+  suggestedScore    Int?
+  suggestedReasons  Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  organization      Organization   @relation(fields: [organizationId], references: [id])
+  uploadedBy        User           @relation("UploadedReceipts", fields: [uploadedById], references: [id])
+  lineItems         ReceiptLineItem[]
+  expenses          Expense[]
+  suggestedJob      Job?           @relation("SuggestedJob", fields: [suggestedJobId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, status])
+  @@index([organizationId, transactionDate])
+}
+
+model ReceiptLineItem {
+  id                      String      @id @default(cuid())
+  receiptId               String
+  description             String
+  sku                     String?
+  quantity                Float       @default(1)
+  unitPriceCents          Int
+  totalPriceCents         Int
+  isConstructionMaterial  Boolean     @default(false)
+  materialCategory        String?
+  costCodeId              String?
+  jobId                   String?
+  createdAt               DateTime    @default(now())
+  updatedAt               DateTime    @updatedAt
+
+  receipt                 Receipt     @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  costCode                CostCode?   @relation(fields: [costCodeId], references: [id])
+  job                     Job?        @relation(fields: [jobId], references: [id])
+
+  @@index([receiptId])
+  @@index([jobId])
+  @@index([costCodeId])
+}
+
+model Expense {
+  id              String      @id @default(cuid())
+  organizationId  String
+  receiptId       String?
+  jobId           String
+  costCodeId      String?
+  amountCents     Int
+  description     String
+  category        String?
+  taxCategory     String?
+  mileageMiles    Float?
+  date            DateTime
+  createdById     String
+  approvedById    String?
+  approvedAt      DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  receipt         Receipt?     @relation(fields: [receiptId], references: [id])
+  job             Job          @relation(fields: [jobId], references: [id])
+  costCode        CostCode?    @relation(fields: [costCodeId], references: [id])
+  createdBy       User         @relation("CreatedExpenses", fields: [createdById], references: [id])
+  approvedBy      User?        @relation("ApprovedExpenses", fields: [approvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, jobId])
+  @@index([date])
+}
+
+model BudgetSnapshot {
+  id                    String        @id @default(cuid())
+  organizationId        String
+  jobId                 String
+  totalBudgetCents      Int
+  totalSpentCents       Int
+  totalRemainingCents   Int
+  materialsBudgetCents  Int
+  materialsSpentCents   Int
+  laborBudgetCents      Int
+  laborSpentCents       Int
+  snapshotDate          DateTime      @default(now())
+
+  organization          Organization  @relation(fields: [organizationId], references: [id])
+  job                   Job           @relation(fields: [jobId], references: [id])
+
+  @@index([organizationId])
+  @@index([jobId, snapshotDate])
+}
+
+model MileageTrip {
+  id              String        @id @default(cuid())
+  organizationId  String
+  jobId           String?
+  userId          String
+  startLat        Float?
+  startLng        Float?
+  endLat          Float?
+  endLng          Float?
+  distanceMiles   Float
+  irsRateCents    Int           @default(70)
+  totalDeductionCents Int
+  date            DateTime
+  purpose         String?
+
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+  job             Job?          @relation(fields: [jobId], references: [id])
+  user            User          @relation(fields: [userId], references: [id])
+
+  @@index([organizationId])
+  @@index([organizationId, date])
+}
+
+model QuickBooksConnection {
+  id              String        @id @default(cuid())
+  organizationId  String        @unique
+  realmId         String
+  accessToken     String
+  refreshToken    String
+  tokenExpiresAt  DateTime
+  lastSyncAt      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+}
+
+model SyncLog {
+  id              String        @id @default(cuid())
+  organizationId  String
+  entityType      String
+  entityId        String
+  qbId            String?
+  syncDirection   String
+  status          String
+  errorMessage    String?
+  syncedAt        DateTime      @default(now())
+
+  organization    Organization  @relation(fields: [organizationId], references: [id])
+
+  @@index([organizationId])
+  @@index([entityType, entityId])
+}
